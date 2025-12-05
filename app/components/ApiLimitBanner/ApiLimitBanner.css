@@ -1,0 +1,197 @@
+.api-limit-banner {
+  background: linear-gradient(135deg, #fff3cd 0%, #fff8e1 100%);
+  border: 1px solid #ffecb5;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin: 12px 0;
+  box-shadow: 0 2px 8px rgba(255, 200, 0, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.banner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.banner-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #856404;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.banner-icon {
+  flex-shrink: 0;
+  color: #ff9800;
+  width: 18px;
+  height: 18px;
+}
+
+.banner-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  transition: color 0.2s ease;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.banner-close:hover {
+  color: #666;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.banner-close:focus {
+  outline: 2px solid #ff9800;
+  outline-offset: 2px;
+}
+
+.banner-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.usage-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 80px;
+}
+
+.usage-label {
+  color: #666;
+  font-weight: 500;
+}
+
+.usage-count {
+  color: #856404;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.progress-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 100px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 5px;
+  background: #e8e8e8;
+  border-radius: 2.5px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff9800 0%, #ff4757 100%);
+  border-radius: 2.5px;
+}
+
+.progress-percent {
+  font-size: 12px;
+  color: #856404;
+  font-weight: 600;
+  min-width: 30px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.reset-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 90px;
+}
+
+.reset-label {
+  color: #999;
+}
+
+.reset-time {
+  color: #856404;
+  font-weight: 600;
+}
+
+/* 비활성화된 계정 스타일 */
+.api-limit-banner.deactivated {
+  background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+  border-color: #ef9a9a;
+  box-shadow: 0 2px 8px rgba(244, 67, 54, 0.1);
+}
+
+.api-limit-banner.deactivated .banner-title {
+  color: #c62828;
+}
+
+.api-limit-banner.deactivated .banner-icon {
+  color: #f44336;
+}
+
+.api-limit-banner.deactivated .reset-label {
+  color: #d32f2f;
+  font-weight: 500;
+}
+
+/* 다크 모드 지원 (향후) */
+@media (prefers-color-scheme: dark) {
+  .api-limit-banner {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.15) 0%, rgba(255, 152, 0, 0.1) 100%);
+    border-color: rgba(255, 193, 7, 0.3);
+  }
+
+  .banner-title {
+    color: #ffa500;
+  }
+
+  .usage-count {
+    color: #ffb74d;
+  }
+
+  .progress-percent {
+    color: #ffb74d;
+  }
+
+  .reset-time {
+    color: #ffb74d;
+  }
+
+  .api-limit-banner.deactivated {
+    background: linear-gradient(135deg, rgba(244, 67, 54, 0.15) 0%, rgba(229, 57, 53, 0.1) 100%);
+    border-color: rgba(244, 67, 54, 0.3);
+  }
+
+  .api-limit-banner.deactivated .banner-title {
+    color: #ff6b6b;
+  }
+
+  .api-limit-banner.deactivated .reset-label {
+    color: #ff6b6b;
+  }
+}

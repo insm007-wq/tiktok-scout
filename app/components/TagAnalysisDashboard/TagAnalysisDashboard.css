@@ -1,0 +1,108 @@
+.tag-analysis-dashboard {
+  background-color: white;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+  margin-left: 20px;
+  margin-right: 20px;
+  display: none;
+}
+
+.tag-analysis-dashboard.active {
+  display: block;
+}
+
+.tag-analysis-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tag-analysis-toggle {
+  font-size: 12px;
+  cursor: pointer;
+  padding: 6px 12px;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  color: #666;
+  transition: all 0.2s ease;
+}
+
+.tag-analysis-toggle:hover {
+  background-color: #efefef;
+  border-color: #ccc;
+}
+
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.tag-item {
+  background-color: #f0f0f0;
+  color: #333;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tag-item:hover {
+  background-color: #e8e8e8;
+  border-color: #bbb;
+  transform: scale(1.05);
+}
+
+.tag-frequency {
+  font-weight: 600;
+  color: #4caf50;
+}
+
+.tag-stats-table-wrapper {
+  display: none;
+}
+
+.tag-stats-table-wrapper.active {
+  display: block;
+}
+
+.tag-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.tag-stats-table thead {
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+}
+
+.tag-stats-table th {
+  padding: 10px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+}
+
+.tag-stats-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f0f0f0;
+  color: #666;
+}
+
+.tag-stats-table tbody tr:hover {
+  background-color: #fafafa;
+}
