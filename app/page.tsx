@@ -29,15 +29,15 @@ export default function Home() {
               isRefreshing ? styles.titleRefresh : ""
             }`}
           >
-            유튜브 스카우트
+TikTok Scout
           </h1>
           <div className="h-1.5 w-24 bg-gradient-to-r from-sky-500 to-violet-500 mx-auto rounded-full"></div>
         </div>
 
         {/* 부제목 */}
-        <p className="text-2xl md:text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-3">YouTube 영상 분석의 새로운 기준</p>
+        <p className="text-2xl md:text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-3">TikTok 영상 분석의 새로운 기준</p>
         <p className="text-lg text-slate-600 dark:text-slate-300 mb-16 leading-relaxed font-medium">
-          고급 검색 필터와 실시간 통계로 콘텐츠 트렌드를 빠르게 파악하세요
+          고급 검색 필터와 실시간 통계로 트렌드를 빠르게 파악하세요
         </p>
 
         {/* 주요 기능 카드 */}
@@ -112,17 +112,6 @@ export default function Home() {
           >
             지금 시작하기
           </Link>
-
-          {/* 로그인 링크 */}
-          <p className="text-slate-600 dark:text-slate-400 font-medium">
-            이미 계정이 있나요?{" "}
-            <Link
-              href="/login"
-              className="text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 font-semibold transition-colors"
-            >
-              로그인
-            </Link>
-          </p>
         </div>
       </div>
 

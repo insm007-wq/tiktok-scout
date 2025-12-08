@@ -1,54 +1,43 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { useSession, signOut } from "next-auth/react";
-import { AnimatePresence } from "framer-motion";
 import { LayoutGrid, Table2, Download } from "lucide-react";
-import SearchResults from "@/app/components/SearchResults/SearchResults";
-import PeriodFilter from "@/app/components/Filters/PeriodFilter/PeriodFilter";
-import VideoLengthFilter from "@/app/components/Filters/VideoLengthFilter/VideoLengthFilter";
-import EngagementRatioFilter from "@/app/components/Filters/EngagementRatioFilter/EngagementRatioFilter";
-import CommentsModal from "@/app/components/CommentsModal/CommentsModal";
-import ChannelModal from "@/app/components/ChannelModal/ChannelModal";
-import ApiLimitBanner from "@/app/components/ApiLimitBanner/ApiLimitBanner";
+import Spinner from "@/app/components/ui/Spinner";
 import "./search.css";
 
-interface Comment {
-  author: string;
-  text: string;
-  likes: number;
-  replies: number;
+type Platform = "tiktok" | "douyin" | "xiaohongshu";
+
+interface Video {
+  id: string;
+  title: string;
+  description: string;
+  creator: string;
+  creatorUrl?: string;
+  playCount: number;
+  likeCount: number;
+  commentCount: number;
+  shareCount: number;
+  createTime: number;
+  videoDuration: number;
+  hashtags: string[];
+  thumbnail?: string;
+  videoUrl?: string;
+  webVideoUrl?: string;
 }
 
-interface User {
-  id?: string;
-  name?: string | null;
-  email?: string | null;
-  image?: string | null;
-  provider?: string;
-}
-
-interface ApiLimitError {
-  message: string;
-  used?: number;
-  limit?: number;
-  remaining?: number;
-  resetTime?: string;
-  deactivated?: boolean;
-}
-
-export default function Search({ user, signOut }: { user?: User; signOut?: (options?: any) => void }) {
+export default function Search() {
   const [searchInput, setSearchInput] = useState("");
-  const [uploadPeriod, setUploadPeriod] = useState("all");
-  const [videoLength, setVideoLength] = useState("all");
-  const [engagementRatios, setEngagementRatios] = useState<string[]>(["4", "5"]);
+  const [platform, setPlatform] = useState<Platform>("tiktok");
   const [isLoading, setIsLoading] = useState(false);
-  const [allResults, setAllResults] = useState<any[]>([]);
-  const [totalResults, setTotalResults] = useState(0);
+  const [videos, setVideos] = useState<Video[]>([]);
   const [viewMode, setViewMode] = useState<"card" | "table">("card");
-  const [sortBy, setSortBy] = useState("relevance");
+  const [sortBy, setSortBy] = useState("plays");
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [isTitleRefreshing, setIsTitleRefreshing] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(350);
+  const [isResizing, setIsResizing] = useState(false);
+  const [error, setError] = useState("");
+  const resizeRef = useRef<HTMLDivElement>(null);
 
   const handleTitleClick = () => {
     setIsTitleRefreshing(true);
@@ -58,29 +47,9 @@ export default function Search({ user, signOut }: { user?: User; signOut?: (opti
     }, 600);
   };
 
-  // OAuth 제공자별 색상 매핑
-  const getProviderColor = (providerId?: string): string => {
-    if (!providerId) return "#667eea";
-    const provider = providerId.split(":")[0].toLowerCase();
-    const colorMap: { [key: string]: string } = {
-      google: "#4285f4",      // 구글 블루
-      kakao: "#fee500",       // 카카오 옐로우
-      naver: "#00c73c",       // 네이버 그린
-    };
-    return colorMap[provider] || "#667eea";
-  };
-  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
-  const [apiLimitError, setApiLimitError] = useState<ApiLimitError | null>(null);
-  const profileDropdownRef = useRef<HTMLDivElement>(null);
-
-  // 사이드바 너비 조정
-  const [sidebarWidth, setSidebarWidth] = useState<number>(800);
-  const [isResizing, setIsResizing] = useState(false);
-  const resizeRef = useRef<HTMLDivElement>(null);
-
   // 저장된 너비 복원
   useEffect(() => {
-    const savedWidth = localStorage.getItem("youtube-scout-sidebar-width");
+    const savedWidth = localStorage.getItem("tiktok-scout-sidebar-width");
     if (savedWidth) {
       setSidebarWidth(parseInt(savedWidth, 10));
     }
@@ -88,7 +57,7 @@ export default function Search({ user, signOut }: { user?: User; signOut?: (opti
 
   // 검색 히스토리 로드
   useEffect(() => {
-    const savedHistory = localStorage.getItem("youtube-scout-search-history");
+    const savedHistory = localStorage.getItem("tiktok-scout-search-history");
     if (savedHistory) {
       setSearchHistory(JSON.parse(savedHistory));
     }
@@ -100,8 +69,8 @@ export default function Search({ user, signOut }: { user?: User; signOut?: (opti
       if (!isResizing) return;
 
       const newWidth = e.clientX;
-      const minWidth = 420;
-      const maxWidth = 1000;
+      const minWidth = 300;
+      const maxWidth = 600;
 
       if (newWidth >= minWidth && newWidth <= maxWidth) {
         setSidebarWidth(newWidth);
@@ -129,378 +98,87 @@ export default function Search({ user, signOut }: { user?: User; signOut?: (opti
 
   // 너비 변경 시 localStorage에 저장
   useEffect(() => {
-    localStorage.setItem("youtube-scout-sidebar-width", sidebarWidth.toString());
+    localStorage.setItem("tiktok-scout-sidebar-width", sidebarWidth.toString());
   }, [sidebarWidth]);
 
-  // 프로필 드롭다운 닫기 (클릭 외부 감지)
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
-        setProfileDropdownOpen(false);
-      }
-    };
-
-    if (profileDropdownOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [profileDropdownOpen]);
-
-  // 댓글 모달 상태
-  const [showCommentsModal, setShowCommentsModal] = useState(false);
-  const [commentsModalData, setCommentsModalData] = useState({
-    videoTitle: "",
-    comments: [] as Comment[],
-    totalReplies: 0,
-    totalLikes: 0,
-    isLoading: false,
-  });
-
-  // 채널 모달 상태
-  const [showChannelModal, setShowChannelModal] = useState(false);
-  const [channelModalData, setChannelModalData] = useState({
-    channelTitle: "",
-    channelDescription: "",
-    viewCount: 0,
-    subscriberCount: false,
-    subscriberCountValue: 0,
-    videoCount: 0,
-    customUrl: "",
-    channelId: "",
-    isLoading: false,
-  });
-
-  // ✅ 로그아웃 처리 함수 (오프라인 상태 설정)
-  const handleLogout = async () => {
-    try {
-      if (user?.email) {
-        // setUserOffline API 호출
-        await fetch("/api/set-user-offline", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user.email }),
-        })
-      }
-    } catch (error) {
-      console.error("❌ 오프라인 처리 실패:", error)
-    } finally {
-      // signOut 호출
-      signOut?.({ redirectTo: "/" })
-    }
-  }
-
-  // ✅ 브라우저 종료 감지 - 사용자를 오프라인 상태로 변경
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (user?.email) {
-        // sendBeacon 사용하여 브라우저 종료 시에도 요청 보장
-        const blob = new Blob(
-          [JSON.stringify({ email: user.email })],
-          { type: "application/json" }
-        )
-        navigator.sendBeacon("/api/set-user-offline", blob)
-      }
-    }
-
-    window.addEventListener("beforeunload", handleBeforeUnload)
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload)
-    }
-  }, [user?.email])
-
-  // 기간 필터링 함수
-  const filterResultsByPeriod = (items: any[], period: string) => {
-    if (period === "all") return items;
-
-    const now = Date.now();
-    return items.filter((video) => {
-      const publishDate = new Date(video.publishedAt || "").getTime();
-      const daysAgo = (now - publishDate) / (1000 * 60 * 60 * 24);
-
-      // 단기 필터
-      if (period === "3days" && daysAgo > 3) return false;
-      if (period === "5days" && daysAgo > 5) return false;
-      if (period === "7days" && daysAgo > 7) return false;
-      if (period === "10days" && daysAgo > 10) return false;
-
-      // 장기 필터
-      if (period === "1month" && daysAgo > 30) return false;
-      if (period === "2months" && daysAgo > 60) return false;
-      if (period === "6months" && daysAgo > 180) return false;
-      if (period === "1year" && daysAgo > 365) return false;
-
-      return true;
-    });
-  };
-
-  // Engagement 레벨 계산 함수
-  const getEngagementLevel = (ratio: number): number => {
-    if (ratio >= 3.0) return 5;
-    if (ratio >= 1.4) return 4;
-    if (ratio >= 0.6) return 3;
-    if (ratio >= 0.2) return 2;
-    return 1;
-  };
-
-  // 기간, 길이, engagement ratio로 필터링하는 함수
-  const filterResults = (items: any[], period: string, length: string, ratios: string[]) => {
-    let filtered = filterResultsByPeriod(items, period);
-
-    // 길이 필터
-    if (length !== "all") {
-      filtered = filtered.filter((video) => {
-        const durationStr = video.duration || "";
-        // ISO 8601 duration 파싱 (예: PT1H30M45S)
-        const match = durationStr.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-        if (!match) return true;
-
-        const hours = parseInt(match[1] || "0");
-        const minutes = parseInt(match[2] || "0");
-        const seconds = parseInt(match[3] || "0");
-        const totalSeconds = hours * 3600 + minutes * 60 + seconds;
-
-        // 180초(3분)를 기준으로 필터
-        if (length === "short" && totalSeconds > 180) return false;
-        if (length === "long" && totalSeconds <= 180) return false;
-
-        return true;
-      });
-    }
-
-    // Engagement ratio 필터
-    if (ratios.length > 0 && !ratios.includes("all")) {
-      filtered = filtered.filter((video) => {
-        const subscriberCount = video.subscriberCount || 0;
-        const viewCount = video.viewCount || 0;
-
-        if (subscriberCount === 0) return false;
-
-        const ratio = viewCount / subscriberCount;
-        const level = getEngagementLevel(ratio);
-
-        return ratios.includes(level.toString());
-      });
-    }
-
-    return filtered;
-  };
-
-  // 정렬 함수
-  const sortResults = (items: any[], sortOption: string) => {
+  // 영상 정렬 함수
+  const sortVideos = (items: Video[], sortOption: string) => {
     const sorted = [...items];
 
     switch (sortOption) {
-      case "viewCount":
-        sorted.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
+      case "plays":
+        sorted.sort((a, b) => b.playCount - a.playCount);
         break;
-      case "vph":
-        sorted.sort((a, b) => {
-          const vphA = a.subscriberCount > 0 ? a.viewCount / a.subscriberCount : 0;
-          const vphB = b.subscriberCount > 0 ? b.viewCount / b.subscriberCount : 0;
-          return vphB - vphA;
-        });
+      case "likes":
+        sorted.sort((a, b) => b.likeCount - a.likeCount);
         break;
-      case "engagementRatio":
-        sorted.sort((a, b) => {
-          const ratioA = a.subscriberCount > 0 ? a.viewCount / a.subscriberCount : 0;
-          const ratioB = b.subscriberCount > 0 ? b.viewCount / b.subscriberCount : 0;
-          return ratioB - ratioA;
-        });
+      case "comments":
+        sorted.sort((a, b) => b.commentCount - a.commentCount);
         break;
-      case "subscriberCount":
-        sorted.sort((a, b) => (b.subscriberCount || 0) - (a.subscriberCount || 0));
+      case "recent":
+        sorted.sort((a, b) => b.createTime - a.createTime);
         break;
-      case "duration":
-        sorted.sort((a, b) => {
-          const getDurationSeconds = (durationStr: string) => {
-            const match = durationStr.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-            if (!match) return 0;
-            const hours = parseInt(match[1] || "0");
-            const minutes = parseInt(match[2] || "0");
-            const seconds = parseInt(match[3] || "0");
-            return hours * 3600 + minutes * 60 + seconds;
-          };
-          const durationA = getDurationSeconds(a.duration || "");
-          const durationB = getDurationSeconds(b.duration || "");
-          return durationB - durationA;
-        });
-        break;
-      case "likeCount":
-        sorted.sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0));
-        break;
-      case "publishedAt":
-        sorted.sort((a, b) => {
-          const dateA = new Date(a.publishedAt || "").getTime();
-          const dateB = new Date(b.publishedAt || "").getTime();
-          return dateB - dateA;
-        });
-        break;
-      case "relevance":
       default:
-        // relevance: 조회수 + 내림차순
-        sorted.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
+        sorted.sort((a, b) => b.playCount - a.playCount);
         break;
     }
 
     return sorted;
   };
 
-  // 필터링된 결과 계산 (메모이제이션)
-  const results = useMemo(
-    () => {
-      let filtered = filterResults(allResults, uploadPeriod, videoLength, engagementRatios);
-      return sortResults(filtered, sortBy);
-    },
-    [allResults, uploadPeriod, videoLength, engagementRatios, sortBy]
-  );
-
-  // 엑셀 다운로드 함수
-  const handleExcelDownload = () => {
-    if (results.length === 0) {
-      alert("검색 결과가 없습니다");
-      return;
-    }
-
-    // CSV 헤더
-    const csvHeader = ["제목", "채널명", "조회수", "구독자", "조회수/구독자", "단계", "영상길이", "업로드일", "태그", "YouTube링크"];
-    const csvRows: string[][] = [];
-
-    // 데이터 행 생성
-    results.forEach((video) => {
-      const title = video.title;
-      const channel = video.channelTitle;
-      const viewCount = video.viewCount || 0;
-      const subscriberCount = video.subscriberCount || 0;
-      const ratio = subscriberCount > 0 ? (viewCount / subscriberCount).toFixed(2) : "N/A";
-      const level = getEngagementLevel(subscriberCount > 0 ? viewCount / subscriberCount : 0);
-
-      // 길이 포맷팅
-      let durationText = "-";
-      if (video.duration) {
-        const match = video.duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-        if (match) {
-          const hours = parseInt(match[1] || "0");
-          const minutes = parseInt(match[2] || "0");
-          const seconds = parseInt(match[3] || "0");
-          if (hours > 0) {
-            durationText = `${hours}시간 ${minutes}분`;
-          } else if (minutes > 0) {
-            durationText = `${minutes}분 ${seconds}초`;
-          } else {
-            durationText = `${seconds}초`;
-          }
-        }
-      }
-
-      // 업로드 날짜 포맷팅
-      const uploadDate = new Date(video.publishedAt || "").toLocaleDateString("ko-KR");
-
-      // 태그
-      const tags = video.tags ? video.tags.join(";") : "";
-
-      // YouTube 링크
-      const videoLink = `https://www.youtube.com/watch?v=${video.id}`;
-
-      csvRows.push([
-        `"${title.replace(/"/g, '""')}"`,
-        `"${channel.replace(/"/g, '""')}"`,
-        viewCount.toString(),
-        subscriberCount.toString(),
-        ratio,
-        level.toString(),
-        durationText,
-        uploadDate,
-        `"${tags.replace(/"/g, '""')}"`,
-        videoLink,
-      ]);
-    });
-
-    // CSV 문자열 생성
-    const csv = [csvHeader.join(","), ...csvRows.map((row) => row.join(","))].join("\n");
-
-    // 다운로드
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `youtube-search-${new Date().toISOString().split("T")[0]}.csv`);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  const results = useMemo(() => {
+    return sortVideos(videos, sortBy);
+  }, [videos, sortBy]);
 
   const handleSearch = useCallback(async () => {
     if (!searchInput.trim()) {
-      alert("검색어를 입력해주세요");
+      setError("검색어를 입력해주세요");
       return;
     }
 
     // 검색 히스토리 저장
     const newHistory = [searchInput, ...searchHistory.filter(item => item !== searchInput)].slice(0, 10);
     setSearchHistory(newHistory);
-    localStorage.setItem("youtube-scout-search-history", JSON.stringify(newHistory));
+    localStorage.setItem("tiktok-scout-search-history", JSON.stringify(newHistory));
 
     setIsLoading(true);
-    setApiLimitError(null); // 새 검색 시 이전 에러 제거
+    setError("");
+    setVideos([]);
+
     try {
-      const params = new URLSearchParams({
-        q: searchInput,
-        maxResults: "50",
+      // Bright Data API 호출
+      const response = await fetch("/api/brightdata/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: searchInput,
+          platform,
+          limit: 50,
+        }),
       });
 
-      const response = await fetch(`/api/youtube_search?${params}`);
-      const data = await response.json();
-
       if (!response.ok) {
-        // 403 에러: 계정이 비활성화됨
-        if (response.status === 403) {
-          setApiLimitError({
-            message: data.message,
-            deactivated: true,
-          });
-          return;
-        }
-
-        // 429 에러: API 사용 제한 초과
-        if (response.status === 429) {
-          setApiLimitError({
-            message: data.message,
-            used: data.apiUsageToday.used,
-            limit: data.apiUsageToday.limit,
-            remaining: data.apiUsageToday.remaining,
-            resetTime: data.resetTime,
-          });
-          return;
-        }
-
-        // 기타 에러
-        alert(`검색 실패: ${data.error || "알 수 없는 오류"}`);
-        return;
+        const errorData = await response.json();
+        throw new Error(errorData.error || "검색 중 오류가 발생했습니다");
       }
 
-      setAllResults(data.items || []);
-      setTotalResults(data.totalResults || 0);
+      const data = await response.json();
 
-      // ✅ 성공 시 에러 상태 초기화 (이전의 제한 상태를 제거)
-      setApiLimitError(null);
-
-      // ✅ 사용량 정보 로깅
-      if (data.apiUsageToday) {
-        console.log(`✅ 검색 성공 - 사용량: ${data.apiUsageToday.used}/${data.apiUsageToday.limit}`);
-        console.log(`📊 남은 횟수: ${data.apiUsageToday.remaining}회`);
+      if (data.success && data.videos && data.videos.length > 0) {
+        setVideos(data.videos);
+        setError("");
+      } else {
+        setVideos([]);
+        setError(data.error || "검색 결과가 없습니다");
       }
     } catch (error) {
       console.error("검색 오류:", error);
-      alert("검색 중 오류가 발생했습니다");
+      setError(error instanceof Error ? error.message : "검색 중 오류가 발생했습니다");
+      setVideos([]);
     } finally {
       setIsLoading(false);
     }
-  }, [searchInput, searchHistory]);
+  }, [searchInput, platform, searchHistory]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
@@ -508,100 +186,149 @@ export default function Search({ user, signOut }: { user?: User; signOut?: (opti
     }
   };
 
-  // 히스토리 항목 클릭
-  const handleHistoryClick = (keyword: string) => {
+  // 히스토리 항목 클릭 후 자동 검색
+  const handleHistoryClick = useCallback(async (keyword: string) => {
     setSearchInput(keyword);
-  };
+
+    // 검색 히스토리 업데이트
+    const newHistory = [keyword, ...searchHistory.filter(item => item !== keyword)].slice(0, 10);
+    setSearchHistory(newHistory);
+    localStorage.setItem("tiktok-scout-search-history", JSON.stringify(newHistory));
+
+    // 자동 검색 시작
+    setIsLoading(true);
+    setError("");
+    setVideos([]);
+
+    try {
+      const response = await fetch("/api/brightdata/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: keyword,
+          platform,
+          limit: 50,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "검색 중 오류가 발생했습니다");
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.videos && data.videos.length > 0) {
+        setVideos(data.videos);
+        setError("");
+      } else {
+        setVideos([]);
+        setError(data.error || "검색 결과가 없습니다");
+      }
+    } catch (error) {
+      console.error("검색 오류:", error);
+      setError(error instanceof Error ? error.message : "검색 중 오류가 발생했습니다");
+      setVideos([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [platform, searchHistory]);
 
   // 히스토리 항목 삭제
   const handleDeleteHistory = (e: React.MouseEvent, keyword: string) => {
     e.stopPropagation();
     const newHistory = searchHistory.filter(item => item !== keyword);
     setSearchHistory(newHistory);
-    localStorage.setItem("youtube-scout-search-history", JSON.stringify(newHistory));
+    localStorage.setItem("tiktok-scout-search-history", JSON.stringify(newHistory));
   };
 
+  const handleExcelDownload = () => {
+    if (results.length === 0) {
+      setError("검색 결과가 없습니다");
+      return;
+    }
 
-  // 댓글 조회 함수
-  const handleCommentsClick = useCallback(async (videoId: string, videoTitle: string) => {
-    setCommentsModalData((prev) => ({
-      ...prev,
-      isLoading: true,
-      videoTitle,
-    }));
-    setShowCommentsModal(true);
+    const csvHeader = ["제목", "크리에이터", "조회수", "좋아요", "댓글", "공유", "해시태그"];
+    const csvRows: string[][] = [];
+
+    (results as Video[]).forEach((video) => {
+      csvRows.push([
+        `"${video.title.replace(/"/g, '""')}"`,
+        `"${video.creator.replace(/"/g, '""')}"`,
+        video.playCount.toString(),
+        video.likeCount.toString(),
+        video.commentCount.toString(),
+        video.shareCount.toString(),
+        `"${video.hashtags.join(", ")}"`,
+      ]);
+    });
+
+    const csv = [csvHeader.join(","), ...csvRows.map((row) => row.join(","))].join("\n");
+
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${platform}-videos-${new Date().toISOString().split("T")[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // TikTok 앱/웹사이트로 이동
+  const handleOpenTikTok = (video: Video) => {
+    if (video.creatorUrl) {
+      window.open(video.creatorUrl, "_blank");
+    }
+  };
+
+  // 영상 다운로드 (서버 프록시 방식)
+  const handleDownloadVideo = (video: Video) => {
+    if (!video.videoUrl) {
+      alert("영상 다운로드 URL을 사용할 수 없습니다.\n\n💡 다운로드 방법:\n1. TikTok 페이지에서 공유 버튼 클릭\n2. '다운로드' 선택\n\n또는 외부 사이트(예: savettik.com)를 이용해주세요.");
+      if (video.webVideoUrl) {
+        window.open(video.webVideoUrl, "_blank");
+      }
+      return;
+    }
 
     try {
-      const response = await fetch(`/api/youtube_comments?videoId=${videoId}`);
-      const data = await response.json();
+      // 서버 프록시를 통한 다운로드
+      const downloadUrl = `/api/brightdata/download?url=${encodeURIComponent(video.videoUrl)}&name=${encodeURIComponent(`${video.id}.mp4`)}`;
 
-      if (!response.ok) {
-        alert(data.error || "댓글을 불러올 수 없습니다");
-        setCommentsModalData((prev) => ({ ...prev, isLoading: false }));
-        return;
-      }
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `${video.id}.mp4`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-      setCommentsModalData((prev) => ({
-        ...prev,
-        comments: data.comments,
-        totalReplies: data.totalReplies,
-        totalLikes: data.totalLikes,
-        isLoading: false,
-      }));
+      console.log("다운로드 시작:", video.id);
     } catch (error) {
-      console.error("댓글 조회 오류:", error);
-      alert("댓글 조회 중 오류가 발생했습니다");
-      setCommentsModalData((prev) => ({ ...prev, isLoading: false }));
+      console.error("다운로드 오류:", error);
+      alert("영상 다운로드 중 오류가 발생했습니다");
     }
-  }, []);
+  };
 
-  // 채널 조회 함수
-  const handleChannelClick = useCallback(async (channelId: string, channelTitle: string) => {
-    setChannelModalData((prev) => ({
-      ...prev,
-      isLoading: true,
-      channelTitle,
-      channelId,
-    }));
-    setShowChannelModal(true);
-
-    try {
-      const response = await fetch(`/api/youtube_channel?channelId=${channelId}`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        alert(data.error || "채널 정보를 불러올 수 없습니다");
-        setChannelModalData((prev) => ({ ...prev, isLoading: false }));
-        return;
-      }
-
-      setChannelModalData((prev) => ({
-        ...prev,
-        channelDescription: data.description,
-        viewCount: data.viewCount,
-        subscriberCount: data.hiddenSubscriberCount,
-        subscriberCountValue: data.subscriberCount,
-        videoCount: data.videoCount,
-        customUrl: data.customUrl,
-        isLoading: false,
-      }));
-    } catch (error) {
-      console.error("채널 조회 오류:", error);
-      alert("채널 정보 조회 중 오류가 발생했습니다");
-      setChannelModalData((prev) => ({ ...prev, isLoading: false }));
-    }
-  }, []);
+  // 영상 상세 페이지 모달 (간단한 버전)
+  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
 
   return (
     <>
       <div className="main-container">
         {/* 왼쪽 패널 */}
         <div className="sidebar" style={{ width: `${sidebarWidth}px` }}>
-          <div className="sidebar-title" onClick={handleTitleClick} style={{ cursor: "pointer", transition: "opacity 0.3s", opacity: isTitleRefreshing ? 0.5 : 1 }}>
-            유튜브 스카우트
+          <div
+            className="sidebar-title"
+            onClick={handleTitleClick}
+            style={{ cursor: "pointer", transition: "opacity 0.3s", opacity: isTitleRefreshing ? 0.5 : 1 }}
+          >
+            TikTok Scout
           </div>
 
           <div className="search-section">
+            {/* 검색 입력 - 맨 위에 */}
             <div className="search-input-wrapper">
               <div className="search-label">검색어</div>
               <div className="search-container-with-button">
@@ -609,7 +336,7 @@ export default function Search({ user, signOut }: { user?: User; signOut?: (opti
                   <input
                     type="text"
                     className="search-input"
-                    placeholder=""
+                    placeholder="검색할 키워드를 입력하세요"
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
                     onKeyDown={handleKeyDown}
@@ -641,26 +368,64 @@ export default function Search({ user, signOut }: { user?: User; signOut?: (opti
               </div>
             </div>
 
-            {/* API 사용 제한 배너 */}
-            <AnimatePresence>
-              {apiLimitError && (
-                <ApiLimitBanner
-                  used={apiLimitError.used}
-                  limit={apiLimitError.limit}
-                  resetTime={apiLimitError.resetTime}
-                  deactivated={apiLimitError.deactivated}
-                  onClose={() => setApiLimitError(null)}
-                />
-              )}
-            </AnimatePresence>
-          </div>
+            {/* 플랫폼 선택 */}
+            <div className="search-input-wrapper">
+              <div className="search-label">플랫폼 선택</div>
+              <div className="platform-selector">
+                <label
+                  className={`platform-option ${platform === "tiktok" ? "active" : ""}`}
+                  onClick={() => setPlatform("tiktok")}
+                >
+                  <input
+                    type="radio"
+                    name="platform"
+                    value="tiktok"
+                    checked={platform === "tiktok"}
+                    onChange={() => setPlatform("tiktok")}
+                    style={{ display: "none" }}
+                  />
+                  <span className="platform-icon">🎵</span>
+                  <span className="platform-name">TikTok</span>
+                </label>
+                <label
+                  className={`platform-option ${platform === "douyin" ? "active" : ""}`}
+                  onClick={() => setPlatform("douyin")}
+                >
+                  <input
+                    type="radio"
+                    name="platform"
+                    value="douyin"
+                    checked={platform === "douyin"}
+                    onChange={() => setPlatform("douyin")}
+                    style={{ display: "none" }}
+                  />
+                  <span className="platform-icon">🐉</span>
+                  <span className="platform-name">Douyin</span>
+                </label>
+                <label
+                  className={`platform-option ${platform === "xiaohongshu" ? "active" : ""}`}
+                  onClick={() => setPlatform("xiaohongshu")}
+                >
+                  <input
+                    type="radio"
+                    name="platform"
+                    value="xiaohongshu"
+                    checked={platform === "xiaohongshu"}
+                    onChange={() => setPlatform("xiaohongshu")}
+                    style={{ display: "none" }}
+                  />
+                  <span className="platform-icon">❤️</span>
+                  <span className="platform-name">Xiaohongshu</span>
+                </label>
+              </div>
+            </div>
 
-
-          {/* 필터 섹션 */}
-          <div className="filters-wrapper">
-            <PeriodFilter value={uploadPeriod} onChange={setUploadPeriod} />
-            <VideoLengthFilter value={videoLength} onChange={setVideoLength} />
-            <EngagementRatioFilter selectedValues={engagementRatios} onChange={setEngagementRatios} />
+            {/* 에러 메시지 */}
+            {error && (
+              <div style={{ color: "#dc2626", fontSize: "12px", marginTop: "10px", padding: "10px", backgroundColor: "#fee2e2", borderRadius: "4px" }}>
+                {error}
+              </div>
+            )}
           </div>
         </div>
 
@@ -687,103 +452,283 @@ export default function Search({ user, signOut }: { user?: User; signOut?: (opti
                 </button>
               </div>
               <select className="sort-dropdown" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                <option value="relevance">조회수 + 내림차순</option>
-                <option value="viewCount">조회수순</option>
-                <option value="vph">VPH순 (높음)</option>
-                <option value="engagementRatio">비율순 (높음)</option>
-                <option value="subscriberCount">구독자순</option>
-                <option value="duration">길이순 (길음)</option>
-                <option value="likeCount">좋아요순</option>
-                <option value="publishedAt">최신순</option>
+                <option value="plays">조회수순</option>
+                <option value="likes">좋아요순</option>
+                <option value="comments">댓글순</option>
+                <option value="recent">최신순</option>
               </select>
               <button className="btn-excel" onClick={handleExcelDownload}>
                 <Download size={16} style={{ display: "inline", marginRight: "4px" }} />
                 엑셀
               </button>
-
-              {/* 프로필 드롭다운 */}
-              <div className="profile-dropdown-container" ref={profileDropdownRef}>
-                <div className="profile-divider">|</div>
-                <button
-                  className="profile-avatar-btn"
-                  onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                  title="프로필 메뉴"
-                  style={{ borderColor: getProviderColor(user?.id) }}
-                >
-                  {user?.image ? (
-                    <img
-                      src={user.image}
-                      alt={user?.name || "User"}
-                      className="profile-avatar"
-                    />
-                  ) : (
-                    <div
-                      className="profile-avatar-fallback"
-                      style={{ background: getProviderColor(user?.id) }}
-                    >
-                      {user?.name?.charAt(0)?.toUpperCase() || "U"}
-                    </div>
-                  )}
-                </button>
-
-                {profileDropdownOpen && (
-                  <div className="profile-dropdown-menu">
-                    {/* 프로필 정보 */}
-                    <div className="profile-dropdown-header">
-                      <div className="profile-dropdown-name">{user?.name || "사용자"}</div>
-                      <div className="profile-dropdown-email">{user?.email}</div>
-                    </div>
-
-                    {/* 로그아웃 */}
-                    <button
-                      className="profile-dropdown-logout"
-                      onClick={() => handleLogout()}
-                    >
-                      🚪 로그아웃
-                    </button>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
 
-          <SearchResults
-            results={results}
-            totalResults={totalResults}
-            isLoading={isLoading}
-            showVPH={true}
-            viewMode={viewMode}
-            onChannelClick={handleChannelClick}
-            onCommentsClick={handleCommentsClick}
-          />
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: isLoading || results.length === 0 ? 'center' : 'flex-start',
+            justifyContent: 'center',
+            overflowY: 'auto'
+          }}>
+            {isLoading ? (
+              <Spinner text="검색 중..." />
+            ) : results.length === 0 ? (
+              <div className="no-results">
+                <p>{error || "검색 결과가 없습니다"}</p>
+              </div>
+            ) : (
+              <>
+                <div style={{ width: '100%' }}>
+                  <div className="results-count">총 {results.length}개의 영상</div>
+                  {viewMode === "card" ? (
+                    <div className="results-grid">
+                  {(results as Video[]).map((video) => (
+                    <div key={video.id} className="result-card">
+                      <div
+                    className="card-thumbnail"
+                    style={{ height: "130px", background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", cursor: "pointer" }}
+                    onClick={() => {
+                      if (video.webVideoUrl) {
+                        window.open(video.webVideoUrl, "_blank");
+                      }
+                    }}
+                  >
+                        {video.thumbnail ? (
+                          <img src={video.thumbnail} alt={video.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        ) : (
+                          <div style={{ fontSize: "30px" }}>🎬</div>
+                        )}
+                        <div style={{ position: "absolute", bottom: "4px", right: "4px", backgroundColor: "rgba(0,0,0,0.7)", color: "white", padding: "2px 6px", borderRadius: "2px", fontSize: "12px" }}>
+                          {Math.floor(video.videoDuration / 60)}:{(video.videoDuration % 60).toString().padStart(2, "0")}
+                        </div>
+                      </div>
+                      <div className="card-content">
+                        <h3 className="card-title">{video.title}</h3>
+                        <p className="card-author">{video.creator}</p>
+                        <div className="card-stats">
+                          <span>▶️ {(video.playCount / 1000000).toFixed(1)}M 조회</span>
+                          <span>❤️ {(video.likeCount / 1000).toFixed(1)}K 좋아요</span>
+                        </div>
+                        <div className="card-stats" style={{ marginTop: "4px" }}>
+                          <span>💬 {(video.commentCount / 1000).toFixed(1)}K 댓글</span>
+                          <span>↗️ {(video.shareCount / 1000).toFixed(1)}K 공유</span>
+                        </div>
+                        <div className="card-actions" style={{ marginTop: "auto", display: "flex", gap: "6px" }}>
+                          <button
+                            className="card-btn"
+                            onClick={() => setSelectedVideo(video)}
+                            style={{ flex: 1, padding: "6px", fontSize: "12px", backgroundColor: "#667eea", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                          >
+                            📋 상세
+                          </button>
+                          <button
+                            className="card-btn"
+                            onClick={() => handleOpenTikTok(video)}
+                            style={{ flex: 1, padding: "6px", fontSize: "12px", backgroundColor: "#764ba2", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                          >
+                            🔗 열기
+                          </button>
+                          <button
+                            className="card-btn"
+                            onClick={() => handleDownloadVideo(video)}
+                            style={{ flex: 1, padding: "6px", fontSize: "12px", backgroundColor: "#e74c3c", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                          >
+                            ⬇️ 다운
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="results-table-wrapper">
+                  <table className="results-table">
+                    <thead>
+                      <tr>
+                        <th>썸네일</th>
+                        <th>제목</th>
+                        <th>크리에이터</th>
+                        <th>조회수</th>
+                        <th>좋아요</th>
+                        <th>댓글</th>
+                        <th>공유</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(results as Video[]).map((video) => (
+                        <tr key={video.id}>
+                          <td style={{ textAlign: "center", cursor: "pointer" }} onClick={() => {
+                            if (video.webVideoUrl) {
+                              window.open(video.webVideoUrl, "_blank");
+                            }
+                          }}>
+                            {video.thumbnail ? (
+                              <img src={video.thumbnail} alt={video.title} className="table-thumbnail" style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "2px" }} />
+                            ) : (
+                              <span>🎬</span>
+                            )}
+                          </td>
+                          <td className="table-title">{video.title}</td>
+                          <td className="table-author">{video.creator}</td>
+                          <td className="table-number">{(video.playCount / 1000000).toFixed(1)}M</td>
+                          <td className="table-number">{(video.likeCount / 1000).toFixed(1)}K</td>
+                          <td className="table-number">{(video.commentCount / 1000).toFixed(1)}K</td>
+                          <td className="table-number">{(video.shareCount / 1000).toFixed(1)}K</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* 댓글 분석 모달 */}
-      <CommentsModal
-        isOpen={showCommentsModal}
-        videoTitle={commentsModalData.videoTitle}
-        comments={commentsModalData.comments}
-        totalReplies={commentsModalData.totalReplies}
-        totalLikes={commentsModalData.totalLikes}
-        isLoading={commentsModalData.isLoading}
-        onClose={() => setShowCommentsModal(false)}
-      />
+      {/* 상세 모달 */}
+      {selectedVideo && (
+        <div
+          className="modal-overlay"
+          onClick={() => setSelectedVideo(null)}
+        >
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 스크롤 가능한 콘텐츠 */}
+            <div className="modal-scroll">
+              {/* 썸네일 */}
+              {selectedVideo.thumbnail && (
+                <img
+                  src={selectedVideo.thumbnail}
+                  alt={selectedVideo.title}
+                  style={{
+                    width: "100%",
+                    height: "300px",
+                    objectFit: "cover",
+                    borderRadius: "8px",
+                    marginBottom: "16px",
+                  }}
+                />
+              )}
 
-      {/* 채널 분석 모달 */}
-      <ChannelModal
-        isOpen={showChannelModal}
-        channelTitle={channelModalData.channelTitle}
-        channelDescription={channelModalData.channelDescription}
-        viewCount={channelModalData.viewCount}
-        subscriberCount={channelModalData.subscriberCount}
-        subscriberCountValue={channelModalData.subscriberCountValue}
-        videoCount={channelModalData.videoCount}
-        customUrl={channelModalData.customUrl}
-        channelId={channelModalData.channelId}
-        isLoading={channelModalData.isLoading}
-        onClose={() => setShowChannelModal(false)}
-      />
+              {/* 제목 */}
+              <h2 style={{ margin: "0 0 12px 0", fontSize: "18px" }}>{selectedVideo.title}</h2>
+
+              {/* 크리에이터 */}
+              <p style={{ margin: "0 0 16px 0", color: "#666", fontSize: "14px" }}>
+                <strong>크리에이터:</strong> {selectedVideo.creator}
+              </p>
+
+              {/* 통계 */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+                <div style={{ backgroundColor: "#f5f5f5", padding: "12px", borderRadius: "4px" }}>
+                  <div style={{ fontSize: "12px", color: "#666" }}>조회수</div>
+                  <div style={{ fontSize: "18px", fontWeight: "bold" }}>
+                    {(selectedVideo.playCount / 1000000).toFixed(1)}M
+                  </div>
+                </div>
+                <div style={{ backgroundColor: "#f5f5f5", padding: "12px", borderRadius: "4px" }}>
+                  <div style={{ fontSize: "12px", color: "#666" }}>좋아요</div>
+                  <div style={{ fontSize: "18px", fontWeight: "bold" }}>
+                    {(selectedVideo.likeCount / 1000).toFixed(1)}K
+                  </div>
+                </div>
+                <div style={{ backgroundColor: "#f5f5f5", padding: "12px", borderRadius: "4px" }}>
+                  <div style={{ fontSize: "12px", color: "#666" }}>댓글</div>
+                  <div style={{ fontSize: "18px", fontWeight: "bold" }}>
+                    {(selectedVideo.commentCount / 1000).toFixed(1)}K
+                  </div>
+                </div>
+                <div style={{ backgroundColor: "#f5f5f5", padding: "12px", borderRadius: "4px" }}>
+                  <div style={{ fontSize: "12px", color: "#666" }}>공유</div>
+                  <div style={{ fontSize: "18px", fontWeight: "bold" }}>
+                    {(selectedVideo.shareCount / 1000).toFixed(1)}K
+                  </div>
+                </div>
+              </div>
+
+              {/* 해시태그 */}
+              {selectedVideo.hashtags.length > 0 && (
+                <div style={{ marginBottom: "16px" }}>
+                  <strong style={{ display: "block", marginBottom: "8px", fontSize: "14px" }}>해시태그:</strong>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                    {selectedVideo.hashtags.map((tag, idx) => (
+                      <span
+                        key={idx}
+                        style={{
+                          backgroundColor: "#667eea",
+                          color: "white",
+                          padding: "4px 8px",
+                          borderRadius: "16px",
+                          fontSize: "12px",
+                        }}
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 하단 고정 버튼 */}
+            <div className="modal-footer">
+              <button
+                onClick={() => setSelectedVideo(null)}
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  backgroundColor: "#e0e0e0",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                }}
+              >
+                닫기
+              </button>
+              <button
+                onClick={() => {
+                  handleOpenTikTok(selectedVideo);
+                }}
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  backgroundColor: "#764ba2",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                }}
+              >
+                🔗 TikTok에서 열기
+              </button>
+              <button
+                onClick={() => {
+                  handleDownloadVideo(selectedVideo);
+                }}
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  backgroundColor: "#e74c3c",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                }}
+              >
+                ⬇️ 다운로드
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
