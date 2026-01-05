@@ -547,58 +547,77 @@ export default function Search() {
             </div>
 
             {/* 필터 섹션 */}
-            <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: "1px solid var(--border-color, #e5e7eb)" }}>
-              <div style={{ fontSize: "14px", fontWeight: "600", marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span>🔍 필터</span>
-                <button
-                  onClick={() =>
-                    setFilters({
-                      minPlayCount: 0,
-                      maxPlayCount: null,
-                      uploadPeriod: "all",
-                      videoLength: "all",
-                      engagementScore: [],
-                    })
-                  }
-                  style={{
-                    fontSize: "11px",
-                    padding: "2px 8px",
-                    border: "1px solid #ddd",
-                    borderRadius: "3px",
-                    cursor: "pointer",
-                    background: "#f5f5f5",
-                    color: "#666",
-                  }}
-                >
-                  초기화
-                </button>
+            <div style={{
+              marginTop: "24px",
+              paddingTop: "0",
+            }}>
+              <div style={{
+                fontSize: "13px",
+                fontWeight: "700",
+                marginBottom: "16px",
+                color: "#000",
+                letterSpacing: "0.5px",
+              }}>
+                필터
               </div>
 
-              <ViewCountFilter
-                minValue={filters.minPlayCount}
-                maxValue={filters.maxPlayCount}
-                onChange={(min, max) => setFilters({ ...filters, minPlayCount: min, maxPlayCount: max })}
-              />
+              <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+                <div style={{
+                  background: "linear-gradient(135deg, #f5f7fa 0%, #f8fafb 100%)",
+                  borderRadius: "8px",
+                  padding: "14px 12px",
+                }}>
+                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#666", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                    조회수
+                  </div>
+                  <ViewCountFilter
+                    minValue={filters.minPlayCount}
+                    maxValue={filters.maxPlayCount}
+                    onChange={(min, max) => setFilters({ ...filters, minPlayCount: min, maxPlayCount: max })}
+                  />
+                </div>
 
-              <div style={{ marginTop: "16px" }}>
-                <PeriodFilter
-                  value={filters.uploadPeriod}
-                  onChange={(value) => setFilters({ ...filters, uploadPeriod: value })}
-                />
-              </div>
+                <div style={{
+                  background: "linear-gradient(135deg, #f5f7fa 0%, #f8fafb 100%)",
+                  borderRadius: "8px",
+                  padding: "14px 12px",
+                }}>
+                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#666", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                    기간
+                  </div>
+                  <PeriodFilter
+                    value={filters.uploadPeriod}
+                    onChange={(value) => setFilters({ ...filters, uploadPeriod: value })}
+                  />
+                </div>
 
-              <div style={{ marginTop: "16px" }}>
-                <VideoLengthFilter
-                  value={filters.videoLength}
-                  onChange={(value) => setFilters({ ...filters, videoLength: value })}
-                />
-              </div>
+                <div style={{
+                  background: "linear-gradient(135deg, #f5f7fa 0%, #f8fafb 100%)",
+                  borderRadius: "8px",
+                  padding: "14px 12px",
+                }}>
+                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#666", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                    길이
+                  </div>
+                  <VideoLengthFilter
+                    value={filters.videoLength}
+                    onChange={(value) => setFilters({ ...filters, videoLength: value })}
+                  />
+                </div>
 
-              <div style={{ marginTop: "16px" }}>
-                <EngagementRatioFilter
-                  selectedValues={filters.engagementScore}
-                  onChange={(values) => setFilters({ ...filters, engagementScore: values })}
-                />
+                <div style={{
+                  background: "linear-gradient(135deg, #f5f7fa 0%, #f8fafb 100%)",
+                  borderRadius: "8px",
+                  padding: "14px 12px",
+                }}>
+                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#666", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                    인기도
+                  </div>
+                  <EngagementRatioFilter
+                    selectedValues={filters.engagementScore}
+                    onChange={(values) => setFilters({ ...filters, engagementScore: values })}
+                  />
+                </div>
               </div>
             </div>
 

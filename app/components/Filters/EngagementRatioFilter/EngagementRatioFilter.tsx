@@ -41,67 +41,57 @@ export default function EngagementRatioFilter({
       <div className="engagement-subtitle">
         (좋아요 + 댓글 + 공유) ÷ 조회수 기반 인기도 단계
       </div>
-      <div className="engagement-options">
-        <label className="filter-option">
-          <input
-            type="checkbox"
-            name="engagementRatio"
-            value="all"
-            checked={selectedValues.includes('all')}
-            onChange={() => handleChange('all')}
-          />
-          <label>전체</label>
-        </label>
-        <label className="filter-option">
-          <input
-            type="checkbox"
-            name="engagementRatio"
-            value="1"
-            checked={selectedValues.includes('1')}
-            onChange={() => handleChange('1')}
-          />
-          <label>1단계 - 낮음 (&lt;5%)</label>
-        </label>
-        <label className="filter-option">
-          <input
-            type="checkbox"
-            name="engagementRatio"
-            value="2"
-            checked={selectedValues.includes('2')}
-            onChange={() => handleChange('2')}
-          />
-          <label>2단계 - 중간 (5~15%)</label>
-        </label>
-        <label className="filter-option">
-          <input
-            type="checkbox"
-            name="engagementRatio"
-            value="3"
-            checked={selectedValues.includes('3')}
-            onChange={() => handleChange('3')}
-          />
-          <label>3단계 - 좋음 (15~30%)</label>
-        </label>
-        <label className="filter-option">
-          <input
-            type="checkbox"
-            name="engagementRatio"
-            value="4"
-            checked={selectedValues.includes('4')}
-            onChange={() => handleChange('4')}
-          />
-          <label>4단계 - 매우좋음 (30~50%)</label>
-        </label>
-        <label className="filter-option">
-          <input
-            type="checkbox"
-            name="engagementRatio"
-            value="5"
-            checked={selectedValues.includes('5')}
-            onChange={() => handleChange('5')}
-          />
-          <label>5단계 - 최고 (≥50%)</label>
-        </label>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        {[
+          { value: 'all', label: '전체' },
+          { value: '1', label: '1단계 - 낮음 (<5%)' },
+          { value: '2', label: '2단계 - 중간 (5~15%)' },
+          { value: '3', label: '3단계 - 좋음 (15~30%)' },
+          { value: '4', label: '4단계 - 매우좋음 (30~50%)' },
+          { value: '5', label: '5단계 - 최고 (≥50%)' },
+        ].map((option) => (
+          <label
+            key={option.value}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              padding: "8px 10px",
+              borderRadius: "6px",
+              cursor: "pointer",
+              backgroundColor: selectedValues.includes(option.value) ? "#e0e7ff" : "transparent",
+              border: selectedValues.includes(option.value) ? "1px solid #4f46e5" : "1px solid transparent",
+              transition: "all 0.2s",
+              fontSize: "13px",
+              fontWeight: selectedValues.includes(option.value) ? "600" : "500",
+              color: selectedValues.includes(option.value) ? "#4f46e5" : "#666",
+            }}
+          >
+            <input
+              type="checkbox"
+              name="engagementRatio"
+              value={option.value}
+              checked={selectedValues.includes(option.value)}
+              onChange={() => handleChange(option.value)}
+              style={{ display: "none" }}
+            />
+            <span style={{
+              width: "16px",
+              height: "16px",
+              borderRadius: "4px",
+              border: selectedValues.includes(option.value) ? "3px solid #4f46e5" : "2px solid #d1d5db",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: "8px",
+              backgroundColor: selectedValues.includes(option.value) ? "#4f46e5" : "transparent",
+            }}>
+              {selectedValues.includes(option.value) && (
+                <span style={{ width: "3px", height: "6px", backgroundColor: "white", transform: "rotate(45deg)" }} />
+              )}
+            </span>
+            <span>{option.label}</span>
+          </label>
+        ))}
       </div>
 
       <style jsx>{`

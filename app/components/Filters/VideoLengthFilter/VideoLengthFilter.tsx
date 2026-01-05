@@ -5,42 +5,56 @@ interface VideoLengthFilterProps {
   onChange: (value: string) => void
 }
 
+const LENGTH_OPTIONS = [
+  { value: 'all', label: '전체' },
+  { value: 'short', label: '20초 미만' },
+  { value: 'long', label: '20초 이상' },
+]
+
 export default function VideoLengthFilter({ value, onChange }: VideoLengthFilterProps) {
   return (
-    <div className="filter-section">
-      <div className="filter-title">길이</div>
-      <div className="filter-options">
-        <label className="filter-option">
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      {LENGTH_OPTIONS.map((option) => (
+        <label
+          key={option.value}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            padding: "8px 10px",
+            borderRadius: "6px",
+            cursor: "pointer",
+            backgroundColor: value === option.value ? "#e0e7ff" : "transparent",
+            border: value === option.value ? "1px solid #4f46e5" : "1px solid transparent",
+            transition: "all 0.2s",
+            fontSize: "13px",
+            fontWeight: value === option.value ? "600" : "500",
+            color: value === option.value ? "#4f46e5" : "#666",
+          }}
+        >
           <input
             type="radio"
             name="videoLength"
-            value="all"
-            checked={value === 'all'}
+            value={option.value}
+            checked={value === option.value}
             onChange={(e) => onChange(e.target.value)}
+            style={{ display: "none" }}
           />
-          <label>전체</label>
+          <span style={{
+            width: "16px",
+            height: "16px",
+            borderRadius: "50%",
+            border: value === option.value ? "3px solid #4f46e5" : "2px solid #d1d5db",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginRight: "8px",
+            backgroundColor: value === option.value ? "#4f46e5" : "transparent",
+          }}>
+            {value === option.value && <span style={{ width: "4px", height: "4px", backgroundColor: "white", borderRadius: "50%" }} />}
+          </span>
+          <span>{option.label}</span>
         </label>
-        <label className="filter-option">
-          <input
-            type="radio"
-            name="videoLength"
-            value="short"
-            checked={value === 'short'}
-            onChange={(e) => onChange(e.target.value)}
-          />
-          <label>20초 미만</label>
-        </label>
-        <label className="filter-option">
-          <input
-            type="radio"
-            name="videoLength"
-            value="long"
-            checked={value === 'long'}
-            onChange={(e) => onChange(e.target.value)}
-          />
-          <label>20초 이상</label>
-        </label>
-      </div>
+      ))}
     </div>
   )
 }

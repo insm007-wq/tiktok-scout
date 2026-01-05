@@ -61,22 +61,35 @@ export default function ViewCountFilter({
       <div className="filter-title">조회수</div>
 
       {/* 빠른 선택 버튼 */}
-      <div className="filter-options">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "12px" }}>
         {QUICK_OPTIONS.map((option) => (
-          <label
+          <button
             key={option.label}
-            className={`filter-option ${
-              selectedQuick?.label === option.label ? 'selected' : ''
-            }`}
+            onClick={() => handleQuickSelect(option.min, option.max)}
+            style={{
+              padding: "8px 10px",
+              borderRadius: "6px",
+              border: selectedQuick?.label === option.label ? "2px solid #4f46e5" : "1px solid #d1d5db",
+              backgroundColor: selectedQuick?.label === option.label ? "#e0e7ff" : "#fff",
+              color: selectedQuick?.label === option.label ? "#4f46e5" : "#666",
+              fontSize: "12px",
+              fontWeight: selectedQuick?.label === option.label ? "600" : "500",
+              cursor: "pointer",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              if (selectedQuick?.label !== option.label) {
+                e.currentTarget.style.backgroundColor = "#f5f7fa";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (selectedQuick?.label !== option.label) {
+                e.currentTarget.style.backgroundColor = "#fff";
+              }
+            }}
           >
-            <input
-              type="radio"
-              name="viewCount"
-              checked={selectedQuick?.label === option.label}
-              onChange={() => handleQuickSelect(option.min, option.max)}
-            />
-            <span>{option.label}</span>
-          </label>
+            {option.label}
+          </button>
         ))}
       </div>
 
