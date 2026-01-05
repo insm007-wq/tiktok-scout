@@ -3,6 +3,12 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { LayoutGrid, Table2, Download } from "lucide-react";
 import Spinner from "@/app/components/ui/Spinner";
+import ViewCountFilter from "@/app/components/Filters/ViewCountFilter/ViewCountFilter";
+import PeriodFilter from "@/app/components/Filters/PeriodFilter/PeriodFilter";
+import VideoLengthFilter from "@/app/components/Filters/VideoLengthFilter/VideoLengthFilter";
+import EngagementRatioFilter from "@/app/components/Filters/EngagementRatioFilter/EngagementRatioFilter";
+import { formatDateWithTime } from "@/lib/dateUtils";
+import { formatNumber } from "@/lib/formatters";
 import "./search.css";
 
 type Platform = "tiktok" | "douyin" | "xiaohongshu";
@@ -13,6 +19,7 @@ interface Video {
   description: string;
   creator: string;
   creatorUrl?: string;
+  followerCount?: number;
   playCount: number;
   likeCount: number;
   commentCount: number;
@@ -23,6 +30,14 @@ interface Video {
   thumbnail?: string;
   videoUrl?: string;
   webVideoUrl?: string;
+}
+
+interface FilterState {
+  minPlayCount: number;
+  maxPlayCount: number | null;
+  uploadPeriod: string;
+  videoLength: string;
+  engagementScore: string[];
 }
 
 export default function Search() {
@@ -37,6 +52,13 @@ export default function Search() {
   const [sidebarWidth, setSidebarWidth] = useState<number>(350);
   const [isResizing, setIsResizing] = useState(false);
   const [error, setError] = useState("");
+  const [filters, setFilters] = useState<FilterState>({
+    minPlayCount: 0,
+    maxPlayCount: null,
+    uploadPeriod: "all",
+    videoLength: "all",
+    engagementScore: [],
+  });
   const resizeRef = useRef<HTMLDivElement>(null);
 
   const handleTitleClick = () => {
@@ -101,6 +123,67 @@ export default function Search() {
     localStorage.setItem("tiktok-scout-sidebar-width", sidebarWidth.toString());
   }, [sidebarWidth]);
 
+  // 영상 필터링 함수
+  const filterVideos = (items: Video[], filterState: FilterState) => {
+    return items.filter((video) => {
+      // 1. 조회수 필터
+      if (filterState.minPlayCount > 0 && video.playCount < filterState.minPlayCount) {
+        return false;
+      }
+      if (filterState.maxPlayCount && video.playCount > filterState.maxPlayCount) {
+        return false;
+      }
+
+      // 2. 업로드 기간 필터
+      if (filterState.uploadPeriod !== "all") {
+        const daysAgo = Math.floor((Date.now() - video.createTime) / (1000 * 60 * 60 * 24));
+        const periodMap: Record<string, number> = {
+          "3days": 3,
+          "5days": 5,
+          "7days": 7,
+          "10days": 10,
+          "1month": 30,
+          "2months": 60,
+          "6months": 180,
+          "1year": 365,
+        };
+        if (daysAgo > (periodMap[filterState.uploadPeriod] || 999999)) {
+          return false;
+        }
+      }
+
+      // 3. 영상 길이 필터
+      if (filterState.videoLength !== "all") {
+        const isShort = video.videoDuration <= 180; // 3분 = 180초
+        if (filterState.videoLength === "short" && !isShort) return false;
+        if (filterState.videoLength === "long" && isShort) return false;
+      }
+
+      // 4. Engagement 점수 필터 (좋아요 + 댓글 + 공유 합산)
+      if (
+        filterState.engagementScore.length > 0 &&
+        !filterState.engagementScore.includes("all")
+      ) {
+        const totalEngagement = video.likeCount + video.commentCount + video.shareCount;
+        const engagementRatio = video.playCount > 0 ? totalEngagement / video.playCount : 0;
+
+        // 5단계 구분 (백분율)
+        let level = 1;
+        if (engagementRatio >= 0.5) level = 5; // 50% 이상
+        else if (engagementRatio >= 0.3) level = 4; // 30~50%
+        else if (engagementRatio >= 0.15) level = 3; // 15~30%
+        else if (engagementRatio >= 0.05) level = 2; // 5~15%
+        // else level = 1; // 5% 미만
+
+        if (!filterState.engagementScore.includes(level.toString())) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  };
+
   // 영상 정렬 함수
   const sortVideos = (items: Video[], sortOption: string) => {
     const sorted = [...items];
@@ -127,8 +210,9 @@ export default function Search() {
   };
 
   const results = useMemo(() => {
-    return sortVideos(videos, sortBy);
-  }, [videos, sortBy]);
+    const filtered = filterVideos(videos, filters);
+    return sortVideos(filtered, sortBy);
+  }, [videos, filters, sortBy]);
 
   const handleSearch = useCallback(async () => {
     if (!searchInput.trim()) {
@@ -248,28 +332,70 @@ export default function Search() {
       return;
     }
 
-    const csvHeader = ["제목", "크리에이터", "조회수", "좋아요", "댓글", "공유", "해시태그"];
+    const csvHeader = [
+      "제목",
+      "크리에이터",
+      "팔로워수",
+      "게시일시",
+      "영상길이",
+      "조회수",
+      "좋아요",
+      "댓글",
+      "공유",
+      "참여율(%)",
+      "설명",
+      "해시태그",
+      "링크",
+    ];
     const csvRows: string[][] = [];
 
     (results as Video[]).forEach((video) => {
+      const engagementRate =
+        video.playCount > 0
+          ? (
+              ((video.likeCount + video.commentCount + video.shareCount) /
+                video.playCount) *
+              100
+            ).toFixed(2)
+          : "-";
+      const videoDurationStr = `${Math.floor(video.videoDuration / 60)}:${(
+        video.videoDuration % 60
+      )
+        .toString()
+        .padStart(2, "0")}`;
+
       csvRows.push([
         `"${video.title.replace(/"/g, '""')}"`,
         `"${video.creator.replace(/"/g, '""')}"`,
+        video.followerCount ? video.followerCount.toString() : "-",
+        formatDateWithTime(video.createTime),
+        videoDurationStr,
         video.playCount.toString(),
         video.likeCount.toString(),
         video.commentCount.toString(),
         video.shareCount.toString(),
+        engagementRate,
+        `"${video.description.substring(0, 100).replace(/"/g, '""')}"`,
         `"${video.hashtags.join(", ")}"`,
+        `"${video.webVideoUrl || video.videoUrl || ""}"`,
       ]);
     });
 
-    const csv = [csvHeader.join(","), ...csvRows.map((row) => row.join(","))].join("\n");
+    const csv = [
+      csvHeader.join(","),
+      ...csvRows.map((row) => row.join(",")),
+    ].join("\n");
 
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["\uFEFF" + csv], {
+      type: "text/csv;charset=utf-8;",
+    });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `${platform}-videos-${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute(
+      "download",
+      `${platform}-videos-${new Date().toISOString().split("T")[0]}.csv`
+    );
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
@@ -420,6 +546,62 @@ export default function Search() {
               </div>
             </div>
 
+            {/* 필터 섹션 */}
+            <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: "1px solid var(--border-color, #e5e7eb)" }}>
+              <div style={{ fontSize: "14px", fontWeight: "600", marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>🔍 필터</span>
+                <button
+                  onClick={() =>
+                    setFilters({
+                      minPlayCount: 0,
+                      maxPlayCount: null,
+                      uploadPeriod: "all",
+                      videoLength: "all",
+                      engagementScore: [],
+                    })
+                  }
+                  style={{
+                    fontSize: "11px",
+                    padding: "2px 8px",
+                    border: "1px solid #ddd",
+                    borderRadius: "3px",
+                    cursor: "pointer",
+                    background: "#f5f5f5",
+                    color: "#666",
+                  }}
+                >
+                  초기화
+                </button>
+              </div>
+
+              <ViewCountFilter
+                minValue={filters.minPlayCount}
+                maxValue={filters.maxPlayCount}
+                onChange={(min, max) => setFilters({ ...filters, minPlayCount: min, maxPlayCount: max })}
+              />
+
+              <div style={{ marginTop: "16px" }}>
+                <PeriodFilter
+                  value={filters.uploadPeriod}
+                  onChange={(value) => setFilters({ ...filters, uploadPeriod: value })}
+                />
+              </div>
+
+              <div style={{ marginTop: "16px" }}>
+                <VideoLengthFilter
+                  value={filters.videoLength}
+                  onChange={(value) => setFilters({ ...filters, videoLength: value })}
+                />
+              </div>
+
+              <div style={{ marginTop: "16px" }}>
+                <EngagementRatioFilter
+                  selectedValues={filters.engagementScore}
+                  onChange={(values) => setFilters({ ...filters, engagementScore: values })}
+                />
+              </div>
+            </div>
+
             {/* 에러 메시지 */}
             {error && (
               <div style={{ color: "#dc2626", fontSize: "12px", marginTop: "10px", padding: "10px", backgroundColor: "#fee2e2", borderRadius: "4px" }}>
@@ -505,15 +687,31 @@ export default function Search() {
                       </div>
                       <div className="card-content">
                         <h3 className="card-title">{video.title}</h3>
-                        <p className="card-author">{video.creator}</p>
+                        <div style={{ fontSize: "12px", color: "#666", marginBottom: "8px" }}>
+                          <div style={{ marginBottom: "4px" }}>
+                            <strong>📺 채널:</strong> {video.creator}
+                            {video.followerCount && ` (팔로워: ${formatNumber(video.followerCount)})`}
+                          </div>
+                          <div style={{ marginBottom: "4px" }}>
+                            <strong>📅 게시:</strong> {formatDateWithTime(video.createTime)}
+                          </div>
+                        </div>
                         <div className="card-stats">
-                          <span>▶️ {(video.playCount / 1000000).toFixed(1)}M 조회</span>
-                          <span>❤️ {(video.likeCount / 1000).toFixed(1)}K 좋아요</span>
+                          <span>▶️ {formatNumber(video.playCount)} 조회</span>
+                          <span>❤️ {formatNumber(video.likeCount)} 좋아요</span>
                         </div>
                         <div className="card-stats" style={{ marginTop: "4px" }}>
-                          <span>💬 {(video.commentCount / 1000).toFixed(1)}K 댓글</span>
-                          <span>↗️ {(video.shareCount / 1000).toFixed(1)}K 공유</span>
+                          <span>💬 {formatNumber(video.commentCount)} 댓글</span>
+                          <span>↗️ {formatNumber(video.shareCount)} 공유</span>
                         </div>
+                        <div className="card-stats" style={{ marginTop: "4px", fontSize: "11px", color: "#e74c3c" }}>
+                          <span>📊 참여율: {((video.likeCount + video.commentCount + video.shareCount) / video.playCount * 100).toFixed(2)}%</span>
+                        </div>
+                        {video.description && (
+                          <div style={{ fontSize: "11px", color: "#999", marginTop: "8px", maxHeight: "50px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "pre-wrap" }}>
+                            <strong>설명:</strong> {video.description.substring(0, 100)}...
+                          </div>
+                        )}
                         <div className="card-actions" style={{ marginTop: "auto", display: "flex", gap: "6px" }}>
                           <button
                             className="card-btn"
@@ -546,18 +744,22 @@ export default function Search() {
                   <table className="results-table">
                     <thead>
                       <tr>
-                        <th>썸네일</th>
-                        <th>제목</th>
-                        <th>크리에이터</th>
-                        <th>조회수</th>
-                        <th>좋아요</th>
-                        <th>댓글</th>
-                        <th>공유</th>
+                        <th style={{ width: "50px" }}>썸네일</th>
+                        <th style={{ width: "150px" }}>제목</th>
+                        <th style={{ width: "100px" }}>크리에이터</th>
+                        <th style={{ width: "80px" }}>팔로워</th>
+                        <th style={{ width: "100px" }}>게시일</th>
+                        <th style={{ width: "70px" }}>길이</th>
+                        <th style={{ width: "70px" }}>조회수</th>
+                        <th style={{ width: "70px" }}>좋아요</th>
+                        <th style={{ width: "70px" }}>댓글</th>
+                        <th style={{ width: "70px" }}>공유</th>
+                        <th style={{ width: "60px" }}>참여율</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(results as Video[]).map((video) => (
-                        <tr key={video.id}>
+                        <tr key={video.id} style={{ fontSize: "12px" }}>
                           <td style={{ textAlign: "center", cursor: "pointer" }} onClick={() => {
                             if (video.webVideoUrl) {
                               window.open(video.webVideoUrl, "_blank");
@@ -569,12 +771,18 @@ export default function Search() {
                               <span>🎬</span>
                             )}
                           </td>
-                          <td className="table-title">{video.title}</td>
-                          <td className="table-author">{video.creator}</td>
-                          <td className="table-number">{(video.playCount / 1000000).toFixed(1)}M</td>
-                          <td className="table-number">{(video.likeCount / 1000).toFixed(1)}K</td>
-                          <td className="table-number">{(video.commentCount / 1000).toFixed(1)}K</td>
-                          <td className="table-number">{(video.shareCount / 1000).toFixed(1)}K</td>
+                          <td className="table-title" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{video.title}</td>
+                          <td className="table-author" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{video.creator}</td>
+                          <td className="table-number">{video.followerCount ? formatNumber(video.followerCount) : "-"}</td>
+                          <td className="table-number" style={{ fontSize: "11px" }}>{formatDateWithTime(video.createTime)}</td>
+                          <td className="table-number">{Math.floor(video.videoDuration / 60)}:{(video.videoDuration % 60).toString().padStart(2, "0")}</td>
+                          <td className="table-number">{formatNumber(video.playCount)}</td>
+                          <td className="table-number">{formatNumber(video.likeCount)}</td>
+                          <td className="table-number">{formatNumber(video.commentCount)}</td>
+                          <td className="table-number">{formatNumber(video.shareCount)}</td>
+                          <td className="table-number" style={{ color: "#e74c3c", fontWeight: "600" }}>
+                            {video.playCount > 0 ? ((video.likeCount + video.commentCount + video.shareCount) / video.playCount * 100).toFixed(2) : "-"}%
+                          </td>
                         </tr>
                       ))}
                     </tbody>

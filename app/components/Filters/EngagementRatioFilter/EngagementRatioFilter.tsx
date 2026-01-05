@@ -37,8 +37,10 @@ export default function EngagementRatioFilter({
 
   return (
     <div className="engagement-section">
-      <div className="engagement-title">구독자 대비 조회수 비율 단계(다중선택)</div>
-      <div className="engagement-title">조회수/구독자 비율이 높을수록 채널의 실제 영향력이 큼</div>
+      <div className="engagement-title">종합 인기도 (다중선택)</div>
+      <div className="engagement-subtitle">
+        (좋아요 + 댓글 + 공유) ÷ 조회수 기반 인기도 단계
+      </div>
       <div className="engagement-options">
         <label className="filter-option">
           <input
@@ -58,7 +60,7 @@ export default function EngagementRatioFilter({
             checked={selectedValues.includes('1')}
             onChange={() => handleChange('1')}
           />
-          <label>1단계 (&lt;0.2)</label>
+          <label>1단계 - 낮음 (&lt;5%)</label>
         </label>
         <label className="filter-option">
           <input
@@ -68,7 +70,7 @@ export default function EngagementRatioFilter({
             checked={selectedValues.includes('2')}
             onChange={() => handleChange('2')}
           />
-          <label>2단계 (0.2~0.6)</label>
+          <label>2단계 - 중간 (5~15%)</label>
         </label>
         <label className="filter-option">
           <input
@@ -78,7 +80,7 @@ export default function EngagementRatioFilter({
             checked={selectedValues.includes('3')}
             onChange={() => handleChange('3')}
           />
-          <label>3단계 (0.6~1.4)</label>
+          <label>3단계 - 좋음 (15~30%)</label>
         </label>
         <label className="filter-option">
           <input
@@ -88,7 +90,7 @@ export default function EngagementRatioFilter({
             checked={selectedValues.includes('4')}
             onChange={() => handleChange('4')}
           />
-          <label>4단계 (1.4~3.0)</label>
+          <label>4단계 - 매우좋음 (30~50%)</label>
         </label>
         <label className="filter-option">
           <input
@@ -98,9 +100,19 @@ export default function EngagementRatioFilter({
             checked={selectedValues.includes('5')}
             onChange={() => handleChange('5')}
           />
-          <label>5단계 (≥3.0)</label>
+          <label>5단계 - 최고 (≥50%)</label>
         </label>
       </div>
+
+      <style jsx>{`
+        .engagement-subtitle {
+          font-size: 12px;
+          color: var(--text-secondary, #666);
+          margin-top: 4px;
+          margin-bottom: 12px;
+          font-weight: 400;
+        }
+      `}</style>
     </div>
   )
 }

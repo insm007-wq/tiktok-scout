@@ -22,6 +22,22 @@ export const formatDate = (date: string | Date | undefined): string => {
   }
 };
 
+export const formatDateWithTime = (date: string | Date | number | undefined): string => {
+  if (!date) return "-";
+
+  try {
+    const dateObj = typeof date === "number" ? new Date(date) : new Date(date);
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    const hours = String(dateObj.getHours()).padStart(2, "0");
+    const minutes = String(dateObj.getMinutes()).padStart(2, "0");
+    return `${year}.${month}.${day} ${hours}:${minutes}`;
+  } catch {
+    return "-";
+  }
+};
+
 export const isWithinDays = (date: string | Date | undefined, days: number): boolean => {
   if (!date) return false;
   const daysAgo = getDaysAgo(date);

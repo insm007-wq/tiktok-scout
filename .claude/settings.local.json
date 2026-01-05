@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "WebFetch(domain:blog.apify.com)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "WebSearch",
+      "WebFetch(domain:apify.com)",
+      "Bash(tree:*)",
+      "Bash(timeout 5 npm run dev:*)",
+      "Bash(npm run build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

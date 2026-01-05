@@ -13,6 +13,7 @@ interface VideoResult {
   description: string;
   creator: string;
   creatorUrl?: string;
+  followerCount?: number; // 팔로워 수 (있을 경우)
   playCount: number;
   likeCount: number;
   commentCount: number;
@@ -67,13 +68,7 @@ export async function POST(req: NextRequest) {
     if (platform === 'tiktok') {
       videoResults = await searchTikTokVideos(query, limit, apiKey);
     } else if (platform === 'douyin') {
-      return NextResponse.json({
-        success: false,
-        query,
-        platform,
-        videos: [],
-        error: 'Douyin은 아직 지원되지 않습니다. TikTok 검색을 이용해주세요.',
-      }, { status: 400 });
+      videoResults = await searchDouyinVideos(query, limit, apiKey);
     } else if (platform === 'xiaohongshu') {
       return NextResponse.json({
         success: false,
@@ -167,10 +162,9 @@ async function searchTikTokVideos(
     // 2️⃣ 실행 완료 대기 (Polling - 속도 최적화)
     let status = 'RUNNING';
     let attempt = 0;
-    const maxAttempts = 60; // 최대 2분 (2초 간격 × 60회)
-
-    // 처음 1초만 기다렸다가 시작 (액터가 실행되는 시간)
-    await new Promise(r => setTimeout(r, 1000));
+    const maxAttempts = 60; // 최대 2분
+    let waitTime = 500; // 0.5초부터 시작 (지수 백오프)
+    const maxWaitTime = 5000; // 최대 5초
 
     while ((status === 'RUNNING' || status === 'READY') && attempt < maxAttempts) {
       const statusRes = await fetch(
@@ -181,8 +175,8 @@ async function searchTikTokVideos(
       status = statusData.data.status;
       attempt++;
 
-      if (attempt % 5 === 0) {
-        // 5번마다 한 번씩만 로그 출력 (불필요한 로그 감소)
+      if (process.env.NODE_ENV === 'development' && attempt % 5 === 0) {
+        // 개발 환경에서만 로깅
         console.log(`[TikTok] 상태: ${status} (시도: ${attempt}/${maxAttempts})`);
       }
 
@@ -194,7 +188,9 @@ async function searchTikTokVideos(
       }
 
       if (status === 'RUNNING' || status === 'READY') {
-        await new Promise(r => setTimeout(r, 2000)); // 2초 대기 (네트워크 부하 감소)
+        await new Promise(r => setTimeout(r, waitTime));
+        // 지수 백오프: 0.5s → 1s → 2s → 4s → 5s (최대)
+        waitTime = Math.min(waitTime * 2, maxWaitTime);
       }
     }
 
@@ -212,33 +208,17 @@ async function searchTikTokVideos(
 
     const dataset = await datasetRes.json();
 
-    console.log('[TikTok] 응답 타입:', typeof dataset);
-    console.log('[TikTok] 응답이 배열인가?', Array.isArray(dataset));
-    console.log('[TikTok] 응답 내용 (처음 1000자):', JSON.stringify(dataset).substring(0, 1000));
-
     if (!Array.isArray(dataset)) {
-      console.warn('[TikTok] 예상치 못한 응답 형식:', typeof dataset);
-      console.warn('[TikTok] 응답 전체:', JSON.stringify(dataset));
+      console.error('[TikTok] 예상치 못한 응답 형식:', typeof dataset);
       return [];
     }
 
-    console.log(`[TikTok] 검색 결과: ${dataset.length}개 영상`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[TikTok] 검색 결과: ${dataset.length}개 영상`);
+    }
 
     if (dataset.length === 0) {
-      console.warn('[TikTok] 반환된 결과가 없습니다');
       return [];
-    }
-
-    // 첫 번째 항목의 전체 구조 확인
-    console.log('[TikTok] 첫 번째 항목 전체:', JSON.stringify(dataset[0], null, 2));
-
-    // 다운로드 관련 필드 확인 (디버깅용)
-    if (dataset[0]) {
-      console.log('[TikTok] videoMeta:', JSON.stringify(dataset[0].videoMeta, null, 2));
-      console.log('[TikTok] download 필드:', dataset[0].download);
-      console.log('[TikTok] downloadUrl 필드:', dataset[0].downloadUrl);
-      console.log('[TikTok] video 필드:', dataset[0].video);
-      console.log('[TikTok] webVideoUrl 필드:', dataset[0].webVideoUrl);
     }
 
     // 결과를 VideoResult 형식으로 변환
@@ -262,7 +242,10 @@ async function searchTikTokVideos(
                        item.videoMeta?.subtitleLinks?.[0]?.tiktokLink ||
                        undefined;
 
-      console.log(`[TikTok] Video ${index + 1} - 사용된 videoUrl:`, videoUrl);
+      if (process.env.NODE_ENV === 'development' && index === 0) {
+        // 첫 번째 항목의 authorMeta 확인 (팔로워 수 찾기)
+        console.log('[TikTok] authorMeta 전체:', JSON.stringify(item.authorMeta, null, 2));
+      }
 
       return {
         id: item.id || `video-${index}`,
@@ -270,6 +253,7 @@ async function searchTikTokVideos(
         description: item.text || '',
         creator: item.authorMeta?.name || item.authorMeta?.nickName || 'Unknown',
         creatorUrl: item.authorMeta?.profileUrl || undefined,
+        followerCount: item.authorMeta?.followerCount ? parseInt(item.authorMeta.followerCount) : undefined,
         playCount: parseInt(item.playCount || 0),
         likeCount: parseInt(item.diggCount || 0),
         commentCount: parseInt(item.commentCount || 0),
@@ -284,6 +268,131 @@ async function searchTikTokVideos(
     });
   } catch (error) {
     console.error('[TikTok] Apify API 호출 오류:', error);
+    return [];
+  }
+}
+
+/**
+ * Apify Douyin Scraper를 사용하여 도우인 영상 검색
+ * 실행 → 폴링 → 결과 조회 방식
+ */
+async function searchDouyinVideos(
+  query: string,
+  limit: number,
+  apiKey: string
+): Promise<VideoResult[]> {
+  try {
+    // Douyin Scraper Actor ID (실제 고유 ID)
+    const actorId = 'uudPCDtUwsNp6n9ib';
+    console.log(`[Douyin] Apify 액터 호출 시작 - 액터: ${actorId}, 검색어: ${query}, 제한: ${limit}`);
+
+    // 1️⃣ Run 시작
+    const runRes = await fetch(
+      `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          searchQueries: [query],
+          maxItems: Math.min(limit, 30),
+          resultsPerPage: Math.min(limit, 30),
+        }),
+      }
+    );
+
+    const runData = await runRes.json();
+
+    if (!runRes.ok) {
+      console.error('[Douyin] Run 시작 오류:', runData);
+      return [];
+    }
+
+    const runId = runData.data.id;
+    console.log(`[Douyin] Run ID: ${runId}`);
+
+    // 2️⃣ 실행 완료 대기 (Polling)
+    let status = 'RUNNING';
+    let attempt = 0;
+    const maxAttempts = 60; // 최대 2분
+
+    await new Promise(r => setTimeout(r, 1000));
+
+    while ((status === 'RUNNING' || status === 'READY') && attempt < maxAttempts) {
+      const statusRes = await fetch(
+        `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
+      );
+
+      const statusData = await statusRes.json();
+      status = statusData.data.status;
+      attempt++;
+
+      if (attempt % 5 === 0) {
+        console.log(`[Douyin] 상태: ${status} (시도: ${attempt}/${maxAttempts})`);
+      }
+
+      if (status === 'SUCCEEDED') {
+        break;
+      } else if (status === 'FAILED' || status === 'ABORTED') {
+        console.error('[Douyin] Run 실패:', statusData.data.statusMessage);
+        return [];
+      }
+
+      if (status === 'RUNNING' || status === 'READY') {
+        await new Promise(r => setTimeout(r, 2000));
+      }
+    }
+
+    if (status !== 'SUCCEEDED') {
+      console.warn(`[Douyin] Run 타임아웃 (상태: ${status})`);
+      return [];
+    }
+
+    console.log('[Douyin] Run 완료, 결과 조회 시작');
+
+    // 3️⃣ 결과 Dataset 가져오기
+    const datasetRes = await fetch(
+      `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`
+    );
+
+    const dataset = await datasetRes.json();
+
+    if (!Array.isArray(dataset)) {
+      console.warn('[Douyin] 예상치 못한 응답 형식:', typeof dataset);
+      return [];
+    }
+
+    console.log(`[Douyin] 검색 결과: ${dataset.length}개 영상`);
+
+    if (dataset.length === 0) {
+      console.warn('[Douyin] 반환된 결과가 없습니다');
+      return [];
+    }
+
+    // 결과를 VideoResult 형식으로 변환
+    return dataset.slice(0, limit).map((item: any, index: number) => {
+      const hashtags = item.hashtags?.map((h: any) => typeof h === 'string' ? h : h.name) || [];
+
+      return {
+        id: item.id || `douyin-video-${index}`,
+        title: item.desc || item.description || `영상 ${index + 1}`,
+        description: item.desc || '',
+        creator: item.authorName || item.author?.name || 'Unknown',
+        creatorUrl: item.authorUrl || item.author?.url || undefined,
+        followerCount: item.authorFollowerCount || item.author?.followerCount ? parseInt(item.authorFollowerCount || item.author?.followerCount) : undefined,
+        playCount: parseInt(item.playCount || item.stats?.play || 0),
+        likeCount: parseInt(item.likeCount || item.stats?.like || 0),
+        commentCount: parseInt(item.commentCount || item.stats?.comment || 0),
+        shareCount: parseInt(item.shareCount || item.stats?.share || 0),
+        createTime: item.createTime ? parseInt(item.createTime) * 1000 : Date.now(),
+        videoDuration: parseInt(item.duration || item.videoDuration || 0),
+        hashtags: hashtags,
+        thumbnail: item.coverUrl || item.cover || undefined,
+        videoUrl: item.videoUrl || item.downloadUrl || undefined,
+        webVideoUrl: item.webVideoUrl || item.authorUrl || undefined,
+      };
+    });
+  } catch (error) {
+    console.error('[Douyin] Apify API 호출 오류:', error);
     return [];
   }
 }
