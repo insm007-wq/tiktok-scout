@@ -74,18 +74,23 @@ export async function POST(req: NextRequest) {
     }
 
     if (videoResults && videoResults.length > 0) {
-      console.log(`영상 검색 완료: ${videoResults.length}개`);
+      // 중복 제거 (같은 ID를 가진 영상이 여러 번 나타나는 경우 방지)
+      const uniqueVideos = Array.from(
+        new Map(videoResults.map((video) => [video.id, video])).values()
+      );
+
+      console.log(`영상 검색 완료: ${videoResults.length}개 → 중복 제거 후: ${uniqueVideos.length}개`);
 
       // 캐시에 저장
-      setCache(query, platform, { videos: videoResults });
+      setCache(query, platform, { videos: uniqueVideos });
 
       return NextResponse.json({
         success: true,
         query,
         platform,
-        videos: videoResults,
+        videos: uniqueVideos,
         count: {
-          videos: videoResults.length,
+          videos: uniqueVideos.length,
         },
         fromCache: false,
       });

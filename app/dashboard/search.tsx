@@ -211,7 +211,11 @@ export default function Search() {
   };
 
   const results = useMemo(() => {
-    const filtered = filterVideos(videos, filters);
+    // 중복 제거 (같은 ID를 가진 영상이 여러 번 나타나는 경우 방지)
+    const uniqueVideos = Array.from(
+      new Map(videos.map((video) => [video.id, video])).values()
+    );
+    const filtered = filterVideos(uniqueVideos, filters);
     return sortVideos(filtered, sortBy);
   }, [videos, filters, sortBy]);
 

@@ -12,7 +12,8 @@
       "Bash(git commit:*)",
       "Bash(timeout 10 npm run dev:*)",
       "WebFetch(domain:www.scraperapi.com)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
