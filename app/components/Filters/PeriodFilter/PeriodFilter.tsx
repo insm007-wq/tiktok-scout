@@ -16,14 +16,14 @@ const PERIOD_OPTIONS = [
 
 export default function PeriodFilter({ value, onChange }: PeriodFilterProps) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
       {PERIOD_OPTIONS.map((option) => (
         <label
           key={option.value}
           style={{
             display: "flex",
             alignItems: "center",
-            padding: "8px 10px",
+            padding: "6px 8px",
             borderRadius: "6px",
             cursor: "pointer",
             backgroundColor: value === option.value ? "#e0e7ff" : "transparent",

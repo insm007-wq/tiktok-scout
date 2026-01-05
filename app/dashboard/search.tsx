@@ -52,6 +52,7 @@ export default function Search() {
   const [sidebarWidth, setSidebarWidth] = useState<number>(350);
   const [isResizing, setIsResizing] = useState(false);
   const [error, setError] = useState("");
+  const [downloadingVideoId, setDownloadingVideoId] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterState>({
     minPlayCount: 0,
     maxPlayCount: null,
@@ -270,53 +271,10 @@ export default function Search() {
     }
   };
 
-  // 히스토리 항목 클릭 후 자동 검색
-  const handleHistoryClick = useCallback(async (keyword: string) => {
+  // 히스토리 항목 클릭 - 검색 입력 필드에만 값 설정
+  const handleHistoryClick = useCallback((keyword: string) => {
     setSearchInput(keyword);
-
-    // 검색 히스토리 업데이트
-    const newHistory = [keyword, ...searchHistory.filter(item => item !== keyword)].slice(0, 10);
-    setSearchHistory(newHistory);
-    localStorage.setItem("tiktok-scout-search-history", JSON.stringify(newHistory));
-
-    // 자동 검색 시작
-    setIsLoading(true);
-    setError("");
-    setVideos([]);
-
-    try {
-      const response = await fetch("/api/brightdata/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: keyword,
-          platform,
-          limit: 50,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "검색 중 오류가 발생했습니다");
-      }
-
-      const data = await response.json();
-
-      if (data.success && data.videos && data.videos.length > 0) {
-        setVideos(data.videos);
-        setError("");
-      } else {
-        setVideos([]);
-        setError(data.error || "검색 결과가 없습니다");
-      }
-    } catch (error) {
-      console.error("검색 오류:", error);
-      setError(error instanceof Error ? error.message : "검색 중 오류가 발생했습니다");
-      setVideos([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [platform, searchHistory]);
+  }, []);
 
   // 히스토리 항목 삭제
   const handleDeleteHistory = (e: React.MouseEvent, keyword: string) => {
@@ -409,31 +367,42 @@ export default function Search() {
     }
   };
 
-  // 영상 다운로드 (서버 프록시 방식)
-  const handleDownloadVideo = (video: Video) => {
-    if (!video.videoUrl) {
-      alert("영상 다운로드 URL을 사용할 수 없습니다.\n\n💡 다운로드 방법:\n1. TikTok 페이지에서 공유 버튼 클릭\n2. '다운로드' 선택\n\n또는 외부 사이트(예: savettik.com)를 이용해주세요.");
-      if (video.webVideoUrl) {
-        window.open(video.webVideoUrl, "_blank");
-      }
+  // 영상 다운로드 (클립보드 복사 + 외부 다운로더 열기)
+  const handleDownloadVideo = async (video: Video) => {
+    if (!video.webVideoUrl) {
+      alert("영상 정보를 불러올 수 없습니다.");
       return;
     }
 
+    setDownloadingVideoId(video.id);
+
     try {
-      // 서버 프록시를 통한 다운로드
-      const downloadUrl = `/api/brightdata/download?url=${encodeURIComponent(video.videoUrl)}&name=${encodeURIComponent(`${video.id}.mp4`)}`;
+      // Step 1: TikTok URL을 클립보드에 복사
+      console.log("[Download] Copying URL to clipboard:", video.webVideoUrl);
 
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = `${video.id}.mp4`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      await navigator.clipboard.writeText(video.webVideoUrl);
 
-      console.log("다운로드 시작:", video.id);
+      // Step 2: 외부 다운로더 사이트 열기
+      const downloaderUrl = "https://www.ssstiktok.com/";
+      console.log("[Download] Opening downloader:", downloaderUrl);
+
+      window.open(downloaderUrl, "_blank");
+
+      // Step 3: 사용자에게 알림
+      alert(
+        `✅ TikTok 링크가 클립보드에 복사되었습니다!\n\n` +
+          `다운로더 사이트가 열렸습니다.\n` +
+          `아래 단계를 따라주세요:\n\n` +
+          `1️⃣ 링크 입력창에 붙여넣기 (Ctrl+V)\n` +
+          `2️⃣ 다운로드 버튼 클릭\n` +
+          `3️⃣ 완료!\n\n` +
+          `💡 참고: 다운로더 사이트는 제3자 서비스입니다.`
+      );
     } catch (error) {
-      console.error("다운로드 오류:", error);
-      alert("영상 다운로드 중 오류가 발생했습니다");
+      console.error("[Download] Error:", error);
+      alert("클립보드 복사 중 오류가 발생했습니다. 수동으로 URL을 복사해주세요.");
+    } finally {
+      setDownloadingVideoId(null);
     }
   };
 
@@ -561,13 +530,13 @@ export default function Search() {
                 필터
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div style={{
                   background: "linear-gradient(135deg, #f5f7fa 0%, #f8fafb 100%)",
                   borderRadius: "8px",
-                  padding: "14px 12px",
+                  padding: "10px 8px",
                 }}>
-                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#666", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#666", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
                     조회수
                   </div>
                   <ViewCountFilter
@@ -580,9 +549,9 @@ export default function Search() {
                 <div style={{
                   background: "linear-gradient(135deg, #f5f7fa 0%, #f8fafb 100%)",
                   borderRadius: "8px",
-                  padding: "14px 12px",
+                  padding: "10px 8px",
                 }}>
-                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#666", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#666", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
                     기간
                   </div>
                   <PeriodFilter
@@ -594,9 +563,9 @@ export default function Search() {
                 <div style={{
                   background: "linear-gradient(135deg, #f5f7fa 0%, #f8fafb 100%)",
                   borderRadius: "8px",
-                  padding: "14px 12px",
+                  padding: "10px 8px",
                 }}>
-                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#666", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#666", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
                     길이
                   </div>
                   <VideoLengthFilter
@@ -608,9 +577,9 @@ export default function Search() {
                 <div style={{
                   background: "linear-gradient(135deg, #f5f7fa 0%, #f8fafb 100%)",
                   borderRadius: "8px",
-                  padding: "14px 12px",
+                  padding: "10px 8px",
                 }}>
-                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#666", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#666", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
                     인기도
                   </div>
                   <EngagementRatioFilter
@@ -749,9 +718,20 @@ export default function Search() {
                           <button
                             className="card-btn"
                             onClick={() => handleDownloadVideo(video)}
-                            style={{ flex: 1, padding: "6px", fontSize: "12px", backgroundColor: "#e74c3c", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                            disabled={downloadingVideoId === video.id}
+                            style={{
+                              flex: 1,
+                              padding: "6px",
+                              fontSize: "12px",
+                              backgroundColor: downloadingVideoId === video.id ? "#999" : "#e74c3c",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "4px",
+                              cursor: downloadingVideoId === video.id ? "not-allowed" : "pointer",
+                              opacity: downloadingVideoId === video.id ? 0.6 : 1,
+                            }}
                           >
-                            ⬇️ 다운
+                            {downloadingVideoId === video.id ? "⏳ 준비 중..." : "⬇️ 다운"}
                           </button>
                         </div>
                       </div>
@@ -937,20 +917,31 @@ export default function Search() {
               </button>
               <button
                 onClick={() => {
-                  handleDownloadVideo(selectedVideo);
+                  if (selectedVideo) handleDownloadVideo(selectedVideo);
                 }}
+                disabled={selectedVideo ? downloadingVideoId === selectedVideo.id : true}
                 style={{
                   flex: 1,
                   padding: "10px",
-                  backgroundColor: "#e74c3c",
+                  backgroundColor:
+                    selectedVideo && downloadingVideoId === selectedVideo.id
+                      ? "#999"
+                      : "#e74c3c",
                   color: "white",
                   border: "none",
                   borderRadius: "4px",
-                  cursor: "pointer",
+                  cursor:
+                    selectedVideo && downloadingVideoId === selectedVideo.id
+                      ? "not-allowed"
+                      : "pointer",
                   fontWeight: "bold",
+                  opacity:
+                    selectedVideo && downloadingVideoId === selectedVideo.id ? 0.6 : 1,
                 }}
               >
-                ⬇️ 다운로드
+                {selectedVideo && downloadingVideoId === selectedVideo.id
+                  ? "⏳ 준비 중..."
+                  : "⬇️ 다운로드"}
               </button>
             </div>
           </div>

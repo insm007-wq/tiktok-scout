@@ -9,7 +9,10 @@
       "Bash(timeout 5 npm run dev:*)",
       "Bash(npm run build:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(timeout 10 npm run dev:*)",
+      "WebFetch(domain:www.scraperapi.com)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

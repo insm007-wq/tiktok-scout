@@ -13,14 +13,14 @@ const LENGTH_OPTIONS = [
 
 export default function VideoLengthFilter({ value, onChange }: VideoLengthFilterProps) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
       {LENGTH_OPTIONS.map((option) => (
         <label
           key={option.value}
           style={{
             display: "flex",
             alignItems: "center",
-            padding: "8px 10px",
+            padding: "6px 8px",
             borderRadius: "6px",
             cursor: "pointer",
             backgroundColor: value === option.value ? "#e0e7ff" : "transparent",

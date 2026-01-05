@@ -70,13 +70,7 @@ export async function POST(req: NextRequest) {
     } else if (platform === 'douyin') {
       videoResults = await searchDouyinVideos(query, limit, apiKey);
     } else if (platform === 'xiaohongshu') {
-      return NextResponse.json({
-        success: false,
-        query,
-        platform,
-        videos: [],
-        error: 'Xiaohongshu는 아직 지원되지 않습니다. TikTok 검색을 이용해주세요.',
-      }, { status: 400 });
+      videoResults = await searchXiaohongshuVideos(query, limit, apiKey);
     }
 
     if (videoResults && videoResults.length > 0) {
@@ -293,9 +287,11 @@ async function searchDouyinVideos(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          searchQueries: [query],
-          maxItems: Math.min(limit, 30),
-          resultsPerPage: Math.min(limit, 30),
+          searchTermsOrHashtags: [query],
+          searchSortFilter: 'most_liked',
+          maxItemsPerUrl: Math.min(limit, 50),  // ← 500에서 50으로 제한 (속도 및 비용 최적화)
+          shouldDownloadVideos: false,
+          shouldDownloadCovers: false,
         }),
       }
     );
@@ -310,12 +306,12 @@ async function searchDouyinVideos(
     const runId = runData.data.id;
     console.log(`[Douyin] Run ID: ${runId}`);
 
-    // 2️⃣ 실행 완료 대기 (Polling)
+    // 2️⃣ 실행 완료 대기 (Polling - 지수 백오프 적용)
     let status = 'RUNNING';
     let attempt = 0;
     const maxAttempts = 60; // 최대 2분
-
-    await new Promise(r => setTimeout(r, 1000));
+    let waitTime = 3000; // 초기 대기 3초 (TikTok보다 긴 이유: Douyin은 더 느림)
+    const maxWaitTime = 10000; // 최대 10초
 
     while ((status === 'RUNNING' || status === 'READY') && attempt < maxAttempts) {
       const statusRes = await fetch(
@@ -326,8 +322,8 @@ async function searchDouyinVideos(
       status = statusData.data.status;
       attempt++;
 
-      if (attempt % 5 === 0) {
-        console.log(`[Douyin] 상태: ${status} (시도: ${attempt}/${maxAttempts})`);
+      if (process.env.NODE_ENV === 'development' && attempt % 3 === 0) {
+        console.log(`[Douyin] 상태: ${status} (시도: ${attempt}/${maxAttempts}, 대기: ${waitTime}ms)`);
       }
 
       if (status === 'SUCCEEDED') {
@@ -338,7 +334,9 @@ async function searchDouyinVideos(
       }
 
       if (status === 'RUNNING' || status === 'READY') {
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, waitTime));
+        // 지수 백오프: 3s → 5s → 8s → 10s (최대)
+        waitTime = Math.min(waitTime * 1.5, maxWaitTime);
       }
     }
 
@@ -347,7 +345,9 @@ async function searchDouyinVideos(
       return [];
     }
 
-    console.log('[Douyin] Run 완료, 결과 조회 시작');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Douyin] Run 완료, 결과 조회 시작');
+    }
 
     // 3️⃣ 결과 Dataset 가져오기
     const datasetRes = await fetch(
@@ -374,25 +374,166 @@ async function searchDouyinVideos(
 
       return {
         id: item.id || `douyin-video-${index}`,
-        title: item.desc || item.description || `영상 ${index + 1}`,
-        description: item.desc || '',
-        creator: item.authorName || item.author?.name || 'Unknown',
-        creatorUrl: item.authorUrl || item.author?.url || undefined,
-        followerCount: item.authorFollowerCount || item.author?.followerCount ? parseInt(item.authorFollowerCount || item.author?.followerCount) : undefined,
-        playCount: parseInt(item.playCount || item.stats?.play || 0),
-        likeCount: parseInt(item.likeCount || item.stats?.like || 0),
-        commentCount: parseInt(item.commentCount || item.stats?.comment || 0),
-        shareCount: parseInt(item.shareCount || item.stats?.share || 0),
+        title: item.text || item.desc || item.description || `영상 ${index + 1}`,
+        description: item.text || item.desc || '',
+        creator: item.authorMeta?.name || item.authorName || 'Unknown',
+        creatorUrl: item.authorMeta?.avatarLarge || item.authorUrl || undefined,
+        followerCount: item.authorMeta?.followersCount ? parseInt(item.authorMeta.followersCount) : undefined,
+        playCount: parseInt(item.statistics?.diggCount || 0),  // Douyin: 조회수 대신 좋아요 수 사용
+        likeCount: parseInt(item.statistics?.diggCount || 0),  // Douyin: diggCount = 좋아요
+        commentCount: parseInt(item.statistics?.commentCount || 0),
+        shareCount: parseInt(item.statistics?.shareCount || 0),
         createTime: item.createTime ? parseInt(item.createTime) * 1000 : Date.now(),
-        videoDuration: parseInt(item.duration || item.videoDuration || 0),
+        videoDuration: parseInt(item.videoMeta?.duration || item.duration || 0),
         hashtags: hashtags,
-        thumbnail: item.coverUrl || item.cover || undefined,
-        videoUrl: item.videoUrl || item.downloadUrl || undefined,
-        webVideoUrl: item.webVideoUrl || item.authorUrl || undefined,
+        thumbnail: item.videoMeta?.cover || item.videoMeta?.originCover || item.thumb || undefined,
+        videoUrl: item.videoMeta?.playUrl || item.url || undefined,
+        webVideoUrl: item.url || item.videoMeta?.playUrl || undefined,
       };
     });
   } catch (error) {
     console.error('[Douyin] Apify API 호출 오류:', error);
+    return [];
+  }
+}
+
+/**
+ * Apify Xiaohongshu(小红书/RED) Search Scraper를 사용하여 검색
+ * 실행 → 폴링 → 결과 조회 방식
+ */
+async function searchXiaohongshuVideos(
+  query: string,
+  limit: number,
+  apiKey: string
+): Promise<VideoResult[]> {
+  try {
+    // Xiaohongshu Search Scraper Actor ID
+    const actorId = '9qkezGwljt2uc4DY9';
+    console.log(`[Xiaohongshu] Apify 액터 호출 시작 - 액터: ${actorId}, 검색어: ${query}, 제한: ${limit}`);
+
+    // 1️⃣ Run 시작
+    const inputParams = {
+      keywords: [query],
+      limit: Math.min(limit, 50),
+    };
+
+    console.log('[Xiaohongshu] 입력 파라미터:', JSON.stringify(inputParams));
+
+    const runRes = await fetch(
+      `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(inputParams),
+      }
+    );
+
+    const runData = await runRes.json();
+
+    if (!runRes.ok) {
+      console.error('[Xiaohongshu] Run 시작 오류:', runData);
+      console.error('[Xiaohongshu] 응답 코드:', runRes.status);
+      console.error('[Xiaohongshu] 응답 메시지:', JSON.stringify(runData, null, 2));
+      return [];
+    }
+
+    const runId = runData.data.id;
+    console.log(`[Xiaohongshu] Run ID: ${runId}`);
+
+    // 2️⃣ 실행 완료 대기 (Polling - 지수 백오프)
+    let status = 'RUNNING';
+    let attempt = 0;
+    const maxAttempts = 60;
+    let waitTime = 3000;
+    const maxWaitTime = 10000;
+
+    while ((status === 'RUNNING' || status === 'READY') && attempt < maxAttempts) {
+      const statusRes = await fetch(
+        `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
+      );
+
+      const statusData = await statusRes.json();
+      status = statusData.data.status;
+      attempt++;
+
+      if (process.env.NODE_ENV === 'development' && attempt % 3 === 0) {
+        console.log(`[Xiaohongshu] 상태: ${status} (시도: ${attempt}/${maxAttempts})`);
+      }
+
+      if (status === 'SUCCEEDED') {
+        break;
+      } else if (status === 'FAILED' || status === 'ABORTED') {
+        console.error('[Xiaohongshu] Run 실패:', statusData.data.statusMessage);
+        return [];
+      }
+
+      if (status === 'RUNNING' || status === 'READY') {
+        await new Promise(r => setTimeout(r, waitTime));
+        waitTime = Math.min(waitTime * 1.5, maxWaitTime);
+      }
+    }
+
+    if (status !== 'SUCCEEDED') {
+      console.warn(`[Xiaohongshu] Run 타임아웃 (상태: ${status})`);
+      return [];
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Xiaohongshu] Run 완료, 결과 조회 시작');
+    }
+
+    // 3️⃣ 결과 Dataset 가져오기
+    const datasetRes = await fetch(
+      `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`
+    );
+
+    const dataset = await datasetRes.json();
+
+    if (!Array.isArray(dataset)) {
+      console.warn('[Xiaohongshu] 예상치 못한 응답 형식:', typeof dataset);
+      return [];
+    }
+
+    console.log(`[Xiaohongshu] 검색 결과: ${dataset.length}개`);
+
+    if (dataset.length === 0) {
+      console.warn('[Xiaohongshu] 반환된 결과가 없습니다');
+      return [];
+    }
+
+    // 결과를 VideoResult 형식으로 변환
+    return dataset.slice(0, limit).map((item: any, index: number) => {
+      // 날짜 파싱 ("2025-10-09" → timestamp)
+      let createTime = Date.now();
+      if (item.item?.note_card?.corner_tag_info?.[0]?.text) {
+        const dateStr = item.item.note_card.corner_tag_info[0].text;
+        const parsed = new Date(dateStr);
+        if (!isNaN(parsed.getTime())) {
+          createTime = parsed.getTime();
+        }
+      }
+
+      return {
+        id: item.item?.id || `xiaohongshu-${index}`,
+        title: item.item?.note_card?.display_title || `포스트 ${index + 1}`,
+        description: item.item?.note_card?.display_title || '',
+        creator: item.item?.note_card?.user?.nickname || item.item?.note_card?.user?.nick_name || 'Unknown',
+        creatorUrl: item.item?.note_card?.user?.avatar || undefined,
+        followerCount: undefined,  // Xiaohongshu API에서 제공하지 않음
+        playCount: parseInt(item.item?.note_card?.interact_info?.liked_count || 0),  // 조회수 대신 좋아요 사용
+        likeCount: parseInt(item.item?.note_card?.interact_info?.liked_count || 0),
+        commentCount: parseInt(item.item?.note_card?.interact_info?.comment_count || 0),
+        shareCount: parseInt(item.item?.note_card?.interact_info?.shared_count || 0),
+        createTime: createTime,
+        videoDuration: 0,  // Xiaohongshu는 대부분 이미지
+        hashtags: [],  // 데이터에 해시태그 없음
+        thumbnail: item.item?.note_card?.cover?.url_default || item.item?.note_card?.cover?.url_pre || undefined,
+        videoUrl: item.link || undefined,
+        webVideoUrl: item.link || undefined,
+      };
+    });
+  } catch (error) {
+    console.error('[Xiaohongshu] Apify API 호출 오류:', error);
     return [];
   }
 }

@@ -37,11 +37,10 @@ export default function EngagementRatioFilter({
 
   return (
     <div className="engagement-section">
-      <div className="engagement-title">종합 인기도 (다중선택)</div>
       <div className="engagement-subtitle">
         (좋아요 + 댓글 + 공유) ÷ 조회수 기반 인기도 단계
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
         {[
           { value: 'all', label: '전체' },
           { value: '1', label: '1단계 - 낮음 (<5%)' },
@@ -55,7 +54,7 @@ export default function EngagementRatioFilter({
             style={{
               display: "flex",
               alignItems: "center",
-              padding: "8px 10px",
+              padding: "6px 8px",
               borderRadius: "6px",
               cursor: "pointer",
               backgroundColor: selectedValues.includes(option.value) ? "#e0e7ff" : "transparent",
@@ -98,8 +97,8 @@ export default function EngagementRatioFilter({
         .engagement-subtitle {
           font-size: 12px;
           color: var(--text-secondary, #666);
-          margin-top: 4px;
-          margin-bottom: 12px;
+          margin-top: 0;
+          margin-bottom: 8px;
           font-weight: 400;
         }
       `}</style>
