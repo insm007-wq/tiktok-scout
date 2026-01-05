@@ -12,8 +12,9 @@ interface ViewCountFilterProps {
 const QUICK_OPTIONS = [
   { label: '전체', min: 0, max: null },
   { label: '10만+', min: 100000, max: null },
+  { label: '30만+', min: 300000, max: null },
+  { label: '50만+', min: 500000, max: null },
   { label: '100만+', min: 1000000, max: null },
-  { label: '1000만+', min: 10000000, max: null },
 ]
 
 export default function ViewCountFilter({

@@ -8,7 +8,7 @@ interface VideoLengthFilterProps {
 export default function VideoLengthFilter({ value, onChange }: VideoLengthFilterProps) {
   return (
     <div className="filter-section">
-      <div className="filter-title">길이 필터</div>
+      <div className="filter-title">길이</div>
       <div className="filter-options">
         <label className="filter-option">
           <input
@@ -28,7 +28,7 @@ export default function VideoLengthFilter({ value, onChange }: VideoLengthFilter
             checked={value === 'short'}
             onChange={(e) => onChange(e.target.value)}
           />
-          <label>숏폼(≤3분)</label>
+          <label>20초 미만</label>
         </label>
         <label className="filter-option">
           <input
@@ -38,7 +38,7 @@ export default function VideoLengthFilter({ value, onChange }: VideoLengthFilter
             checked={value === 'long'}
             onChange={(e) => onChange(e.target.value)}
           />
-          <label>롱폼(&gt;3분)</label>
+          <label>20초 이상</label>
         </label>
       </div>
     </div>

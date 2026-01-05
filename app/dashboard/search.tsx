@@ -154,7 +154,7 @@ export default function Search() {
 
       // 3. 영상 길이 필터
       if (filterState.videoLength !== "all") {
-        const isShort = video.videoDuration <= 180; // 3분 = 180초
+        const isShort = video.videoDuration < 20; // 20초 미만
         if (filterState.videoLength === "short" && !isShort) return false;
         if (filterState.videoLength === "long" && isShort) return false;
       }
