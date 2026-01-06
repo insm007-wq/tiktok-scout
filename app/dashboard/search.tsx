@@ -143,6 +143,21 @@ export default function Search() {
     }
   }, [searchInput]);
 
+  // 플랫폼 변경 시 모든 상태 초기화
+  useEffect(() => {
+    setVideos([]);           // 검색 결과 초기화
+    setTranslatedQuery("");  // 번역 결과 초기화
+    setError("");            // 에러 메시지 초기화
+    setSearchInput("");      // 검색어 초기화
+    setFilters({             // 필터 초기화
+      minPlayCount: 0,
+      maxPlayCount: null,
+      uploadPeriod: "all",
+      videoLength: "all",
+      engagementScore: [],
+    });
+  }, [platform]);
+
   // 드래그로 너비 조정
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
