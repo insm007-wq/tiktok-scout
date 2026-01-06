@@ -13,7 +13,8 @@
       "Bash(timeout 10 npm run dev:*)",
       "WebFetch(domain:www.scraperapi.com)",
       "Bash(git checkout:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(timeout 15 npm run dev:*)"
     ],
     "deny": [],
     "ask": []

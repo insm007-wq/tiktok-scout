@@ -1,11 +1,11 @@
-# TikTok Scout
+# TikTok Killer
 
-YouTube Scout의 UI를 기반으로 TikTok 비디오 검색 및 분석 도구입니다.
+TikTok, Douyin, Xiaohongshu 비디오 검색 및 분석 도구입니다.
 
 ## 📁 프로젝트 구조
 
 ```
-tik-tok-scout/
+tiktok-killer/
 ├── app/                          # Next.js App Router
 │   ├── api/                      # API 라우트 (TikTok API 통합 예정)
 │   ├── components/               # React 컴포넌트 (UI)

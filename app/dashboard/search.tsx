@@ -1,7 +1,18 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { LayoutGrid, Table2, Download } from "lucide-react";
+import {
+  LayoutGrid,
+  Table2,
+  Download,
+  Play,
+  Heart,
+  MessageCircle,
+  Share2,
+  Info,
+  ExternalLink,
+  Loader
+} from "lucide-react";
 import Spinner from "@/app/components/ui/Spinner";
 import ViewCountFilter from "@/app/components/Filters/ViewCountFilter/ViewCountFilter";
 import PeriodFilter from "@/app/components/Filters/PeriodFilter/PeriodFilter";
@@ -72,7 +83,7 @@ export default function Search() {
 
   // 저장된 너비 복원
   useEffect(() => {
-    const savedWidth = localStorage.getItem("tiktok-scout-sidebar-width");
+    const savedWidth = localStorage.getItem("tiktok-killer-sidebar-width");
     if (savedWidth) {
       setSidebarWidth(parseInt(savedWidth, 10));
     }
@@ -80,7 +91,7 @@ export default function Search() {
 
   // 검색 히스토리 로드
   useEffect(() => {
-    const savedHistory = localStorage.getItem("tiktok-scout-search-history");
+    const savedHistory = localStorage.getItem("tiktok-killer-search-history");
     if (savedHistory) {
       setSearchHistory(JSON.parse(savedHistory));
     }
@@ -121,7 +132,7 @@ export default function Search() {
 
   // 너비 변경 시 localStorage에 저장
   useEffect(() => {
-    localStorage.setItem("tiktok-scout-sidebar-width", sidebarWidth.toString());
+    localStorage.setItem("tiktok-killer-sidebar-width", sidebarWidth.toString());
   }, [sidebarWidth]);
 
   // 영상 필터링 함수
@@ -228,7 +239,7 @@ export default function Search() {
     // 검색 히스토리 저장
     const newHistory = [searchInput, ...searchHistory.filter(item => item !== searchInput)].slice(0, 10);
     setSearchHistory(newHistory);
-    localStorage.setItem("tiktok-scout-search-history", JSON.stringify(newHistory));
+    localStorage.setItem("tiktok-killer-search-history", JSON.stringify(newHistory));
 
     setIsLoading(true);
     setError("");
@@ -285,7 +296,7 @@ export default function Search() {
     e.stopPropagation();
     const newHistory = searchHistory.filter(item => item !== keyword);
     setSearchHistory(newHistory);
-    localStorage.setItem("tiktok-scout-search-history", JSON.stringify(newHistory));
+    localStorage.setItem("tiktok-killer-search-history", JSON.stringify(newHistory));
   };
 
   const handleExcelDownload = () => {
@@ -423,7 +434,7 @@ export default function Search() {
             onClick={handleTitleClick}
             style={{ cursor: "pointer", transition: "opacity 0.3s", opacity: isTitleRefreshing ? 0.5 : 1 }}
           >
-            TikTok Scout
+            TikTok Killer
           </div>
 
           <div className="search-section">
@@ -660,82 +671,112 @@ export default function Search() {
                   {(results as Video[]).map((video) => (
                     <div key={video.id} className="result-card">
                       <div
-                    className="card-thumbnail"
-                    style={{ height: "130px", background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", cursor: "pointer" }}
-                    onClick={() => {
-                      if (video.webVideoUrl) {
-                        window.open(video.webVideoUrl, "_blank");
-                      }
-                    }}
-                  >
+                        className="card-thumbnail-container"
+                        onClick={() => {
+                          if (video.webVideoUrl) {
+                            window.open(video.webVideoUrl, "_blank");
+                          }
+                        }}
+                      >
+                        {/* 썸네일 */}
                         {video.thumbnail ? (
-                          <img src={video.thumbnail} alt={video.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          <img
+                            src={video.thumbnail}
+                            alt={video.title}
+                            className="card-thumbnail"
+                            loading="lazy"
+                          />
                         ) : (
-                          <div style={{ fontSize: "30px" }}>🎬</div>
+                          <div className="card-thumbnail-fallback">🎬</div>
                         )}
-                        <div style={{ position: "absolute", bottom: "4px", right: "4px", backgroundColor: "rgba(0,0,0,0.7)", color: "white", padding: "2px 6px", borderRadius: "2px", fontSize: "12px" }}>
+
+                        {/* Duration 뱃지 - 왼쪽 상단 */}
+                        <div className="card-duration-badge">
                           {Math.floor(video.videoDuration / 60)}:{(video.videoDuration % 60).toString().padStart(2, "0")}
                         </div>
-                      </div>
-                      <div className="card-content">
-                        <h3 className="card-title">{video.title}</h3>
-                        <div style={{ fontSize: "12px", color: "#666", marginBottom: "8px" }}>
-                          <div style={{ marginBottom: "4px" }}>
-                            <strong>📺 채널:</strong> {video.creator}
-                            {video.followerCount && ` (팔로워: ${formatNumber(video.followerCount)})`}
+
+                        {/* 그라데이션 오버레이 - 하단 */}
+                        <div className="card-overlay">
+                          {/* 크리에이터 */}
+                          <div className="card-overlay-creator">
+                            <span>@{video.creator}</span>
+                            {video.followerCount && (
+                              <span style={{ fontSize: "10px", opacity: 0.9 }}>
+                                · {formatNumber(video.followerCount)}
+                              </span>
+                            )}
                           </div>
-                          <div style={{ marginBottom: "4px" }}>
-                            <strong>📅 게시:</strong> {formatDateWithTime(video.createTime)}
+
+                          {/* 제목 */}
+                          <div className="card-overlay-title">{video.title}</div>
+
+                          {/* 통계 */}
+                          <div className="card-overlay-stats">
+                            <div className="card-overlay-stat-item">
+                              <Play className="card-overlay-stat-icon" />
+                              <span>{formatNumber(video.playCount)}</span>
+                            </div>
+                            <div className="card-overlay-stat-item">
+                              <Heart className="card-overlay-stat-icon" />
+                              <span>{formatNumber(video.likeCount)}</span>
+                            </div>
+                            <div className="card-overlay-stat-item">
+                              <MessageCircle className="card-overlay-stat-icon" />
+                              <span>{formatNumber(video.commentCount)}</span>
+                            </div>
+                            <div className="card-overlay-stat-item">
+                              <Share2 className="card-overlay-stat-icon" />
+                              <span>{formatNumber(video.shareCount)}</span>
+                            </div>
                           </div>
                         </div>
-                        <div className="card-stats">
-                          <span>▶️ {formatNumber(video.playCount)} 조회</span>
-                          <span>❤️ {formatNumber(video.likeCount)} 좋아요</span>
-                        </div>
-                        <div className="card-stats" style={{ marginTop: "4px" }}>
-                          <span>💬 {formatNumber(video.commentCount)} 댓글</span>
-                          <span>↗️ {formatNumber(video.shareCount)} 공유</span>
-                        </div>
-                        <div className="card-stats" style={{ marginTop: "4px", fontSize: "11px", color: "#e74c3c" }}>
-                          <span>📊 참여율: {((video.likeCount + video.commentCount + video.shareCount) / video.playCount * 100).toFixed(2)}%</span>
-                        </div>
-                        {video.description && (
-                          <div style={{ fontSize: "11px", color: "#999", marginTop: "8px", maxHeight: "50px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "pre-wrap" }}>
-                            <strong>설명:</strong> {video.description.substring(0, 100)}...
-                          </div>
-                        )}
-                        <div className="card-actions" style={{ marginTop: "auto", display: "flex", gap: "6px" }}>
+
+                        {/* 오른쪽 액션 버튼 */}
+                        <div className="card-actions-vertical">
+                          {/* 상세 버튼 */}
                           <button
-                            className="card-btn"
-                            onClick={() => setSelectedVideo(video)}
-                            style={{ flex: 1, padding: "6px", fontSize: "12px", backgroundColor: "#667eea", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
-                          >
-                            📋 상세
-                          </button>
-                          <button
-                            className="card-btn"
-                            onClick={() => handleOpenTikTok(video)}
-                            style={{ flex: 1, padding: "6px", fontSize: "12px", backgroundColor: "#764ba2", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
-                          >
-                            🔗 열기
-                          </button>
-                          <button
-                            className="card-btn"
-                            onClick={() => handleDownloadVideo(video)}
-                            disabled={downloadingVideoId === video.id}
-                            style={{
-                              flex: 1,
-                              padding: "6px",
-                              fontSize: "12px",
-                              backgroundColor: downloadingVideoId === video.id ? "#999" : "#e74c3c",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "4px",
-                              cursor: downloadingVideoId === video.id ? "not-allowed" : "pointer",
-                              opacity: downloadingVideoId === video.id ? 0.6 : 1,
+                            className="card-action-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedVideo(video);
                             }}
+                            title="상세 정보"
                           >
-                            {downloadingVideoId === video.id ? "⏳ 준비 중..." : "⬇️ 다운"}
+                            <Info className="card-action-icon" />
+                            <span className="card-action-label">상세</span>
+                          </button>
+
+                          {/* 열기 버튼 */}
+                          <button
+                            className="card-action-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenTikTok(video);
+                            }}
+                            title="열기"
+                          >
+                            <ExternalLink className="card-action-icon" />
+                            <span className="card-action-label">열기</span>
+                          </button>
+
+                          {/* 다운로드 버튼 */}
+                          <button
+                            className="card-action-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownloadVideo(video);
+                            }}
+                            disabled={downloadingVideoId === video.id}
+                            title="다운로드"
+                          >
+                            {downloadingVideoId === video.id ? (
+                              <Loader className="card-action-icon animate-spin" />
+                            ) : (
+                              <Download className="card-action-icon" />
+                            )}
+                            <span className="card-action-label">
+                              {downloadingVideoId === video.id ? "준비중" : "다운"}
+                            </span>
                           </button>
                         </div>
                       </div>

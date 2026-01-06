@@ -422,8 +422,6 @@ async function searchXiaohongshuVideos(
       limit: Math.min(limit, 50),
     };
 
-    console.log('[Xiaohongshu] 입력 파라미터:', JSON.stringify(inputParams));
-
     const runRes = await fetch(
       `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
       {
@@ -461,9 +459,6 @@ async function searchXiaohongshuVideos(
       status = statusData.data.status;
       attempt++;
 
-      if (process.env.NODE_ENV === 'development' && attempt % 3 === 0) {
-        console.log(`[Xiaohongshu] 상태: ${status} (시도: ${attempt}/${maxAttempts})`);
-      }
 
       if (status === 'SUCCEEDED') {
         break;
@@ -479,12 +474,8 @@ async function searchXiaohongshuVideos(
     }
 
     if (status !== 'SUCCEEDED') {
-      console.warn(`[Xiaohongshu] Run 타임아웃 (상태: ${status})`);
+      console.error(`[Xiaohongshu] Run 타임아웃 (상태: ${status})`);
       return [];
-    }
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Xiaohongshu] Run 완료, 결과 조회 시작');
     }
 
     // 3️⃣ 결과 Dataset 가져오기
@@ -492,49 +483,100 @@ async function searchXiaohongshuVideos(
       `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`
     );
 
-    const dataset = await datasetRes.json();
-
-    if (!Array.isArray(dataset)) {
-      console.warn('[Xiaohongshu] 예상치 못한 응답 형식:', typeof dataset);
+    if (!datasetRes.ok) {
+      console.error('[Xiaohongshu] Dataset 조회 오류:', datasetRes.status, datasetRes.statusText);
       return [];
     }
 
-    console.log(`[Xiaohongshu] 검색 결과: ${dataset.length}개`);
+    const dataset = await datasetRes.json();
+
+    if (!Array.isArray(dataset)) {
+      console.error('[Xiaohongshu] 예상치 못한 응답 형식 - 배열이 아님');
+      return [];
+    }
 
     if (dataset.length === 0) {
-      console.warn('[Xiaohongshu] 반환된 결과가 없습니다');
       return [];
     }
 
     // 결과를 VideoResult 형식으로 변환
     return dataset.slice(0, limit).map((item: any, index: number) => {
-      // 날짜 파싱 ("2025-10-09" → timestamp)
-      let createTime = Date.now();
-      if (item.item?.note_card?.corner_tag_info?.[0]?.text) {
-        const dateStr = item.item.note_card.corner_tag_info[0].text;
-        const parsed = new Date(dateStr);
-        if (!isNaN(parsed.getTime())) {
-          createTime = parsed.getTime();
-        }
-      }
+      // 여러 가능한 필드명 시도
+      const title =
+        item.item?.note_card?.display_title ||
+        item.item?.title ||
+        item.title ||
+        item.desc ||
+        item.description ||
+        `포스트 ${index + 1}`;
+
+      const creator =
+        item.item?.note_card?.user?.nickname ||
+        item.item?.note_card?.user?.nick_name ||
+        item.author ||
+        item.creator ||
+        'Unknown';
+
+      const likeCount = parseInt(
+        item.item?.note_card?.interact_info?.liked_count ||
+        item.likes ||
+        item.like_count ||
+        0
+      );
+
+      const playCount = parseInt(
+        item.item?.note_card?.interact_info?.play_count ||
+        item.views ||
+        item.view_count ||
+        likeCount ||
+        0
+      );
+
+      const commentCount = parseInt(
+        item.item?.note_card?.interact_info?.comment_count ||
+        item.comments ||
+        item.comment_count ||
+        0
+      );
+
+      const shareCount = parseInt(
+        item.item?.note_card?.interact_info?.shared_count ||
+        item.shares ||
+        item.share_count ||
+        0
+      );
+
+      const thumbnail =
+        item.item?.note_card?.cover?.url_default ||
+        item.item?.note_card?.cover?.url_pre ||
+        item.thumbnail ||
+        item.cover ||
+        item.image ||
+        undefined;
+
+      const videoUrl =
+        item.link ||
+        item.url ||
+        item.post_url ||
+        undefined;
 
       return {
-        id: item.item?.id || `xiaohongshu-${index}`,
-        title: item.item?.note_card?.display_title || `포스트 ${index + 1}`,
-        description: item.item?.note_card?.display_title || '',
-        creator: item.item?.note_card?.user?.nickname || item.item?.note_card?.user?.nick_name || 'Unknown',
+        id: item.item?.id || item.id || `xiaohongshu-${index}`,
+        title: title,
+        description: title,
+        creator: creator,
         creatorUrl: item.item?.note_card?.user?.avatar || undefined,
-        followerCount: undefined,  // Xiaohongshu API에서 제공하지 않음
-        playCount: parseInt(item.item?.note_card?.interact_info?.liked_count || 0),  // 조회수 대신 좋아요 사용
-        likeCount: parseInt(item.item?.note_card?.interact_info?.liked_count || 0),
-        commentCount: parseInt(item.item?.note_card?.interact_info?.comment_count || 0),
-        shareCount: parseInt(item.item?.note_card?.interact_info?.shared_count || 0),
-        createTime: createTime,
-        videoDuration: 0,  // Xiaohongshu는 대부분 이미지
-        hashtags: [],  // 데이터에 해시태그 없음
-        thumbnail: item.item?.note_card?.cover?.url_default || item.item?.note_card?.cover?.url_pre || undefined,
-        videoUrl: item.link || undefined,
-        webVideoUrl: item.link || undefined,
+        followerCount: undefined,
+        playCount: playCount,
+        likeCount: likeCount,
+        commentCount: commentCount,
+        shareCount: shareCount,
+        createTime: Date.now(),
+        videoDuration: 0,
+        hashtags: [],
+        thumbnail: thumbnail,
+        videoUrl: videoUrl,
+        webVideoUrl: videoUrl,
       };
     });
   } catch (error) {
