@@ -23,6 +23,7 @@ import { formatNumber } from "@/lib/formatters";
 import "./search.css";
 
 type Platform = "tiktok" | "douyin" | "xiaohongshu";
+type Language = "ko" | "zh" | "en";
 
 interface Video {
   id: string;
@@ -71,6 +72,10 @@ export default function Search() {
     videoLength: "all",
     engagementScore: [],
   });
+  const [targetLanguage, setTargetLanguage] = useState<Language>("ko");
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translatedQuery, setTranslatedQuery] = useState<string>("");
+  const [detectedLanguage, setDetectedLanguage] = useState<Language | null>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
 
   const handleTitleClick = () => {
@@ -79,6 +84,24 @@ export default function Search() {
       setIsTitleRefreshing(false);
       window.location.reload();
     }, 600);
+  };
+
+  // 언어 감지 함수
+  const detectLanguage = (text: string): Language => {
+    const trimmed = text.trim();
+
+    // 한국어 감지 (한글 유니코드 범위)
+    if (/[\u3131-\u314e\u314f-\u3163\uac00-\ud7a3]/g.test(trimmed)) {
+      return "ko";
+    }
+
+    // 중국어 감지 (중국어 한자 유니코드 범위)
+    if (/[\u4e00-\u9fff]/g.test(trimmed)) {
+      return "zh";
+    }
+
+    // 기본값: 영어
+    return "en";
   };
 
   // 저장된 너비 복원
@@ -96,6 +119,29 @@ export default function Search() {
       setSearchHistory(JSON.parse(savedHistory));
     }
   }, []);
+
+  // 저장된 언어 설정 복원
+  useEffect(() => {
+    const savedLanguage = localStorage.getItem("tiktok-killer-language-preference");
+    if (savedLanguage) {
+      setTargetLanguage(savedLanguage as Language);
+    }
+  }, []);
+
+  // 언어 변경 시 localStorage에 저장
+  useEffect(() => {
+    localStorage.setItem("tiktok-killer-language-preference", targetLanguage);
+  }, [targetLanguage]);
+
+  // 검색어 입력 시 자동으로 언어 감지
+  useEffect(() => {
+    if (searchInput.trim()) {
+      const detected = detectLanguage(searchInput);
+      setDetectedLanguage(detected);
+    } else {
+      setDetectedLanguage(null);
+    }
+  }, [searchInput]);
 
   // 드래그로 너비 조정
   useEffect(() => {
@@ -236,6 +282,57 @@ export default function Search() {
       return;
     }
 
+    let searchQuery = searchInput;
+    setTranslatedQuery("");
+
+    // 1. 입력 언어 감지
+    const inputLanguage = detectLanguage(searchInput);
+    setDetectedLanguage(inputLanguage);
+    console.log(`[Language Detection] Detected: ${inputLanguage}, Target: ${targetLanguage}`);
+
+    // 2. 번역이 필요한지 확인 (입력 언어 ≠ 선택 언어)
+    const needsTranslation = inputLanguage !== targetLanguage;
+
+    if (needsTranslation) {
+      setIsTranslating(true);
+      try {
+        const translateRes = await fetch("/api/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: searchInput,
+            sourceLanguage: inputLanguage,
+            targetLanguage,
+          }),
+        });
+
+        const translateData = await translateRes.json();
+        console.log(`[Translation API Response]:`, translateData);
+
+        if (!translateRes.ok) {
+          console.error(`[Translation] API Error: ${translateRes.status}`, translateData);
+          setError(`번역 실패: ${translateData.error || '알 수 없는 오류'}`);
+          throw new Error(translateData.error || `HTTP ${translateRes.status}`);
+        }
+
+        if (translateData.success && translateData.translatedText) {
+          searchQuery = translateData.translatedText;
+          setTranslatedQuery(searchQuery);
+          console.log(`[Translation] ✅ ${searchInput} (${inputLanguage}) → ${searchQuery} (${targetLanguage})`);
+        } else {
+          console.warn("[Translation] Invalid response:", translateData);
+          setError(`번역 실패: 잘못된 응답 형식`);
+        }
+      } catch (error) {
+        console.error("[Translation] Exception:", error);
+        setError(`번역 오류: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+      } finally {
+        setIsTranslating(false);
+      }
+    } else {
+      console.log(`[Translation] Skipped: Input is already in ${targetLanguage}`);
+    }
+
     // 검색 히스토리 저장
     const newHistory = [searchInput, ...searchHistory.filter(item => item !== searchInput)].slice(0, 10);
     setSearchHistory(newHistory);
@@ -246,12 +343,12 @@ export default function Search() {
     setVideos([]);
 
     try {
-      // Bright Data API 호출
+      // Bright Data API 호출 (번역된 쿼리 사용)
       const response = await fetch("/api/brightdata/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          query: searchInput,
+          query: searchQuery,
           platform,
           limit: 50,
         }),
@@ -278,7 +375,7 @@ export default function Search() {
     } finally {
       setIsLoading(false);
     }
-  }, [searchInput, platform, searchHistory]);
+  }, [searchInput, platform, targetLanguage, searchHistory]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
@@ -472,11 +569,133 @@ export default function Search() {
                     </div>
                   )}
                 </div>
-                <button className="btn-search" onClick={handleSearch} disabled={isLoading}>
-                  {isLoading ? "검색 중..." : "검색"}
+                <button className="btn-search" onClick={handleSearch} disabled={isTranslating || isLoading}>
+                  {isTranslating ? "번역 중..." : isLoading ? "검색 중..." : "검색"}
                 </button>
               </div>
             </div>
+
+            {/* 번역 정보 표시 (검색어 입력 바로 아래) */}
+            {searchInput && (
+              <div style={{
+                marginTop: "12px",
+                padding: "12px",
+                backgroundColor: "#f5f5f5",
+                borderRadius: "8px",
+                border: "1px solid #e0e0e0"
+              }}>
+                <div style={{
+                  fontSize: "11px",
+                  fontWeight: "600",
+                  color: "#666",
+                  marginBottom: "8px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.4px"
+                }}>
+                  📝 검색 정보
+                </div>
+
+                {/* 원문 표시 */}
+                <div style={{
+                  marginBottom: "8px",
+                  padding: "8px",
+                  backgroundColor: "white",
+                  borderRadius: "6px",
+                  border: "1px solid #ddd"
+                }}>
+                  <div style={{
+                    fontSize: "10px",
+                    color: "#999",
+                    marginBottom: "4px"
+                  }}>
+                    📋 원문 ({detectedLanguage === "ko" ? "한국어" : detectedLanguage === "zh" ? "中文" : "English"})
+                  </div>
+                  <div style={{
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: "#333",
+                    wordBreak: "break-word"
+                  }}>
+                    "{searchInput}"
+                  </div>
+                </div>
+
+                {/* 번역본 표시 (필요시) */}
+                {translatedQuery && translatedQuery !== searchInput && (
+                  <>
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginBottom: "8px",
+                      fontSize: "12px",
+                      color: "#666"
+                    }}>
+                      ↓ 번역됨 ↓
+                    </div>
+                    <div style={{
+                      marginBottom: "8px",
+                      padding: "8px",
+                      backgroundColor: "#e8f5e9",
+                      borderRadius: "6px",
+                      border: "1px solid #c8e6c9"
+                    }}>
+                      <div style={{
+                        fontSize: "10px",
+                        color: "#4caf50",
+                        marginBottom: "4px",
+                        fontWeight: "600"
+                      }}>
+                        🌐 번역본 ({targetLanguage === "ko" ? "한국어" : targetLanguage === "zh" ? "中文" : "English"})
+                      </div>
+                      <div style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1b5e20",
+                        wordBreak: "break-word",
+                        marginBottom: "8px"
+                      }}>
+                        "{translatedQuery}"
+                      </div>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(translatedQuery);
+                          alert("번역 결과가 복사되었습니다!");
+                        }}
+                        style={{
+                          width: "100%",
+                          padding: "6px",
+                          backgroundColor: "#4caf50",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                          fontSize: "11px",
+                          fontWeight: "600"
+                        }}
+                      >
+                        📋 복사
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* 번역 안 됨 표시 */}
+                {!translatedQuery && searchInput && detectedLanguage === targetLanguage && (
+                  <div style={{
+                    padding: "8px",
+                    backgroundColor: "#fff3e0",
+                    borderRadius: "6px",
+                    border: "1px solid #ffe0b2",
+                    fontSize: "12px",
+                    color: "#f57c00",
+                    fontWeight: "500"
+                  }}>
+                    ℹ️ 입력 언어와 선택 언어가 동일하여 번역하지 않습니다
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* 플랫폼 선택 */}
             <div className="search-input-wrapper">
@@ -528,6 +747,72 @@ export default function Search() {
                   <span className="platform-name">Xiaohongshu</span>
                 </label>
               </div>
+            </div>
+
+            {/* 언어 선택 */}
+            <div className="search-input-wrapper" style={{ marginTop: "16px" }}>
+              <div className="search-label">검색 언어</div>
+              <div className="platform-selector">
+                <label
+                  className={`platform-option ${targetLanguage === "ko" ? "active" : ""}`}
+                  onClick={() => setTargetLanguage("ko")}
+                >
+                  <input
+                    type="radio"
+                    name="language"
+                    value="ko"
+                    checked={targetLanguage === "ko"}
+                    onChange={() => setTargetLanguage("ko")}
+                    style={{ display: "none" }}
+                  />
+                  <span className="platform-icon">🇰🇷</span>
+                  <span className="platform-name">한국어</span>
+                </label>
+                <label
+                  className={`platform-option ${targetLanguage === "zh" ? "active" : ""}`}
+                  onClick={() => setTargetLanguage("zh")}
+                >
+                  <input
+                    type="radio"
+                    name="language"
+                    value="zh"
+                    checked={targetLanguage === "zh"}
+                    onChange={() => setTargetLanguage("zh")}
+                    style={{ display: "none" }}
+                  />
+                  <span className="platform-icon">🇨🇳</span>
+                  <span className="platform-name">中文</span>
+                </label>
+                <label
+                  className={`platform-option ${targetLanguage === "en" ? "active" : ""}`}
+                  onClick={() => setTargetLanguage("en")}
+                >
+                  <input
+                    type="radio"
+                    name="language"
+                    value="en"
+                    checked={targetLanguage === "en"}
+                    onChange={() => setTargetLanguage("en")}
+                    style={{ display: "none" }}
+                  />
+                  <span className="platform-icon">🇺🇸</span>
+                  <span className="platform-name">English</span>
+                </label>
+              </div>
+
+              {/* 플랫폼별 추천 표시 */}
+              {(platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" && (
+                <div style={{
+                  fontSize: "11px",
+                  color: "#ff9800",
+                  marginTop: "6px",
+                  padding: "6px 8px",
+                  backgroundColor: "#fff3e0",
+                  borderRadius: "4px"
+                }}>
+                  💡 팁: {platform === "douyin" ? "Douyin" : "Xiaohongshu"}은 중국어 검색이 더 정확합니다
+                </div>
+              )}
             </div>
 
             {/* 필터 섹션 */}

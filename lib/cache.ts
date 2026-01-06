@@ -102,3 +102,64 @@ export function getCacheStats(): {
     entries
   };
 }
+
+/**
+ * 번역 캐시 키 생성
+ * @param text 번역할 텍스트
+ * @param targetLang 대상 언어
+ * @returns 캐시 키
+ */
+export function getTranslationCacheKey(text: string, targetLang: string): string {
+  return `translate:${targetLang}:${text.toLowerCase().trim()}`;
+}
+
+/**
+ * 번역 캐시 조회
+ * @param text 번역할 텍스트
+ * @param targetLang 대상 언어
+ * @returns 캐시된 번역 또는 null
+ */
+export function getTranslationFromCache(text: string, targetLang: string): string | null {
+  const key = getTranslationCacheKey(text, targetLang);
+  const entry = cache.get(key);
+
+  if (!entry) return null;
+
+  // 캐시 유효성 검사
+  const age = Date.now() - entry.timestamp;
+  if (age > CACHE_TTL) {
+    cache.delete(key);
+    console.log(`[Translation Cache] EXPIRED: ${key}`);
+    return null;
+  }
+
+  console.log(`[Translation Cache] HIT: ${key} (age: ${Math.round(age / 1000)}s)`);
+  return entry.data;
+}
+
+/**
+ * 번역 캐시 저장
+ * @param text 번역할 텍스트
+ * @param targetLang 대상 언어
+ * @param translation 번역 결과
+ */
+export function setTranslationCache(text: string, targetLang: string, translation: string): void {
+  const key = getTranslationCacheKey(text, targetLang);
+  cache.set(key, {
+    data: translation,
+    timestamp: Date.now(),
+    query: text,
+    platform: `translate-${targetLang}`
+  });
+  console.log(`[Translation Cache] SET: ${key} (size: ${cache.size})`);
+
+  // 메모리 관리: 100개 이상이면 오래된 항목 삭제
+  if (cache.size > 100) {
+    const entries = Array.from(cache.entries());
+    const oldestEntry = entries.reduce((min, curr) =>
+      curr[1].timestamp < min[1].timestamp ? curr : min
+    );
+    cache.delete(oldestEntry[0]);
+    console.log(`[Cache] EVICTED: ${oldestEntry[0]} (memory management)`);
+  }
+}
