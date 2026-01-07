@@ -208,23 +208,7 @@ export default function Search() {
         return false;
       }
 
-      // 2. 업로드 기간 필터
-      if (filterState.uploadPeriod !== "all") {
-        const daysAgo = Math.floor((Date.now() - video.createTime) / (1000 * 60 * 60 * 24));
-        const periodMap: Record<string, number> = {
-          "3days": 3,
-          "5days": 5,
-          "7days": 7,
-          "10days": 10,
-          "1month": 30,
-          "2months": 60,
-          "6months": 180,
-          "1year": 365,
-        };
-        if (daysAgo > (periodMap[filterState.uploadPeriod] || 999999)) {
-          return false;
-        }
-      }
+      // 2. 업로드 기간 필터 - API에서 이미 필터링됨
 
       // 3. 영상 길이 필터
       if (filterState.videoLength !== "all") {
@@ -359,7 +343,7 @@ export default function Search() {
     setVideos([]);
 
     try {
-      // Bright Data API 호출 (번역된 쿼리 사용)
+      // Bright Data API 호출 (번역된 쿼리 사용, 현재 날짜 필터 포함)
       const response = await fetch("/api/brightdata/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -367,6 +351,7 @@ export default function Search() {
           query: searchQuery,
           platform,
           limit: 50,
+          dateRange: filters.uploadPeriod,
         }),
       });
 
@@ -395,8 +380,8 @@ export default function Search() {
 
   // 디바운싱된 검색 함수
   const debouncedSearch = useCallback(() => {
-    // 동일한 검색어 연속 실행 방지
-    const currentQuery = `${searchInput}-${platform}-${targetLanguage}`;
+    // 동일한 검색어 연속 실행 방지 (날짜 필터도 포함)
+    const currentQuery = `${searchInput}-${platform}-${targetLanguage}-${filters.uploadPeriod}`;
     if (lastSearchRef.current === currentQuery && !isLoading) {
       console.log('[Search] 중복 검색 방지:', currentQuery);
       return;
@@ -412,7 +397,7 @@ export default function Search() {
     searchTimeoutRef.current = setTimeout(() => {
       handleSearch();
     }, 300);
-  }, [searchInput, platform, targetLanguage, handleSearch, isLoading]);
+  }, [searchInput, platform, targetLanguage, handleSearch, isLoading, filters.uploadPeriod]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !isLoading && !isTranslating) {

@@ -5,6 +5,7 @@ interface SearchRequest {
   query: string;
   platform: 'tiktok' | 'douyin' | 'xiaohongshu';
   limit: number;
+  dateRange?: string;
 }
 
 interface VideoResult {
@@ -29,7 +30,7 @@ interface VideoResult {
 export async function POST(req: NextRequest) {
   try {
     const body: SearchRequest = await req.json();
-    const { query, platform, limit } = body;
+    const { query, platform, limit, dateRange } = body;
 
     // 입력 유효성 검사
     if (!query || !query.trim()) {
@@ -49,8 +50,8 @@ export async function POST(req: NextRequest) {
 
     console.log(`[${platform.toUpperCase()}] 검색 시작: ${query}`);
 
-    // 캐시 확인
-    const cached = getFromCache(query, platform);
+    // 캐시 확인 (dateRange 포함)
+    const cached = getFromCache(query, platform, dateRange);
     if (cached) {
       return NextResponse.json({
         success: true,
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
     let videoResults: VideoResult[] = [];
 
     if (platform === 'tiktok') {
-      videoResults = await searchTikTokVideos(query, limit, apiKey);
+      videoResults = await searchTikTokVideos(query, limit, apiKey, dateRange);
     } else if (platform === 'douyin') {
       videoResults = await searchDouyinVideos(query, limit, apiKey);
     } else if (platform === 'xiaohongshu') {
@@ -81,8 +82,8 @@ export async function POST(req: NextRequest) {
 
       console.log(`영상 검색 완료: ${videoResults.length}개 → 중복 제거 후: ${uniqueVideos.length}개`);
 
-      // 캐시에 저장
-      setCache(query, platform, { videos: uniqueVideos });
+      // 캐시에 저장 (dateRange 포함)
+      setCache(query, platform, { videos: uniqueVideos }, dateRange);
 
       return NextResponse.json({
         success: true,
@@ -123,12 +124,25 @@ export async function POST(req: NextRequest) {
 async function searchTikTokVideos(
   query: string,
   limit: number,
-  apiKey: string
+  apiKey: string,
+  dateRange?: string
 ): Promise<VideoResult[]> {
   try {
     // Api Dojo TikTok Scraper - 최고 평점(4.8), 가장 정확하고 빠름
     const actorId = 'apidojo~tiktok-scraper';  // ⭐ 틸드(~) 사용, 슬래시(/) 아님
-    console.log(`[TikTok] Apify 액터 호출 시작 - 액터: ${actorId}, 검색어: ${query}, 제한: ${limit}`);
+    console.log(`[TikTok] Apify 액터 호출 시작 - 액터: ${actorId}, 검색어: ${query}, 제한: ${limit}, 날짜: ${dateRange}`);
+
+    // uploadPeriod → Api Dojo dateRange 매핑
+    const mapDateRange = (uploadPeriod?: string): string => {
+      const mapping: Record<string, string> = {
+        'all': 'DEFAULT',
+        'yesterday': 'YESTERDAY',
+        '7days': 'THIS_WEEK',
+        '1month': 'THIS_MONTH',
+        '3months': 'LAST_THREE_MONTHS',
+      };
+      return mapping[uploadPeriod || 'all'] || 'DEFAULT';
+    };
 
     // 1️⃣ Run 시작 (Api Dojo 파라미터 형식)
     const runRes = await fetch(
@@ -141,7 +155,7 @@ async function searchTikTokVideos(
           maxItems: 50,                   // 최대 50개 결과
           sortType: 'RELEVANCE',          // 관련성으로 정렬
           location: 'US',                 // 위치 (기본값)
-          dateRange: 'DEFAULT',           // 날짜 범위 (기본값)
+          dateRange: mapDateRange(dateRange),  // 동적 날짜 범위
           includeSearchKeywords: false,   // 검색 키워드 포함 안함
           startUrls: [],                  // URL 없음 (검색 기반)
         }),

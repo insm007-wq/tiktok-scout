@@ -8,10 +8,10 @@ interface PeriodFilterProps {
 // 기간 옵션
 const PERIOD_OPTIONS = [
   { value: 'all', label: '전체' },
+  { value: 'yesterday', label: '어제' },
   { value: '7days', label: '1주일' },
   { value: '1month', label: '1개월' },
-  { value: '6months', label: '6개월' },
-  { value: '1year', label: '1년' },
+  { value: '3months', label: '3개월' },
 ]
 
 export default function PeriodFilter({ value, onChange }: PeriodFilterProps) {

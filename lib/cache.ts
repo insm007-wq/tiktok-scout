@@ -19,20 +19,23 @@ const CACHE_TTL = 5 * 60 * 1000; // 5분
  * 캐시 키 생성
  * @param query 검색어
  * @param platform 플랫폼 (tiktok, douyin, xiaohongshu)
+ * @param dateRange 날짜 범위 (optional)
  * @returns 캐시 키
  */
-export function getCacheKey(query: string, platform: string): string {
-  return `${platform}:${query.toLowerCase().trim()}`;
+export function getCacheKey(query: string, platform: string, dateRange?: string): string {
+  const dateRangePart = dateRange ? `:${dateRange}` : '';
+  return `${platform}:${query.toLowerCase().trim()}${dateRangePart}`;
 }
 
 /**
  * 캐시에서 데이터 조회
  * @param query 검색어
  * @param platform 플랫폼
+ * @param dateRange 날짜 범위 (optional)
  * @returns 캐시된 데이터 또는 null
  */
-export function getFromCache(query: string, platform: string): any | null {
-  const key = getCacheKey(query, platform);
+export function getFromCache(query: string, platform: string, dateRange?: string): any | null {
+  const key = getCacheKey(query, platform, dateRange);
   const entry = cache.get(key);
 
   if (!entry) return null;
@@ -54,9 +57,10 @@ export function getFromCache(query: string, platform: string): any | null {
  * @param query 검색어
  * @param platform 플랫폼
  * @param data 저장할 데이터
+ * @param dateRange 날짜 범위 (optional)
  */
-export function setCache(query: string, platform: string, data: any): void {
-  const key = getCacheKey(query, platform);
+export function setCache(query: string, platform: string, data: any, dateRange?: string): void {
+  const key = getCacheKey(query, platform, dateRange);
   cache.set(key, {
     data,
     timestamp: Date.now(),
