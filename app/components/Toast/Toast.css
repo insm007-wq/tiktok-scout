@@ -1,0 +1,146 @@
+.toast-container {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.toast-container.top-center {
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
+.toast-container.top-right {
+  top: 0;
+  right: 0;
+  align-items: flex-end;
+}
+
+.toast-container.bottom-right {
+  bottom: 0;
+  right: 0;
+  align-items: flex-end;
+}
+
+.toast-container.top-left {
+  top: 0;
+  left: 0;
+  align-items: flex-start;
+}
+
+.toast-container.bottom-left {
+  bottom: 0;
+  left: 0;
+  align-items: flex-start;
+}
+
+.toast-wrapper {
+  pointer-events: auto;
+}
+
+.toast-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  backdrop-filter: blur(10px);
+  gap: 16px;
+}
+
+.toast-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.toast-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toast-message-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toast-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: #1f2937;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.toast-message {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toast-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  margin-left: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.toast-close:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+  color: #1f2937;
+}
+
+/* 다크모드 지원 */
+@media (prefers-color-scheme: dark) {
+  .toast-content {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  }
+
+  .toast-title {
+    color: #f3f4f6;
+  }
+
+  .toast-message {
+    color: #d1d5db;
+  }
+
+  .toast-close {
+    color: #9ca3af;
+  }
+
+  .toast-close:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #f3f4f6;
+  }
+}

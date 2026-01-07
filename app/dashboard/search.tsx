@@ -13,6 +13,7 @@ import {
   ExternalLink,
   Loader
 } from "lucide-react";
+import Toast, { type Toast as ToastType } from "@/app/components/Toast/Toast";
 import Spinner from "@/app/components/ui/Spinner";
 import ViewCountFilter from "@/app/components/Filters/ViewCountFilter/ViewCountFilter";
 import PeriodFilter from "@/app/components/Filters/PeriodFilter/PeriodFilter";
@@ -76,7 +77,22 @@ export default function Search() {
   const [isTranslating, setIsTranslating] = useState(false);
   const [translatedQuery, setTranslatedQuery] = useState<string>("");
   const [detectedLanguage, setDetectedLanguage] = useState<Language | null>(null);
+  const [toasts, setToasts] = useState<ToastType[]>([]);
   const resizeRef = useRef<HTMLDivElement>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSearchRef = useRef<string>('');
+
+  // Toast 추가 함수
+  const addToast = useCallback((type: 'success' | 'error' | 'warning' | 'info', message: string, title?: string, duration = 3000) => {
+    const id = Math.random().toString(36).substr(2, 9);
+    const newToast: ToastType = { id, type, message, title, duration };
+    setToasts((prev) => [...prev, newToast]);
+
+    // 자동 제거
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, duration);
+  }, []);
 
   const handleTitleClick = () => {
     setIsTitleRefreshing(true);
@@ -377,9 +393,30 @@ export default function Search() {
     }
   }, [searchInput, platform, targetLanguage, searchHistory]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+  // 디바운싱된 검색 함수
+  const debouncedSearch = useCallback(() => {
+    // 동일한 검색어 연속 실행 방지
+    const currentQuery = `${searchInput}-${platform}-${targetLanguage}`;
+    if (lastSearchRef.current === currentQuery && !isLoading) {
+      console.log('[Search] 중복 검색 방지:', currentQuery);
+      return;
+    }
+
+    lastSearchRef.current = currentQuery;
+
+    // 디바운싱 (300ms)
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
       handleSearch();
+    }, 300);
+  }, [searchInput, platform, targetLanguage, handleSearch, isLoading]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !isLoading && !isTranslating) {
+      debouncedSearch();
     }
   };
 
@@ -481,38 +518,60 @@ export default function Search() {
 
   // 영상 다운로드 (클립보드 복사 + 외부 다운로더 열기)
   const handleDownloadVideo = async (video: Video) => {
-    if (!video.webVideoUrl) {
-      alert("영상 정보를 불러올 수 없습니다.");
+    if (!video.videoUrl && !video.webVideoUrl) {
+      alert("영상 다운로드 정보를 불러올 수 없습니다.");
       return;
     }
 
     setDownloadingVideoId(video.id);
 
     try {
-      // Step 1: TikTok URL을 클립보드에 복사
-      console.log("[Download] Copying URL to clipboard:", video.webVideoUrl);
+      // videoUrl이 있으면 서버 API로 다운로드
+      if (video.videoUrl) {
+        console.log("[Download] API를 통한 다운로드:", video.id);
 
-      await navigator.clipboard.writeText(video.webVideoUrl);
+        const response = await fetch("/api/download-video", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            videoUrl: video.videoUrl,
+            videoId: video.id,
+          }),
+        });
 
-      // Step 2: 외부 다운로더 사이트 열기
-      const downloaderUrl = "https://www.ssstiktok.com/";
-      console.log("[Download] Opening downloader:", downloaderUrl);
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "다운로드 실패");
+        }
 
-      window.open(downloaderUrl, "_blank");
+        // Blob으로 변환
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `tiktok_${video.id}.mp4`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
 
-      // Step 3: 사용자에게 알림
-      alert(
-        `✅ TikTok 링크가 클립보드에 복사되었습니다!\n\n` +
-          `다운로더 사이트가 열렸습니다.\n` +
-          `아래 단계를 따라주세요:\n\n` +
-          `1️⃣ 링크 입력창에 붙여넣기 (Ctrl+V)\n` +
-          `2️⃣ 다운로드 버튼 클릭\n` +
-          `3️⃣ 완료!\n\n` +
-          `💡 참고: 다운로더 사이트는 제3자 서비스입니다.`
-      );
+        console.log("[Download] ✅ 다운로드 완료:", video.title);
+        addToast('success', '영상이 다운로드 폴더에 저장되었습니다', '✅ 다운로드 완료', 3000);
+      } else if (video.webVideoUrl) {
+        // webVideoUrl만 있으면 외부 다운로더 사용
+        console.log("[Download] 외부 다운로더 사용:", video.webVideoUrl);
+
+        await navigator.clipboard.writeText(video.webVideoUrl);
+
+        const downloaderUrl = "https://www.ssstiktok.com/";
+        window.open(downloaderUrl, "_blank");
+
+        addToast('info', 'TikTok 링크가 클립보드에 복사되었습니다. 다운로더 사이트를 확인해주세요.', '📋 링크 복사됨', 4000);
+      }
     } catch (error) {
       console.error("[Download] Error:", error);
-      alert("클립보드 복사 중 오류가 발생했습니다. 수동으로 URL을 복사해주세요.");
+      const errorMsg = error instanceof Error ? error.message : "알 수 없는 오류";
+      addToast('error', errorMsg, '❌ 다운로드 실패', 5000);
     } finally {
       setDownloadingVideoId(null);
     }
@@ -523,6 +582,11 @@ export default function Search() {
 
   return (
     <>
+      <Toast
+        toasts={toasts}
+        onRemove={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))}
+        position="top-center"
+      />
       <div className="main-container">
         {/* 왼쪽 패널 */}
         <div className="sidebar" style={{ width: `${sidebarWidth}px` }}>
@@ -569,7 +633,7 @@ export default function Search() {
                     </div>
                   )}
                 </div>
-                <button className="btn-search" onClick={handleSearch} disabled={isTranslating || isLoading}>
+                <button className="btn-search" onClick={debouncedSearch} disabled={isTranslating || isLoading}>
                   {isTranslating ? "번역 중..." : isLoading ? "검색 중..." : "검색"}
                 </button>
               </div>
@@ -945,7 +1009,12 @@ export default function Search() {
               <Spinner text="검색 중..." />
             ) : results.length === 0 ? (
               <div className="no-results">
-                <p>{error || "검색 결과가 없습니다"}</p>
+                <p style={{ fontSize: "16px", fontWeight: "600", marginBottom: "8px" }}>
+                  😔 {error || "검색 결과가 없습니다"}
+                </p>
+                <p style={{ fontSize: "14px", color: "#666" }}>
+                  다른 키워드로 다시 검색해보세요
+                </p>
               </div>
             ) : (
               <>
@@ -1029,19 +1098,6 @@ export default function Search() {
                           >
                             <Info className="card-action-icon" />
                             <span className="card-action-label">상세</span>
-                          </button>
-
-                          {/* 열기 버튼 */}
-                          <button
-                            className="card-action-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenTikTok(video);
-                            }}
-                            title="열기"
-                          >
-                            <ExternalLink className="card-action-icon" />
-                            <span className="card-action-label">열기</span>
                           </button>
 
                           {/* 다운로드 버튼 */}
@@ -1144,45 +1200,82 @@ export default function Search() {
                   alt={selectedVideo.title}
                   style={{
                     width: "100%",
-                    height: "300px",
+                    height: "240px",
                     objectFit: "cover",
-                    borderRadius: "8px",
+                    borderRadius: "12px",
                     marginBottom: "16px",
                   }}
                 />
               )}
 
               {/* 제목 */}
-              <h2 style={{ margin: "0 0 12px 0", fontSize: "18px" }}>{selectedVideo.title}</h2>
+              <h2 style={{ margin: "0 0 12px 0", fontSize: "18px", color: "#1a1a1a", lineHeight: 1.4 }}>{selectedVideo.title}</h2>
 
               {/* 크리에이터 */}
-              <p style={{ margin: "0 0 16px 0", color: "#666", fontSize: "14px" }}>
-                <strong>크리에이터:</strong> {selectedVideo.creator}
-              </p>
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 12px",
+                background: "linear-gradient(135deg, #f5f7fa 0%, #f8fafb 100%)",
+                borderRadius: "10px",
+                marginBottom: "16px",
+                border: "1px solid rgba(0, 0, 0, 0.05)"
+              }}>
+                <span style={{ fontSize: "16px" }}>👤</span>
+                <div>
+                  <div style={{ fontSize: "11px", color: "#999", marginBottom: "2px" }}>크리에이터</div>
+                  <div style={{ fontSize: "13px", fontWeight: "600", color: "#1a1a1a" }}>{selectedVideo.creator}</div>
+                </div>
+              </div>
 
               {/* 통계 */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
-                <div style={{ backgroundColor: "#f5f5f5", padding: "12px", borderRadius: "4px" }}>
-                  <div style={{ fontSize: "12px", color: "#666" }}>조회수</div>
-                  <div style={{ fontSize: "18px", fontWeight: "bold" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "16px" }}>
+                <div style={{
+                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  padding: "12px",
+                  borderRadius: "10px",
+                  color: "white",
+                  boxShadow: "0 4px 12px rgba(102, 126, 234, 0.2)"
+                }}>
+                  <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px" }}>조회수</div>
+                  <div style={{ fontSize: "20px", fontWeight: "700" }}>
                     {(selectedVideo.playCount / 1000000).toFixed(1)}M
                   </div>
                 </div>
-                <div style={{ backgroundColor: "#f5f5f5", padding: "12px", borderRadius: "4px" }}>
-                  <div style={{ fontSize: "12px", color: "#666" }}>좋아요</div>
-                  <div style={{ fontSize: "18px", fontWeight: "bold" }}>
+                <div style={{
+                  background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+                  padding: "12px",
+                  borderRadius: "10px",
+                  color: "white",
+                  boxShadow: "0 4px 12px rgba(245, 87, 108, 0.2)"
+                }}>
+                  <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px" }}>좋아요</div>
+                  <div style={{ fontSize: "20px", fontWeight: "700" }}>
                     {(selectedVideo.likeCount / 1000).toFixed(1)}K
                   </div>
                 </div>
-                <div style={{ backgroundColor: "#f5f5f5", padding: "12px", borderRadius: "4px" }}>
-                  <div style={{ fontSize: "12px", color: "#666" }}>댓글</div>
-                  <div style={{ fontSize: "18px", fontWeight: "bold" }}>
+                <div style={{
+                  background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+                  padding: "12px",
+                  borderRadius: "10px",
+                  color: "white",
+                  boxShadow: "0 4px 12px rgba(79, 172, 254, 0.2)"
+                }}>
+                  <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px" }}>댓글</div>
+                  <div style={{ fontSize: "20px", fontWeight: "700" }}>
                     {(selectedVideo.commentCount / 1000).toFixed(1)}K
                   </div>
                 </div>
-                <div style={{ backgroundColor: "#f5f5f5", padding: "12px", borderRadius: "4px" }}>
-                  <div style={{ fontSize: "12px", color: "#666" }}>공유</div>
-                  <div style={{ fontSize: "18px", fontWeight: "bold" }}>
+                <div style={{
+                  background: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+                  padding: "12px",
+                  borderRadius: "10px",
+                  color: "white",
+                  boxShadow: "0 4px 12px rgba(250, 112, 154, 0.2)"
+                }}>
+                  <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px" }}>공유</div>
+                  <div style={{ fontSize: "20px", fontWeight: "700" }}>
                     {(selectedVideo.shareCount / 1000).toFixed(1)}K
                   </div>
                 </div>
@@ -1190,18 +1283,20 @@ export default function Search() {
 
               {/* 해시태그 */}
               {selectedVideo.hashtags.length > 0 && (
-                <div style={{ marginBottom: "16px" }}>
-                  <strong style={{ display: "block", marginBottom: "8px", fontSize: "14px" }}>해시태그:</strong>
+                <div style={{ marginBottom: "12px" }}>
+                  <strong style={{ display: "block", marginBottom: "8px", fontSize: "12px", color: "#1a1a1a" }}>🏷️ 해시태그</strong>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                     {selectedVideo.hashtags.map((tag, idx) => (
                       <span
                         key={idx}
                         style={{
-                          backgroundColor: "#667eea",
+                          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                           color: "white",
-                          padding: "4px 8px",
+                          padding: "4px 10px",
                           borderRadius: "16px",
-                          fontSize: "12px",
+                          fontSize: "11px",
+                          fontWeight: "600",
+                          boxShadow: "0 2px 8px rgba(102, 126, 234, 0.2)"
                         }}
                       >
                         #{tag}

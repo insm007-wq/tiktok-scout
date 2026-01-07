@@ -31,7 +31,8 @@
       "Bash(xargs kill:*)",
       "Bash(powershell -Command \"Start-Sleep -Seconds 5; $null\")",
       "Bash(powershell -Command \"Start-Sleep -Seconds 6; $null\")",
-      "Bash(kill:*)"
+      "Bash(kill:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

@@ -126,24 +126,24 @@ async function searchTikTokVideos(
   apiKey: string
 ): Promise<VideoResult[]> {
   try {
-    // 고정된 액터 ID 사용 (속도 최적화)
-    const actorId = 'clockworks~tiktok-scraper';
+    // Api Dojo TikTok Scraper - 최고 평점(4.8), 가장 정확하고 빠름
+    const actorId = 'apidojo~tiktok-scraper';  // ⭐ 틸드(~) 사용, 슬래시(/) 아님
     console.log(`[TikTok] Apify 액터 호출 시작 - 액터: ${actorId}, 검색어: ${query}, 제한: ${limit}`);
 
-    // 1️⃣ Run 시작 (속도 최적화된 입력 파라미터)
+    // 1️⃣ Run 시작 (Api Dojo 파라미터 형식)
     const runRes = await fetch(
       `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          searchQueries: [query],                      // 검색 쿼리 배열
-          maxItems: Math.min(limit, 30),               // 최대 결과 개수 (최대 30으로 제한)
-          resultsPerPage: Math.min(limit, 30),         // 페이지당 결과 개수 (최대 30으로 제한)
-          downloadVideos: true,               // 비디오 다운로드 URL 필요
-          includeVideoStatistics: true,       // 영상 통계는 필요
-          includeRelatedProfiles: false,      // 관련 프로필 불필요 → 속도 향상
-          useHighResolutionThumbnails: false, // 고해상도 썸네일 불필요 → 속도 향상
+          keywords: [query],              // 검색 키워드
+          maxItems: 50,                   // 최대 50개 결과
+          sortType: 'RELEVANCE',          // 관련성으로 정렬
+          location: 'US',                 // 위치 (기본값)
+          dateRange: 'DEFAULT',           // 날짜 범위 (기본값)
+          includeSearchKeywords: false,   // 검색 키워드 포함 안함
+          startUrls: [],                  // URL 없음 (검색 기반)
         }),
       }
     );
@@ -220,49 +220,62 @@ async function searchTikTokVideos(
       return [];
     }
 
-    // 결과를 VideoResult 형식으로 변환
-    return dataset.slice(0, limit).map((item: any, index: number) => {
-      const hashtags = item.hashtags?.map((h: any) => h.name) || [];
+    // 첫 번째 항목 확인 (디버깅)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[TikTok] 첫 번째 항목 (전체):', JSON.stringify(dataset[0], null, 2).substring(0, 1000));
+      console.log('[TikTok] 응답 필드 목록:', Object.keys(dataset[0]).join(', '));
+      console.log('[TikTok] 총 결과 개수:', dataset.length);
+    }
 
-      // 다운로드 URL 우선순위 (모든 가능한 필드명 시도)
-      const videoUrl = item.download ||
-                       item.downloadUrl ||
-                       item.downloadVideoUrl ||
-                       item.video ||
-                       item.videoUrl ||
-                       item.downloadedVideoUrl ||
-                       item.videoFile ||
-                       item.remoteVideoUrl ||
-                       item.videoUrls?.[0] ||
-                       item.videoMeta?.download ||
-                       item.videoMeta?.downloadUrl ||
-                       item.videoMeta?.video ||
-                       item.videoMeta?.subtitleLinks?.[0]?.downloadLink ||
-                       item.videoMeta?.subtitleLinks?.[0]?.tiktokLink ||
-                       undefined;
+    // 결과를 VideoResult 형식으로 변환 (Api Dojo 형식) - 최대 50개만
+    return dataset.slice(0, Math.min(limit, 50)).map((item: any, index: number) => {
+      // 해시태그 파싱 (null 체크 추가)
+      const hashtags = Array.isArray(item.hashtags)
+        ? item.hashtags
+            .filter((h: any) => h !== null && h !== undefined)  // null/undefined 필터링
+            .map((h: any) => typeof h === 'string' ? h : (h && h.name ? h.name : h))
+        : [];
+
+      // 비디오 다운로드 URL (Api Dojo: video.url 제공)
+      const videoUrl = item.video?.url || item.downloadUrl || item.videoUrl || undefined;
+
+      // 웹 주소 (TikTok 링크)
+      const webVideoUrl = item.postPage ||
+                         (item.channel?.url && item.id ? `${item.channel.url}/video/${item.id}` : undefined) ||
+                         undefined;
 
       if (process.env.NODE_ENV === 'development' && index === 0) {
-        // 첫 번째 항목의 authorMeta 확인 (팔로워 수 찾기)
-        console.log('[TikTok] authorMeta 전체:', JSON.stringify(item.authorMeta, null, 2));
+        console.log('[TikTok] Api Dojo 응답 확인:', {
+          id: item.id,
+          title: item.title ? item.title.substring(0, 50) : 'N/A',
+          hasVideoUrl: !!item.video?.url,
+          hasPostPage: !!item.postPage,
+          channelName: item.channel?.name,
+          channelFollowers: item.channel?.followers,
+          hashtags: item.hashtags ? `${item.hashtags.length}개` : 'null',
+          uploadedAt: item.uploadedAt,
+        });
       }
 
       return {
         id: item.id || `video-${index}`,
-        title: item.text || `영상 ${index + 1}`,
-        description: item.text || '',
-        creator: item.authorMeta?.name || item.authorMeta?.nickName || 'Unknown',
-        creatorUrl: item.authorMeta?.profileUrl || undefined,
-        followerCount: item.authorMeta?.followerCount ? parseInt(item.authorMeta.followerCount) : undefined,
-        playCount: parseInt(item.playCount || 0),
-        likeCount: parseInt(item.diggCount || 0),
-        commentCount: parseInt(item.commentCount || 0),
-        shareCount: parseInt(item.shareCount || 0),
-        createTime: item.createTime ? parseInt(item.createTime) * 1000 : Date.now(),
-        videoDuration: parseInt(item.videoMeta?.duration || 0),
+        title: item.title || `영상 ${index + 1}`,
+        description: item.title || '',
+        creator: item.channel?.name || item.channel?.username || 'Unknown',
+        creatorUrl: item.channel?.url || undefined,
+        followerCount: item.channel?.followers ? parseInt(String(item.channel.followers)) : undefined,
+        playCount: parseInt(String(item.views || 0)),
+        likeCount: parseInt(String(item.likes || 0)),
+        commentCount: parseInt(String(item.comments || 0)),
+        shareCount: parseInt(String(item.shares || 0)),
+        createTime: item.uploadedAt
+          ? parseInt(String(item.uploadedAt)) * 1000  // Unix timestamp → 밀리초
+          : Date.now(),
+        videoDuration: item.video?.duration ? parseInt(String(item.video.duration)) : 0,
         hashtags: hashtags,
-        thumbnail: item.videoMeta?.coverUrl || item.videoMeta?.originalCoverUrl || undefined,
-        videoUrl: videoUrl || item.webVideoUrl || undefined,
-        webVideoUrl: item.webVideoUrl || undefined,
+        thumbnail: item.video?.thumbnail || item.video?.cover || undefined,
+        videoUrl: videoUrl,  // 다운로드 가능한 URL
+        webVideoUrl: webVideoUrl,  // TikTok 웹 주소
       };
     });
   } catch (error) {
@@ -315,8 +328,8 @@ async function searchDouyinVideos(
     let status = 'RUNNING';
     let attempt = 0;
     const maxAttempts = 60; // 최대 2분
-    let waitTime = 3000; // 초기 대기 3초 (TikTok보다 긴 이유: Douyin은 더 느림)
-    const maxWaitTime = 10000; // 최대 10초
+    let waitTime = 1000; // 초기 대기 1초로 최적화
+    const maxWaitTime = 8000; // 최대 8초
 
     while ((status === 'RUNNING' || status === 'READY') && attempt < maxAttempts) {
       const statusRes = await fetch(
@@ -419,7 +432,7 @@ async function searchXiaohongshuVideos(
     // 1️⃣ Run 시작
     const inputParams = {
       keywords: [query],
-      limit: Math.min(limit, 50),
+      limit: Math.min(limit, 100),
     };
 
     const runRes = await fetch(
@@ -447,8 +460,8 @@ async function searchXiaohongshuVideos(
     let status = 'RUNNING';
     let attempt = 0;
     const maxAttempts = 60;
-    let waitTime = 3000;
-    const maxWaitTime = 10000;
+    let waitTime = 1000; // 초기 대기 1초로 최적화
+    const maxWaitTime = 8000; // 최대 8초
 
     while ((status === 'RUNNING' || status === 'READY') && attempt < maxAttempts) {
       const statusRes = await fetch(

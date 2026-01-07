@@ -271,17 +271,6 @@ export default function VideoCard({ video, showVPH = false, vph, onChannelClick,
             <MessageCircle size={12} />
             댓글
           </button>
-
-          <button
-            className="btn-view-link"
-            onClick={(e) => {
-              e.preventDefault();
-              window.open(videoLink, "_blank");
-            }}
-          >
-            <LinkIcon size={12} />
-            바로가기
-          </button>
         </div>
       </div>
     </div>
