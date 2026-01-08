@@ -384,7 +384,7 @@ export default function Search() {
     } finally {
       setIsLoading(false);
     }
-  }, [searchInput, platform, targetLanguage, searchHistory]);
+  }, [searchInput, platform, targetLanguage, searchHistory, filters.uploadPeriod]);
 
   // 디바운싱된 검색 함수
   const debouncedSearch = useCallback(() => {
