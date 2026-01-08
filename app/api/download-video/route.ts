@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { videoUrl, videoId } = await req.json();
+    const { videoUrl, videoId, platform = 'tiktok' } = await req.json();
 
     if (!videoUrl) {
       return NextResponse.json(
@@ -11,13 +11,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('[Download] 비디오 다운로드 시작:', videoId);
+    console.log('[Download] 비디오 다운로드 시작:', videoId, `(${platform})`);
+
+    // 플랫폼별 Referer 설정
+    const refererMap: Record<string, string> = {
+      'tiktok': 'https://www.tiktok.com/',
+      'douyin': 'https://www.douyin.com/',
+      'xiaohongshu': 'https://www.xiaohongshu.com/',
+    };
 
     // 비디오 URL에서 파일 fetch
     const videoResponse = await fetch(videoUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer': 'https://www.tiktok.com/',
+        'Referer': refererMap[platform] || 'https://www.tiktok.com/',
       },
     });
 
@@ -33,11 +40,14 @@ export async function POST(req: NextRequest) {
 
     console.log('[Download] 다운로드 완료:', {
       videoId,
+      platform,
       size: `${(buffer.byteLength / 1024 / 1024).toFixed(2)}MB`,
     });
 
-    // 파일명 생성
-    const fileName = `tiktok_${videoId}.mp4`;
+    // 파일명 생성 (플랫폼별)
+    const filePrefix = platform === 'douyin' ? 'douyin' :
+                       platform === 'xiaohongshu' ? 'xiaohongshu' : 'tiktok';
+    const fileName = `${filePrefix}_${videoId}.mp4`;
 
     // 다운로드 응답 반환
     return new NextResponse(buffer, {

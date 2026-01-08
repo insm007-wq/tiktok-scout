@@ -32,7 +32,22 @@
       "Bash(powershell -Command \"Start-Sleep -Seconds 5; $null\")",
       "Bash(powershell -Command \"Start-Sleep -Seconds 6; $null\")",
       "Bash(kill:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(__NEW_LINE__ echo \"✓ Response received\")",
+      "Bash(__NEW_LINE__ echo \"\")",
+      "Bash(powershell -Command \"Start-Sleep -Seconds 3\")",
+      "Bash(powershell -Command \"Start-Sleep -Seconds 10; $null\")",
+      "Bash(powershell -Command \"Remove-Item -Path ''D:\\\\project\\\\tik-tok-scout\\\\.next'' -Recurse -Force -ErrorAction SilentlyContinue\")",
+      "Bash(npm install)",
+      "Bash(KillShell b876101)",
+      "Bash(powershell -Command \"Start-Sleep -Seconds 60; $null\")",
+      "Bash(wc:*)",
+      "Bash(__NEW_LINE__ echo \"=== 불필요한 파일 정리 ===\")",
+      "Bash(__NEW_LINE__ echo \"=== 빈 디렉토리 정리 ===\")",
+      "Bash(find:*)",
+      "Bash(__NEW_LINE__ echo \"=== 컴포넌트 사용 여부 확인 ===\")",
+      "Bash(__NEW_LINE__ echo \"=== 프로젝트 구조 최종 정리 ===\")",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,40 +1,28 @@
 /**
- * YouTube Video Type
+ * 비디오 검색 결과 타입
  */
-export interface YouTubeVideo {
-  id: string
-  title: string
-  description: string
-  channelTitle: string
-  publishedAt: string
-  viewCount: number
-  likeCount: number
-  commentCount: number
-  subscriberCount?: number
-  duration?: string
-  categoryId?: string
-  categoryName?: string
-  categoryIcon?: string
-}
+export { VideoResult, Platform } from './video';
 
 /**
- * Search Filter Type
+ * 검색 필터 타입
  */
 export interface SearchFilter {
-  uploadPeriod: 'all' | '1month' | '2months' | '6months' | '1year'
-  videoLength: 'all' | 'short' | 'long'
-  engagementRatio: string[]
+  uploadPeriod: 'all' | 'yesterday' | '7days' | '1month' | '3months' | '6months';
+  videoLength: 'all' | 'short' | 'medium' | 'long';
+  engagementRatio: string[];
 }
 
 /**
- * API Response Type
+ * API 검색 응답 타입
  */
 export interface SearchResponse {
-  videos: YouTubeVideo[]
-  totalCount: number
-  statistics?: {
-    totalViews: number
-    averageSubscribers: number
-    averageRatio: number
-  }
+  success: boolean;
+  query: string;
+  platform: 'tiktok' | 'douyin' | 'xiaohongshu';
+  videos: any[];
+  count?: {
+    videos: number;
+  };
+  fromCache?: boolean;
+  error?: string;
 }

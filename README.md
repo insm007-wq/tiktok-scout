@@ -1,11 +1,11 @@
-# TikTok Killer
+# Titok Killa
 
 TikTok, Douyin, Xiaohongshu 비디오 검색 및 분석 도구입니다.
 
 ## 📁 프로젝트 구조
 
 ```
-tiktok-killer/
+titok-killa/
 ├── app/                          # Next.js App Router
 │   ├── api/                      # API 라우트 (TikTok API 통합 예정)
 │   ├── components/               # React 컴포넌트 (UI)
