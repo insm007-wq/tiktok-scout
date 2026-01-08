@@ -44,9 +44,9 @@ export default function ViewCountFilter({
             style={{
               padding: "6px 8px",
               borderRadius: "6px",
-              border: selectedQuick?.label === option.label ? "2px solid #d4af37" : "1px solid #d1d5db",
-              backgroundColor: selectedQuick?.label === option.label ? "rgba(212, 175, 55, 0.1)" : "#fff",
-              color: selectedQuick?.label === option.label ? "#d4af37" : "#666",
+              border: selectedQuick?.label === option.label ? "2px solid #000000" : "1px solid #d1d5db",
+              backgroundColor: selectedQuick?.label === option.label ? "rgba(0, 0, 0, 0.05)" : "#fff",
+              color: selectedQuick?.label === option.label ? "#000000" : "#6b6b6b",
               fontSize: "12px",
               fontWeight: selectedQuick?.label === option.label ? "600" : "500",
               cursor: "pointer",
@@ -54,7 +54,7 @@ export default function ViewCountFilter({
             }}
             onMouseEnter={(e) => {
               if (selectedQuick?.label !== option.label) {
-                e.currentTarget.style.backgroundColor = "#1a1a24";
+                e.currentTarget.style.backgroundColor = "#f5f5f5";
               }
             }}
             onMouseLeave={(e) => {

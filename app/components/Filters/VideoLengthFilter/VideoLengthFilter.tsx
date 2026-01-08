@@ -23,12 +23,12 @@ export default function VideoLengthFilter({ value, onChange }: VideoLengthFilter
             padding: "6px 8px",
             borderRadius: "6px",
             cursor: "pointer",
-            backgroundColor: value === option.value ? "rgba(212, 175, 55, 0.1)" : "transparent",
-            border: value === option.value ? "1px solid #d4af37" : "1px solid transparent",
+            backgroundColor: value === option.value ? "rgba(0, 0, 0, 0.05)" : "transparent",
+            border: value === option.value ? "1px solid rgba(0, 0, 0, 0.12)" : "1px solid transparent",
             transition: "all 0.2s",
             fontSize: "13px",
             fontWeight: value === option.value ? "600" : "500",
-            color: value === option.value ? "#d4af37" : "#666",
+            color: value === option.value ? "#000000" : "#6b6b6b",
           }}
         >
           <input
@@ -43,12 +43,12 @@ export default function VideoLengthFilter({ value, onChange }: VideoLengthFilter
             width: "16px",
             height: "16px",
             borderRadius: "50%",
-            border: value === option.value ? "3px solid #d4af37" : "2px solid #d1d5db",
+            border: value === option.value ? "3px solid #000000" : "2px solid #d1d5db",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             marginRight: "8px",
-            backgroundColor: value === option.value ? "#d4af37" : "transparent",
+            backgroundColor: value === option.value ? "#000000" : "transparent",
           }}>
             {value === option.value && <span style={{ width: "4px", height: "4px", backgroundColor: "white", borderRadius: "50%" }} />}
           </span>

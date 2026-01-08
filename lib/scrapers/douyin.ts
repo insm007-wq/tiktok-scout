@@ -109,6 +109,16 @@ export async function searchDouyinVideos(
     const results = dataset.slice(0, limit).map((item: any, index: number) => {
       const hashtags = item.hashtags?.map((h: any) => typeof h === 'string' ? h : h.name) || [];
 
+      // videoDuration 로깅 (처음 3개만)
+      if (index < 3) {
+        console.log(`[Douyin] 영상 ${index + 1} duration 데이터:`, {
+          duration: item.duration,
+          videoMetaDuration: item.videoMeta?.duration,
+          type: typeof (item.videoMeta?.duration || item.duration),
+          parsed: parseInt(item.videoMeta?.duration || item.duration || 0)
+        });
+      }
+
       return {
         id: item.id || `douyin-video-${index}`,
         title: item.text || item.desc || item.description || `영상 ${index + 1}`,

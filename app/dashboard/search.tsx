@@ -19,8 +19,8 @@ import ViewCountFilter from "@/app/components/Filters/ViewCountFilter/ViewCountF
 import PeriodFilter from "@/app/components/Filters/PeriodFilter/PeriodFilter";
 import VideoLengthFilter from "@/app/components/Filters/VideoLengthFilter/VideoLengthFilter";
 import EngagementRatioFilter from "@/app/components/Filters/EngagementRatioFilter/EngagementRatioFilter";
-import { formatDateWithTime } from "@/lib/dateUtils";
-import { formatNumber } from "@/lib/formatters";
+import { formatDateWithTime, getRelativeDateString } from "@/lib/dateUtils";
+import { formatNumber, formatVideoDuration } from "@/lib/formatters";
 import "./search.css";
 
 type Platform = "tiktok" | "douyin" | "xiaohongshu";
@@ -449,11 +449,7 @@ export default function Search() {
               100
             ).toFixed(2)
           : "-";
-      const videoDurationStr = `${Math.floor(video.videoDuration / 60)}:${(
-        video.videoDuration % 60
-      )
-        .toString()
-        .padStart(2, "0")}`;
+      const videoDurationStr = formatVideoDuration(video.videoDuration);
 
       csvRows.push([
         `"${video.title.replace(/"/g, '""')}"`,
@@ -630,14 +626,14 @@ export default function Search() {
               <div style={{
                 marginTop: "12px",
                 padding: "12px",
-                backgroundColor: "#121218",
+                backgroundColor: "#ffffff",
                 borderRadius: "8px",
-                border: "1px solid rgba(212, 175, 55, 0.2)"
+                border: "1px solid rgba(0, 0, 0, 0.08)"
               }}>
                 <div style={{
                   fontSize: "11px",
                   fontWeight: "600",
-                  color: "#c0c0c0",
+                  color: "#6b6b6b",
                   marginBottom: "8px",
                   textTransform: "uppercase",
                   letterSpacing: "0.4px"
@@ -649,13 +645,13 @@ export default function Search() {
                 <div style={{
                   marginBottom: "8px",
                   padding: "8px",
-                  backgroundColor: "#1a1a24",
+                  backgroundColor: "#f5f5f5",
                   borderRadius: "6px",
-                  border: "1px solid rgba(212, 175, 55, 0.3)"
+                  border: "1px solid rgba(0, 0, 0, 0.08)"
                 }}>
                   <div style={{
                     fontSize: "10px",
-                    color: "#a8a8b8",
+                    color: "#9ca3af",
                     marginBottom: "4px"
                   }}>
                     📋 원문 ({detectedLanguage === "ko" ? "한국어" : detectedLanguage === "zh" ? "中文" : "English"})
@@ -663,7 +659,7 @@ export default function Search() {
                   <div style={{
                     fontSize: "13px",
                     fontWeight: "600",
-                    color: "#e5e4e2",
+                    color: "#1a1a1a",
                     wordBreak: "break-word"
                   }}>
                     "{searchInput}"
@@ -679,20 +675,20 @@ export default function Search() {
                       justifyContent: "center",
                       marginBottom: "8px",
                       fontSize: "12px",
-                      color: "#c0c0c0"
+                      color: "#6b6b6b"
                     }}>
                       ↓ 번역됨 ↓
                     </div>
                     <div style={{
                       marginBottom: "8px",
                       padding: "8px",
-                      backgroundColor: "rgba(212, 175, 55, 0.1)",
+                      backgroundColor: "#f5f5f5",
                       borderRadius: "6px",
-                      border: "1px solid rgba(212, 175, 55, 0.3)"
+                      border: "1px solid rgba(0, 0, 0, 0.08)"
                     }}>
                       <div style={{
                         fontSize: "10px",
-                        color: "#d4af37",
+                        color: "#000000",
                         marginBottom: "4px",
                         fontWeight: "600"
                       }}>
@@ -701,7 +697,7 @@ export default function Search() {
                       <div style={{
                         fontSize: "13px",
                         fontWeight: "600",
-                        color: "#f4d03f",
+                        color: "#1a1a1a",
                         wordBreak: "break-word",
                         marginBottom: "8px"
                       }}>
@@ -715,8 +711,8 @@ export default function Search() {
                         style={{
                           width: "100%",
                           padding: "6px",
-                          background: "linear-gradient(135deg, #d4af37 0%, #f4d03f 100%)",
-                          color: "#0a0a0f",
+                          background: "linear-gradient(135deg, #000000 0%, #1a1a1a 100%)",
+                          color: "#ffffff",
                           border: "none",
                           borderRadius: "4px",
                           cursor: "pointer",
@@ -734,11 +730,11 @@ export default function Search() {
                 {!translatedQuery && searchInput && detectedLanguage === targetLanguage && (
                   <div style={{
                     padding: "8px",
-                    backgroundColor: "rgba(212, 175, 55, 0.1)",
+                    backgroundColor: "#f5f5f5",
                     borderRadius: "6px",
-                    border: "1px solid rgba(212, 175, 55, 0.3)",
+                    border: "1px solid rgba(0, 0, 0, 0.08)",
                     fontSize: "12px",
-                    color: "#d4af37",
+                    color: "#000000",
                     fontWeight: "500"
                   }}>
                     ℹ️ 입력 언어와 선택 언어가 동일하여 번역하지 않습니다
@@ -854,10 +850,10 @@ export default function Search() {
               {(platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" && (
                 <div style={{
                   fontSize: "11px",
-                  color: "#d4af37",
+                  color: "#000000",
                   marginTop: "6px",
                   padding: "6px 8px",
-                  backgroundColor: "rgba(212, 175, 55, 0.1)",
+                  backgroundColor: "#f5f5f5",
                   borderRadius: "4px"
                 }}>
                   💡 팁: {platform === "douyin" ? "Douyin" : "Xiaohongshu"}은 중국어 검색이 더 정확합니다
@@ -874,7 +870,7 @@ export default function Search() {
                 fontSize: "13px",
                 fontWeight: "700",
                 marginBottom: "16px",
-                color: "#d4af37",
+                color: "#000000",
                 letterSpacing: "0.5px",
               }}>
                 필터
@@ -882,11 +878,11 @@ export default function Search() {
 
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div style={{
-                  background: "linear-gradient(135deg, #121218 0%, #1a1a24 100%)",
+                  background: "linear-gradient(135deg, #ffffff 0%, #fafafa 100%)",
                   borderRadius: "8px",
                   padding: "10px 8px",
                 }}>
-                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#c0c0c0", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#000000", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
                     조회수
                   </div>
                   <ViewCountFilter
@@ -898,11 +894,11 @@ export default function Search() {
 
                 {platform !== 'xiaohongshu' && (
                   <div style={{
-                    background: "linear-gradient(135deg, #121218 0%, #1a1a24 100%)",
+                    background: "linear-gradient(135deg, #ffffff 0%, #fafafa 100%)",
                     borderRadius: "8px",
                     padding: "10px 8px",
                   }}>
-                    <div style={{ fontSize: "11px", fontWeight: "600", color: "#c0c0c0", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                    <div style={{ fontSize: "11px", fontWeight: "600", color: "#000000", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
                       기간
                     </div>
                     <PeriodFilter
@@ -914,11 +910,11 @@ export default function Search() {
                 )}
 
                 <div style={{
-                  background: "linear-gradient(135deg, #121218 0%, #1a1a24 100%)",
+                  background: "linear-gradient(135deg, #ffffff 0%, #fafafa 100%)",
                   borderRadius: "8px",
                   padding: "10px 8px",
                 }}>
-                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#c0c0c0", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#000000", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
                     길이
                   </div>
                   <VideoLengthFilter
@@ -928,11 +924,11 @@ export default function Search() {
                 </div>
 
                 <div style={{
-                  background: "linear-gradient(135deg, #121218 0%, #1a1a24 100%)",
+                  background: "linear-gradient(135deg, #ffffff 0%, #fafafa 100%)",
                   borderRadius: "8px",
                   padding: "10px 8px",
                 }}>
-                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#c0c0c0", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#000000", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
                     인기도
                   </div>
                   <EngagementRatioFilter
@@ -997,12 +993,32 @@ export default function Search() {
             {isLoading ? (
               <Spinner text="검색 중..." />
             ) : results.length === 0 ? (
-              <div className="no-results">
-                <p style={{ fontSize: "16px", fontWeight: "600", marginBottom: "8px" }}>
-                  😔 {error || "검색 결과가 없습니다"}
+              <div className="no-results" style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "100%",
+                padding: "40px 20px",
+              }}>
+                <div style={{
+                  width: "60px",
+                  height: "60px",
+                  borderRadius: "50%",
+                  backgroundColor: "#f5f5f5",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: "20px",
+                  fontSize: "28px"
+                }}>
+                  🔍
+                </div>
+                <p style={{ fontSize: "16px", fontWeight: "600", marginBottom: "8px", color: "#1a1a1a", textAlign: "center" }}>
+                  {error ? "검색 결과가 없습니다" : "검색어를 입력하여 시작하세요"}
                 </p>
-                <p style={{ fontSize: "14px", color: "#c0c0c0" }}>
-                  다른 키워드로 다시 검색해보세요
+                <p style={{ fontSize: "13px", color: "#6b6b6b", textAlign: "center", maxWidth: "300px" }}>
+                  {error ? "다른 키워드나 필터로 다시 시도해보세요" : "관심있는 콘텐츠를 찾아보세요"}
                 </p>
               </div>
             ) : (
@@ -1035,8 +1051,15 @@ export default function Search() {
 
                         {/* Duration 뱃지 - 왼쪽 상단 */}
                         <div className="card-duration-badge">
-                          {Math.floor(video.videoDuration / 60)}:{(video.videoDuration % 60).toString().padStart(2, "0")}
+                          {formatVideoDuration(video.videoDuration)}
                         </div>
+
+                        {/* Date 뱃지 - 오른쪽 상단 */}
+                        {video.createTime && (
+                          <div className="card-date-badge">
+                            {getRelativeDateString(new Date(video.createTime))}
+                          </div>
+                        )}
 
                         {/* 그라데이션 오버레이 - 하단 */}
                         <div className="card-overlay">
@@ -1149,7 +1172,7 @@ export default function Search() {
                           <td className="table-author" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{video.creator}</td>
                           <td className="table-number">{video.followerCount ? formatNumber(video.followerCount) : "-"}</td>
                           <td className="table-number" style={{ fontSize: "11px" }}>{formatDateWithTime(video.createTime)}</td>
-                          <td className="table-number">{Math.floor(video.videoDuration / 60)}:{(video.videoDuration % 60).toString().padStart(2, "0")}</td>
+                          <td className="table-number">{formatVideoDuration(video.videoDuration)}</td>
                           <td className="table-number">{formatNumber(video.playCount)}</td>
                           <td className="table-number">{formatNumber(video.likeCount)}</td>
                           <td className="table-number">{formatNumber(video.commentCount)}</td>
@@ -1198,7 +1221,7 @@ export default function Search() {
               )}
 
               {/* 제목 */}
-              <h2 style={{ margin: "0 0 12px 0", fontSize: "18px", color: "#f4d03f", lineHeight: 1.4 }}>{selectedVideo.title}</h2>
+              <h2 style={{ margin: "0 0 12px 0", fontSize: "18px", color: "#000000", lineHeight: 1.4 }}>{selectedVideo.title}</h2>
 
               {/* 크리에이터 */}
               <div style={{
@@ -1206,68 +1229,68 @@ export default function Search() {
                 alignItems: "center",
                 gap: "8px",
                 padding: "10px 12px",
-                background: "linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(244, 208, 63, 0.05) 100%)",
+                background: "linear-gradient(135deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.02) 100%)",
                 borderRadius: "10px",
                 marginBottom: "16px",
-                border: "1px solid rgba(212, 175, 55, 0.2)"
+                border: "1px solid rgba(0, 0, 0, 0.08)"
               }}>
                 <span style={{ fontSize: "16px" }}>👤</span>
                 <div>
-                  <div style={{ fontSize: "11px", color: "#c0c0c0", marginBottom: "2px" }}>크리에이터</div>
-                  <div style={{ fontSize: "13px", fontWeight: "600", color: "#e5e4e2" }}>{selectedVideo.creator}</div>
+                  <div style={{ fontSize: "11px", color: "#6b6b6b", marginBottom: "2px" }}>크리에이터</div>
+                  <div style={{ fontSize: "13px", fontWeight: "600", color: "#1a1a1a" }}>{selectedVideo.creator}</div>
                 </div>
               </div>
 
               {/* 통계 */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "16px" }}>
                 <div style={{
-                  background: "linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(212, 175, 55, 0.05) 100%)",
+                  background: "linear-gradient(135deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.01) 100%)",
                   padding: "12px",
                   borderRadius: "10px",
-                  color: "#f4d03f",
-                  border: "1px solid rgba(212, 175, 55, 0.3)",
-                  boxShadow: "0 4px 12px rgba(212, 175, 55, 0.2)"
+                  color: "#000000",
+                  border: "1px solid rgba(0, 0, 0, 0.08)",
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)"
                 }}>
-                  <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px", color: "#c0c0c0" }}>조회수</div>
+                  <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px", color: "#6b6b6b" }}>조회수</div>
                   <div style={{ fontSize: "20px", fontWeight: "700" }}>
                     {(selectedVideo.playCount / 1000000).toFixed(1)}M
                   </div>
                 </div>
                 <div style={{
-                  background: "linear-gradient(135deg, rgba(244, 208, 63, 0.2) 0%, rgba(244, 208, 63, 0.05) 100%)",
+                  background: "linear-gradient(135deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.01) 100%)",
                   padding: "12px",
                   borderRadius: "10px",
-                  color: "#f4d03f",
-                  border: "1px solid rgba(244, 208, 63, 0.3)",
-                  boxShadow: "0 4px 12px rgba(245, 87, 108, 0.2)"
+                  color: "#000000",
+                  border: "1px solid rgba(0, 0, 0, 0.08)",
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)"
                 }}>
-                  <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px" }}>좋아요</div>
+                  <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px", color: "#6b6b6b" }}>좋아요</div>
                   <div style={{ fontSize: "20px", fontWeight: "700" }}>
                     {(selectedVideo.likeCount / 1000).toFixed(1)}K
                   </div>
                 </div>
                 <div style={{
-                  background: "linear-gradient(135deg, rgba(192, 192, 192, 0.2) 0%, rgba(192, 192, 192, 0.05) 100%)",
+                  background: "linear-gradient(135deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.01) 100%)",
                   padding: "12px",
                   borderRadius: "10px",
-                  color: "#c0c0c0",
-                  border: "1px solid rgba(192, 192, 192, 0.3)",
-                  boxShadow: "0 4px 12px rgba(192, 192, 192, 0.2)"
+                  color: "#000000",
+                  border: "1px solid rgba(0, 0, 0, 0.08)",
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)"
                 }}>
-                  <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px", color: "#a8a8b8" }}>댓글</div>
+                  <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px", color: "#6b6b6b" }}>댓글</div>
                   <div style={{ fontSize: "20px", fontWeight: "700" }}>
                     {(selectedVideo.commentCount / 1000).toFixed(1)}K
                   </div>
                 </div>
                 <div style={{
-                  background: "linear-gradient(135deg, rgba(229, 228, 226, 0.2) 0%, rgba(229, 228, 226, 0.05) 100%)",
+                  background: "linear-gradient(135deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.01) 100%)",
                   padding: "12px",
                   borderRadius: "10px",
-                  color: "#e5e4e2",
-                  border: "1px solid rgba(229, 228, 226, 0.3)",
-                  boxShadow: "0 4px 12px rgba(229, 228, 226, 0.2)"
+                  color: "#000000",
+                  border: "1px solid rgba(0, 0, 0, 0.08)",
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)"
                 }}>
-                  <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px", color: "#c0c0c0" }}>공유</div>
+                  <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px", color: "#6b6b6b" }}>공유</div>
                   <div style={{ fontSize: "20px", fontWeight: "700" }}>
                     {(selectedVideo.shareCount / 1000).toFixed(1)}K
                   </div>
@@ -1277,19 +1300,19 @@ export default function Search() {
               {/* 해시태그 */}
               {selectedVideo.hashtags.length > 0 && (
                 <div style={{ marginBottom: "12px" }}>
-                  <strong style={{ display: "block", marginBottom: "8px", fontSize: "12px", color: "#e5e4e2" }}>🏷️ 해시태그</strong>
+                  <strong style={{ display: "block", marginBottom: "8px", fontSize: "12px", color: "#1a1a1a" }}>🏷️ 해시태그</strong>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                     {selectedVideo.hashtags.map((tag, idx) => (
                       <span
                         key={idx}
                         style={{
-                          background: "linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(212, 175, 55, 0.05) 100%)",
-                          color: "#e5e4e2",
+                          background: "linear-gradient(135deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.02) 100%)",
+                          color: "#1a1a1a",
                           padding: "4px 10px",
                           borderRadius: "16px",
                           fontSize: "11px",
                           fontWeight: "600",
-                          boxShadow: "0 2px 8px rgba(102, 126, 234, 0.2)"
+                          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)"
                         }}
                       >
                         #{tag}
@@ -1308,20 +1331,20 @@ export default function Search() {
                   flex: 1,
                   padding: "10px",
                   backgroundColor: "transparent",
-                  color: "#c0c0c0",
-                  border: "1px solid rgba(212, 175, 55, 0.3)",
+                  color: "#6b6b6b",
+                  border: "1px solid rgba(0, 0, 0, 0.12)",
                   borderRadius: "4px",
                   cursor: "pointer",
                   fontWeight: "bold",
                   transition: "all 0.2s ease",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "rgba(212, 175, 55, 0.1)";
-                  e.currentTarget.style.color = "#d4af37";
+                  e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.05)";
+                  e.currentTarget.style.color = "#000000";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.color = "#c0c0c0";
+                  e.currentTarget.style.color = "#6b6b6b";
                 }}
               >
                 닫기
@@ -1333,13 +1356,13 @@ export default function Search() {
                 style={{
                   flex: 1,
                   padding: "10px",
-                  background: "linear-gradient(135deg, #d4af37 0%, #f4d03f 100%)",
-                  color: "#0a0a0f",
+                  background: "linear-gradient(135deg, #000000 0%, #1a1a1a 100%)",
+                  color: "#ffffff",
                   border: "none",
                   borderRadius: "4px",
                   cursor: "pointer",
                   fontWeight: "bold",
-                  boxShadow: "0 4px 12px rgba(212, 175, 55, 0.3)",
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
                 }}
               >
                 🔗 TikTok에서 열기
@@ -1354,9 +1377,9 @@ export default function Search() {
                   padding: "10px",
                   background:
                     selectedVideo && downloadingVideoId === selectedVideo.id
-                      ? "linear-gradient(135deg, #6e6e80 0%, #a8a8b8 100%)"
-                      : "linear-gradient(135deg, #c0c0c0 0%, #e5e4e2 100%)",
-                  color: "#0a0a0f",
+                      ? "linear-gradient(135deg, #9ca3af 0%, #c0c0c0 100%)"
+                      : "linear-gradient(135deg, #6b6b6b 0%, #9ca3af 100%)",
+                  color: "#ffffff",
                   border: "none",
                   borderRadius: "4px",
                   cursor:
@@ -1369,7 +1392,7 @@ export default function Search() {
                   boxShadow:
                     selectedVideo && downloadingVideoId === selectedVideo.id
                       ? "none"
-                      : "0 4px 12px rgba(192, 192, 192, 0.3)",
+                      : "0 4px 12px rgba(0, 0, 0, 0.15)",
                 }}
               >
                 {selectedVideo && downloadingVideoId === selectedVideo.id
