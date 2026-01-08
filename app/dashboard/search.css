@@ -327,7 +327,7 @@
 /* 카드 뷰 */
 .results-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 20px;
   flex: 1;
   align-items: start;
@@ -496,24 +496,25 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(8px);
-  border: 2px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   padding: 0;
+  z-index: 3;
 }
 
 .card-action-btn:hover {
-  background: rgba(0, 0, 0, 0.95);
+  background: rgba(255, 255, 255, 1);
   transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  border-color: #000000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: rgba(0, 0, 0, 0.12);
 }
 
 .card-action-btn:active {
@@ -523,19 +524,19 @@
 .card-action-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .card-action-icon {
   width: 18px;
   height: 18px;
-  color: #ffffff;
+  color: #000000;
 }
 
 .card-action-label {
   font-size: 9px;
   font-weight: 700;
-  color: #ffffff;
+  color: #000000;
   margin-top: 2px;
   letter-spacing: 0.3px;
 }

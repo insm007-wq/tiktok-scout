@@ -47,13 +47,31 @@ export const isWithinDays = (date: string | Date | undefined, days: number): boo
 export const getRelativeDateString = (date: string | Date | undefined): string => {
   if (!date) return "-";
 
-  const daysAgo = getDaysAgo(date);
+  const publishDate = new Date(date).getTime();
+  if (isNaN(publishDate)) return "-";
 
-  if (daysAgo < 0) return "-";
-  if (daysAgo === 0) return "오늘";
-  if (daysAgo === 1) return "어제";
-  if (daysAgo < 7) return `${Math.floor(daysAgo)}일 전`;
-  if (daysAgo < 30) return `${Math.floor(daysAgo / 7)}주 전`;
-  if (daysAgo < 365) return `${Math.floor(daysAgo / 30)}개월 전`;
-  return `${Math.floor(daysAgo / 365)}년 전`;
+  const now = Date.now();
+  const diffMs = now - publishDate;
+  const diffHours = diffMs / (1000 * 60 * 60);
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+  if (diffMs < 0) return "-";
+
+  // 24시간 이내: 시간 단위로 표시
+  if (diffHours < 1) {
+    const minutes = Math.floor(diffMs / (1000 * 60));
+    if (minutes < 1) return "방금 전";
+    return `${minutes}분 전`;
+  }
+
+  if (diffHours < 24) {
+    return `${Math.floor(diffHours)}시간 전`;
+  }
+
+  // 24시간 이상: 일 단위로 표시
+  if (diffDays < 2) return "어제";
+  if (diffDays < 7) return `${Math.floor(diffDays)}일 전`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}주 전`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)}개월 전`;
+  return `${Math.floor(diffDays / 365)}년 전`;
 };
