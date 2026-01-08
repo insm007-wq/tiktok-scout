@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     console.log(`[${platform.toUpperCase()}] 검색 시작: ${query}`);
 
     // 캐시 확인
-    const cached = getFromCache(query, platform, dateRange);
+    const cached = getFromCache<{ videos: VideoResult[] }>(query, platform, dateRange);
     if (cached) {
       return NextResponse.json({
         success: true,

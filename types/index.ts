@@ -1,7 +1,7 @@
 /**
  * 비디오 검색 결과 타입
  */
-export { VideoResult, Platform } from './video';
+export type { VideoResult, Platform } from './video';
 
 /**
  * 검색 필터 타입

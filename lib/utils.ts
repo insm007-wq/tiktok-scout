@@ -82,7 +82,7 @@ export function extractVideoId(url: string): string {
 
 // 검색어 유효성 확인
 export function isValidQuery(query: string): boolean {
-  return query && query.trim().length > 0 && query.trim().length <= 500;
+  return !!query && query.trim().length > 0 && query.trim().length <= 500;
 }
 
 // 플랫폼별 기본값

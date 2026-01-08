@@ -200,8 +200,7 @@ export default function Search() {
   // 플랫폼 변경 시 기간 필터 초기화 (플랫폼별로 지원하는 옵션이 다르므로)
   useEffect(() => {
     setFilters({ ...filters, uploadPeriod: "all" });
-    setVideos([]);  // 검색 결과도 초기화
-    setError("");
+    // 비디오 결과는 유지하고, 필터만 초기화
   }, [platform]);
 
   // 영상 필터링 함수

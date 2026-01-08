@@ -1,169 +1,148 @@
 /**
- * 메모리 기반 검색 결과 캐싱 시스템
- * - 5분 TTL (Time To Live)
- * - 최대 100개 항목 관리
- * - 플랫폼과 검색어 기반 키 생성
+ * 간단한 인메모리 캐시 시스템
+ * TTL (Time To Live) 지원
  */
 
-interface CacheEntry {
-  data: any;
-  timestamp: number;
-  query: string;
-  platform: string;
+interface CacheEntry<T> {
+  data: T;
+  expiresAt: number;
 }
 
-const cache = new Map<string, CacheEntry>();
-const CACHE_TTL = 5 * 60 * 1000; // 5분
+const cache = new Map<string, CacheEntry<any>>();
 
 /**
  * 캐시 키 생성
- * @param query 검색어
- * @param platform 플랫폼 (tiktok, douyin, xiaohongshu)
- * @param dateRange 날짜 범위 (optional)
- * @returns 캐시 키
  */
-export function getCacheKey(query: string, platform: string, dateRange?: string): string {
-  const dateRangePart = dateRange ? `:${dateRange}` : '';
-  return `${platform}:${query.toLowerCase().trim()}${dateRangePart}`;
+function getCacheKey(query: string, platform: string, dateRange?: string): string {
+  return `${platform}:${query}:${dateRange || 'all'}`;
 }
 
 /**
- * 캐시에서 데이터 조회
- * @param query 검색어
- * @param platform 플랫폼
- * @param dateRange 날짜 범위 (optional)
- * @returns 캐시된 데이터 또는 null
+ * 캐시에서 데이터 조회 (만료 확인)
  */
-export function getFromCache(query: string, platform: string, dateRange?: string): any | null {
+export function getFromCache<T>(
+  query: string,
+  platform: string,
+  dateRange?: string
+): T | null {
   const key = getCacheKey(query, platform, dateRange);
   const entry = cache.get(key);
 
   if (!entry) return null;
 
-  // 캐시 유효성 검사
-  const age = Date.now() - entry.timestamp;
-  if (age > CACHE_TTL) {
+  // 만료 확인
+  if (Date.now() > entry.expiresAt) {
     cache.delete(key);
-    console.log(`[Cache] EXPIRED: ${key} (age: ${Math.round(age / 1000)}s)`);
     return null;
   }
 
-  console.log(`[Cache] HIT: ${key} (age: ${Math.round(age / 1000)}s)`);
-  return entry.data;
+  return entry.data as T;
 }
 
 /**
- * 캐시에 데이터 저장
- * @param query 검색어
- * @param platform 플랫폼
- * @param data 저장할 데이터
- * @param dateRange 날짜 범위 (optional)
+ * 캐시에 데이터 저장 (기본 TTL: 30분)
  */
-export function setCache(query: string, platform: string, data: any, dateRange?: string): void {
+export function setCache<T>(
+  query: string,
+  platform: string,
+  data: T,
+  dateRange?: string,
+  ttlMinutes: number = 30
+): void {
   const key = getCacheKey(query, platform, dateRange);
+  const expiresAt = Date.now() + ttlMinutes * 60 * 1000;
+
   cache.set(key, {
     data,
-    timestamp: Date.now(),
-    query,
-    platform
+    expiresAt,
   });
-  console.log(`[Cache] SET: ${key} (size: ${cache.size})`);
 
-  // 메모리 관리: 100개 이상이면 오래된 항목 삭제
-  if (cache.size > 100) {
-    const entries = Array.from(cache.entries());
-    const oldestEntry = entries.reduce((min, curr) =>
-      curr[1].timestamp < min[1].timestamp ? curr : min
-    );
-    cache.delete(oldestEntry[0]);
-    console.log(`[Cache] EVICTED: ${oldestEntry[0]} (memory management)`);
-  }
+  console.log(`[Cache] 저장: ${key} (TTL: ${ttlMinutes}분)`);
 }
 
 /**
- * 캐시 초기화
+ * 캐시 전체 조회
  */
-export function clearCache(): void {
-  cache.clear();
-  console.log('[Cache] CLEARED');
-}
+export function getCacheStats() {
+  let count = 0;
+  let totalSize = 0;
 
-/**
- * 캐시 통계 반환
- */
-export function getCacheStats(): {
-  size: number;
-  entries: Array<{ key: string; age: number; ttl: number }>;
-} {
-  const entries = Array.from(cache.entries()).map(([key, entry]) => ({
-    key,
-    age: Date.now() - entry.timestamp,
-    ttl: CACHE_TTL - (Date.now() - entry.timestamp)
-  }));
+  cache.forEach((entry) => {
+    if (Date.now() <= entry.expiresAt) {
+      count++;
+      totalSize += JSON.stringify(entry.data).length;
+    }
+  });
 
   return {
-    size: cache.size,
-    entries
+    count,
+    totalSizeKB: Math.round(totalSize / 1024),
   };
 }
 
 /**
- * 번역 캐시 키 생성
- * @param text 번역할 텍스트
- * @param targetLang 대상 언어
- * @returns 캐시 키
+ * 만료된 캐시 정리
  */
-export function getTranslationCacheKey(text: string, targetLang: string): string {
-  return `translate:${targetLang}:${text.toLowerCase().trim()}`;
+export function cleanupExpiredCache() {
+  let cleaned = 0;
+
+  cache.forEach((entry, key) => {
+    if (Date.now() > entry.expiresAt) {
+      cache.delete(key);
+      cleaned++;
+    }
+  });
+
+  if (cleaned > 0) {
+    console.log(`[Cache] ${cleaned}개의 만료된 항목 제거`);
+  }
+
+  return cleaned;
 }
 
 /**
- * 번역 캐시 조회
- * @param text 번역할 텍스트
- * @param targetLang 대상 언어
- * @returns 캐시된 번역 또는 null
+ * 캐시 전체 삭제
  */
-export function getTranslationFromCache(text: string, targetLang: string): string | null {
-  const key = getTranslationCacheKey(text, targetLang);
+export function clearCache() {
+  const size = cache.size;
+  cache.clear();
+  console.log(`[Cache] 전체 캐시 삭제 (${size}개)`);
+}
+
+/**
+ * 번역 캐시에서 데이터 조회
+ */
+export function getTranslationFromCache(text: string, targetLanguage: string): string | null {
+  const key = `translation:${text}:${targetLanguage}`;
   const entry = cache.get(key);
 
   if (!entry) return null;
 
-  // 캐시 유효성 검사
-  const age = Date.now() - entry.timestamp;
-  if (age > CACHE_TTL) {
+  // 만료 확인
+  if (Date.now() > entry.expiresAt) {
     cache.delete(key);
-    console.log(`[Translation Cache] EXPIRED: ${key}`);
     return null;
   }
 
-  console.log(`[Translation Cache] HIT: ${key} (age: ${Math.round(age / 1000)}s)`);
-  return entry.data;
+  return entry.data as string;
 }
 
 /**
- * 번역 캐시 저장
- * @param text 번역할 텍스트
- * @param targetLang 대상 언어
- * @param translation 번역 결과
+ * 번역 캐시에 데이터 저장 (기본 TTL: 24시간)
  */
-export function setTranslationCache(text: string, targetLang: string, translation: string): void {
-  const key = getTranslationCacheKey(text, targetLang);
-  cache.set(key, {
-    data: translation,
-    timestamp: Date.now(),
-    query: text,
-    platform: `translate-${targetLang}`
-  });
-  console.log(`[Translation Cache] SET: ${key} (size: ${cache.size})`);
+export function setTranslationCache(
+  text: string,
+  targetLanguage: string,
+  translatedText: string,
+  ttlHours: number = 24
+): void {
+  const key = `translation:${text}:${targetLanguage}`;
+  const expiresAt = Date.now() + ttlHours * 60 * 60 * 1000;
 
-  // 메모리 관리: 100개 이상이면 오래된 항목 삭제
-  if (cache.size > 100) {
-    const entries = Array.from(cache.entries());
-    const oldestEntry = entries.reduce((min, curr) =>
-      curr[1].timestamp < min[1].timestamp ? curr : min
-    );
-    cache.delete(oldestEntry[0]);
-    console.log(`[Cache] EVICTED: ${oldestEntry[0]} (memory management)`);
-  }
+  cache.set(key, {
+    data: translatedText,
+    expiresAt,
+  });
+
+  console.log(`[Translation Cache] 저장: ${key} (TTL: ${ttlHours}시간)`);
 }
