@@ -47,12 +47,90 @@
   }
 }
 
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes rotateSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .animateFadeInUp {
   animation: fadeInUp 0.6s ease-out;
 }
 
 .animateFloat {
   animation: float 3s ease-in-out infinite;
+}
+
+.premiumCard {
+  background: rgba(18, 18, 24, 0.6);
+  backdrop-filter: blur(20px) brightness(1.1);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.premiumCard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0), rgba(192, 192, 192, 0));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.premiumCard:hover::before {
+  opacity: 1;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 1), rgba(192, 192, 192, 1));
+}
+
+.premiumCard:hover {
+  background: rgba(18, 18, 24, 0.8);
+  box-shadow: 0 20px 60px rgba(212, 175, 55, 0.3);
+  border-color: rgba(212, 175, 55, 0.4);
+  transform: translateY(-8px) scale(1.05);
+}
+
+.premiumCard::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.3), transparent);
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.premiumCard:hover::after {
+  animation: shine 0.6s ease-in-out;
+  opacity: 1;
 }
 
 .glassCard {
@@ -106,10 +184,37 @@
   transition: opacity 0.3s ease;
   pointer-events: none;
   z-index: -1;
+  filter: blur(20px);
+}
+
+.premiumCard:hover .cardGlow {
+  opacity: 1;
 }
 
 .glassCard:hover .cardGlow {
   opacity: 1;
+}
+
+.shimmerText {
+  background-size: 200% auto;
+  animation: shimmer 3s linear infinite;
+}
+
+.buttonShimmer {
+  background-size: 200% auto;
+  transition: all 0.3s ease;
+}
+
+.buttonShimmer:hover {
+  animation: shimmer 2s linear infinite;
+}
+
+.premiumOrb {
+  animation: bgFloat 8s ease-in-out infinite, rotateSlow 20s linear infinite;
+}
+
+.pulsingOrb {
+  animation: pulseGlow 4s ease-in-out infinite;
 }
 
 .darkGlassCard {

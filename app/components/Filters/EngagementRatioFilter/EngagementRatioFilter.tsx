@@ -57,12 +57,12 @@ export default function EngagementRatioFilter({
               padding: "6px 8px",
               borderRadius: "6px",
               cursor: "pointer",
-              backgroundColor: selectedValues.includes(option.value) ? "#e0e7ff" : "transparent",
-              border: selectedValues.includes(option.value) ? "1px solid #4f46e5" : "1px solid transparent",
+              backgroundColor: selectedValues.includes(option.value) ? "rgba(212, 175, 55, 0.1)" : "transparent",
+              border: selectedValues.includes(option.value) ? "1px solid #d4af37" : "1px solid transparent",
               transition: "all 0.2s",
               fontSize: "13px",
               fontWeight: selectedValues.includes(option.value) ? "600" : "500",
-              color: selectedValues.includes(option.value) ? "#4f46e5" : "#666",
+              color: selectedValues.includes(option.value) ? "#d4af37" : "#666",
             }}
           >
             <input
@@ -77,12 +77,12 @@ export default function EngagementRatioFilter({
               width: "16px",
               height: "16px",
               borderRadius: "4px",
-              border: selectedValues.includes(option.value) ? "3px solid #4f46e5" : "2px solid #d1d5db",
+              border: selectedValues.includes(option.value) ? "3px solid #d4af37" : "2px solid #d1d5db",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               marginRight: "8px",
-              backgroundColor: selectedValues.includes(option.value) ? "#4f46e5" : "transparent",
+              backgroundColor: selectedValues.includes(option.value) ? "#d4af37" : "transparent",
             }}>
               {selectedValues.includes(option.value) && (
                 <span style={{ width: "3px", height: "6px", backgroundColor: "white", transform: "rotate(45deg)" }} />

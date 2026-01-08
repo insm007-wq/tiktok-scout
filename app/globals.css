@@ -31,3 +31,25 @@
     @apply no-underline;
   }
 }
+
+@layer utilities {
+  .text-gold {
+    color: #d4af37;
+  }
+
+  .text-silver {
+    color: #c0c0c0;
+  }
+
+  .text-platinum {
+    color: #e5e4e2;
+  }
+
+  .bg-premium-dark {
+    background: #121218;
+  }
+
+  .gold-glow {
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+  }
+}
