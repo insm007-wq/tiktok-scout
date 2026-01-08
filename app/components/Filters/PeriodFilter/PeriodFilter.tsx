@@ -1,20 +1,49 @@
 'use client'
 
+type Platform = 'tiktok' | 'douyin' | 'xiaohongshu'
+
 interface PeriodFilterProps {
   value: string
   onChange: (value: string) => void
+  platform?: Platform
 }
 
-// 기간 옵션
-const PERIOD_OPTIONS = [
-  { value: 'all', label: '전체' },
-  { value: 'yesterday', label: '어제' },
-  { value: '7days', label: '1주일' },
-  { value: '1month', label: '1개월' },
-  { value: '3months', label: '3개월' },
-]
+// 플랫폼별 기간 옵션
+const getPeriodOptions = (platform?: Platform) => {
+  switch (platform) {
+    case 'douyin':
+      // Douyin: all, last_day, last_week, last_half_year
+      return [
+        { value: 'all', label: '전체' },
+        { value: 'yesterday', label: '어제' },
+        { value: '7days', label: '1주일' },
+        { value: '6months', label: '6개월' },
+      ]
 
-export default function PeriodFilter({ value, onChange }: PeriodFilterProps) {
+    case 'xiaohongshu':
+      // Xiaohongshu: All time, Last day, Last week, Last 6 months
+      return [
+        { value: 'all', label: '전체' },
+        { value: 'yesterday', label: '어제' },
+        { value: '7days', label: '1주일' },
+        { value: '6months', label: '6개월' },
+      ]
+
+    case 'tiktok':
+    default:
+      // TikTok: DEFAULT, YESTERDAY, THIS_WEEK, THIS_MONTH, LAST_THREE_MONTHS
+      return [
+        { value: 'all', label: '전체' },
+        { value: 'yesterday', label: '어제' },
+        { value: '7days', label: '1주일' },
+        { value: '1month', label: '1개월' },
+        { value: '3months', label: '3개월' },
+      ]
+  }
+}
+
+export default function PeriodFilter({ value, onChange, platform }: PeriodFilterProps) {
+  const PERIOD_OPTIONS = getPeriodOptions(platform)
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
       {PERIOD_OPTIONS.map((option) => (

@@ -122,7 +122,7 @@ export default function Search() {
 
   // 저장된 너비 복원
   useEffect(() => {
-    const savedWidth = localStorage.getItem("tiktok-killer-sidebar-width");
+    const savedWidth = localStorage.getItem("titok killa-sidebar-width");
     if (savedWidth) {
       setSidebarWidth(parseInt(savedWidth, 10));
     }
@@ -130,7 +130,7 @@ export default function Search() {
 
   // 검색 히스토리 로드
   useEffect(() => {
-    const savedHistory = localStorage.getItem("tiktok-killer-search-history");
+    const savedHistory = localStorage.getItem("titok killa-search-history");
     if (savedHistory) {
       setSearchHistory(JSON.parse(savedHistory));
     }
@@ -138,7 +138,7 @@ export default function Search() {
 
   // 저장된 언어 설정 복원
   useEffect(() => {
-    const savedLanguage = localStorage.getItem("tiktok-killer-language-preference");
+    const savedLanguage = localStorage.getItem("titok killa-language-preference");
     if (savedLanguage) {
       setTargetLanguage(savedLanguage as Language);
     }
@@ -146,7 +146,7 @@ export default function Search() {
 
   // 언어 변경 시 localStorage에 저장
   useEffect(() => {
-    localStorage.setItem("tiktok-killer-language-preference", targetLanguage);
+    localStorage.setItem("titok killa-language-preference", targetLanguage);
   }, [targetLanguage]);
 
   // 검색어 입력 시 자동으로 언어 감지
@@ -194,8 +194,15 @@ export default function Search() {
 
   // 너비 변경 시 localStorage에 저장
   useEffect(() => {
-    localStorage.setItem("tiktok-killer-sidebar-width", sidebarWidth.toString());
+    localStorage.setItem("titok killa-sidebar-width", sidebarWidth.toString());
   }, [sidebarWidth]);
+
+  // 플랫폼 변경 시 기간 필터 초기화 (플랫폼별로 지원하는 옵션이 다르므로)
+  useEffect(() => {
+    setFilters({ ...filters, uploadPeriod: "all" });
+    setVideos([]);  // 검색 결과도 초기화
+    setError("");
+  }, [platform]);
 
   // 영상 필터링 함수
   const filterVideos = (items: Video[], filterState: FilterState) => {
@@ -336,14 +343,17 @@ export default function Search() {
     // 검색 히스토리 저장
     const newHistory = [searchInput, ...searchHistory.filter(item => item !== searchInput)].slice(0, 10);
     setSearchHistory(newHistory);
-    localStorage.setItem("tiktok-killer-search-history", JSON.stringify(newHistory));
+    localStorage.setItem("titok killa-search-history", JSON.stringify(newHistory));
 
     setIsLoading(true);
     setError("");
     setVideos([]);
 
     try {
-      // Bright Data API 호출 (번역된 쿼리 사용, 현재 날짜 필터 포함)
+      // Bright Data API 호출 (번역된 쿼리 사용)
+      // Xiaohongshu는 기간 필터를 지원하지 않으므로 "all"로 고정
+      const dateRange = platform === 'xiaohongshu' ? 'all' : filters.uploadPeriod;
+
       const response = await fetch("/api/brightdata/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -351,7 +361,7 @@ export default function Search() {
           query: searchQuery,
           platform,
           limit: 50,
-          dateRange: filters.uploadPeriod,
+          dateRange: dateRange,
         }),
       });
 
@@ -415,7 +425,7 @@ export default function Search() {
     e.stopPropagation();
     const newHistory = searchHistory.filter(item => item !== keyword);
     setSearchHistory(newHistory);
-    localStorage.setItem("tiktok-killer-search-history", JSON.stringify(newHistory));
+    localStorage.setItem("titok killa-search-history", JSON.stringify(newHistory));
   };
 
   const handleExcelDownload = () => {
@@ -504,7 +514,7 @@ export default function Search() {
   // 영상 다운로드 (클립보드 복사 + 외부 다운로더 열기)
   const handleDownloadVideo = async (video: Video) => {
     if (!video.videoUrl && !video.webVideoUrl) {
-      alert("영상 다운로드 정보를 불러올 수 없습니다.");
+      addToast('error', '영상 다운로드 정보를 불러올 수 없습니다.', '❌ 오류');
       return;
     }
 
@@ -521,6 +531,7 @@ export default function Search() {
           body: JSON.stringify({
             videoUrl: video.videoUrl,
             videoId: video.id,
+            platform,  // ✅ 플랫폼 정보 전달
           }),
         });
 
@@ -534,7 +545,12 @@ export default function Search() {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `tiktok_${video.id}.mp4`;
+
+        // 플랫폼별 파일명 설정
+        const filePrefix = platform === 'douyin' ? 'douyin' :
+                          platform === 'xiaohongshu' ? 'xiaohongshu' : 'tiktok';
+        link.download = `${filePrefix}_${video.id}.mp4`;
+
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -543,15 +559,11 @@ export default function Search() {
         console.log("[Download] ✅ 다운로드 완료:", video.title);
         addToast('success', '영상이 다운로드 폴더에 저장되었습니다', '✅ 다운로드 완료', 3000);
       } else if (video.webVideoUrl) {
-        // webVideoUrl만 있으면 외부 다운로더 사용
-        console.log("[Download] 외부 다운로더 사용:", video.webVideoUrl);
+        // webVideoUrl만 있으면 링크 복사만 진행 (외부 사이트 제거)
+        console.log("[Download] 링크 복사:", video.webVideoUrl);
 
         await navigator.clipboard.writeText(video.webVideoUrl);
-
-        const downloaderUrl = "https://www.ssstiktok.com/";
-        window.open(downloaderUrl, "_blank");
-
-        addToast('info', 'TikTok 링크가 클립보드에 복사되었습니다. 다운로더 사이트를 확인해주세요.', '📋 링크 복사됨', 4000);
+        addToast('info', '영상 링크가 클립보드에 복사되었습니다.', '📋 링크 복사됨', 3000);
       }
     } catch (error) {
       console.error("[Download] Error:", error);
@@ -580,7 +592,7 @@ export default function Search() {
             onClick={handleTitleClick}
             style={{ cursor: "pointer", transition: "opacity 0.3s", opacity: isTitleRefreshing ? 0.5 : 1 }}
           >
-            TikTok Killer
+            Titok Killa
           </div>
 
           <div className="search-section">
@@ -709,7 +721,7 @@ export default function Search() {
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(translatedQuery);
-                          alert("번역 결과가 복사되었습니다!");
+                          addToast('success', '번역 결과가 클립보드에 복사되었습니다!', '📋 복사 완료');
                         }}
                         style={{
                           width: "100%",
@@ -895,19 +907,22 @@ export default function Search() {
                   />
                 </div>
 
-                <div style={{
-                  background: "linear-gradient(135deg, #f5f7fa 0%, #f8fafb 100%)",
-                  borderRadius: "8px",
-                  padding: "10px 8px",
-                }}>
-                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#666", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
-                    기간
+                {platform !== 'xiaohongshu' && (
+                  <div style={{
+                    background: "linear-gradient(135deg, #f5f7fa 0%, #f8fafb 100%)",
+                    borderRadius: "8px",
+                    padding: "10px 8px",
+                  }}>
+                    <div style={{ fontSize: "11px", fontWeight: "600", color: "#666", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                      기간
+                    </div>
+                    <PeriodFilter
+                      value={filters.uploadPeriod}
+                      onChange={(value) => setFilters({ ...filters, uploadPeriod: value })}
+                      platform={platform}
+                    />
                   </div>
-                  <PeriodFilter
-                    value={filters.uploadPeriod}
-                    onChange={(value) => setFilters({ ...filters, uploadPeriod: value })}
-                  />
-                </div>
+                )}
 
                 <div style={{
                   background: "linear-gradient(135deg, #f5f7fa 0%, #f8fafb 100%)",
