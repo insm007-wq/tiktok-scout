@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'TikTok Killer',
+  title: 'tiktok killa',
   description: 'TikTok video search and analytics tool',
 }
 

@@ -29,7 +29,7 @@ export default function Home() {
               isRefreshing ? styles.titleRefresh : ""
             }`}
           >
-TikTok Killer
+tiktok killa
           </h1>
           <div className="h-1.5 w-24 bg-gradient-to-r from-sky-500 to-violet-500 mx-auto rounded-full"></div>
         </div>

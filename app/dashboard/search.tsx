@@ -62,7 +62,7 @@ export default function Search() {
   const [sortBy, setSortBy] = useState("plays");
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [isTitleRefreshing, setIsTitleRefreshing] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState<number>(350);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(480);
   const [isResizing, setIsResizing] = useState(false);
   const [error, setError] = useState("");
   const [downloadingVideoId, setDownloadingVideoId] = useState<string | null>(null);
@@ -80,7 +80,6 @@ export default function Search() {
   const [toasts, setToasts] = useState<ToastType[]>([]);
   const resizeRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastSearchRef = useRef<string>('');
 
   // Toast 추가 함수
   const addToast = useCallback((type: 'success' | 'error' | 'warning' | 'info', message: string, title?: string, duration = 3000) => {
@@ -389,15 +388,6 @@ export default function Search() {
 
   // 디바운싱된 검색 함수
   const debouncedSearch = useCallback(() => {
-    // 동일한 검색어 연속 실행 방지 (날짜 필터도 포함)
-    const currentQuery = `${searchInput}-${platform}-${targetLanguage}-${filters.uploadPeriod}`;
-    if (lastSearchRef.current === currentQuery && !isLoading) {
-      console.log('[Search] 중복 검색 방지:', currentQuery);
-      return;
-    }
-
-    lastSearchRef.current = currentQuery;
-
     // 디바운싱 (300ms)
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
