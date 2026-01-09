@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { BarChart3, TrendingUp, Download } from "lucide-react";
 import styles from "./page.module.css";
 
 export default function Home() {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleTitleClick = () => {
@@ -17,109 +16,121 @@ export default function Home() {
     }, 600);
   };
 
+  const platforms = [
+    {
+      id: 0,
+      platform: "TikTok",
+      icon: "🎵",
+      gradient: "from-[#FE2C55] to-[#25F4EE]",
+      title: "TikTok Global",
+      description: "전세계 트렌드를 실시간으로",
+      features: ["글로벌 바이럴 영상", "해시태그 분석", "크리에이터 통계"]
+    },
+    {
+      id: 1,
+      platform: "Douyin",
+      icon: "🎬",
+      gradient: "from-[#000000] to-[#EE1D51]",
+      title: "Douyin China",
+      description: "중국 시장의 모든 것",
+      features: ["중국 트렌드 발굴", "한중 번역 지원", "로컬 인사이트"]
+    },
+    {
+      id: 2,
+      platform: "샤오홍서",
+      icon: "📕",
+      gradient: "from-[#FF2442] to-[#FFE5E5]",
+      title: "Xiaohongshu",
+      description: "라이프스타일 콘텐츠 탐색",
+      features: ["뷰티 & 패션", "제품 리뷰 분석", "인플루언서 발굴"]
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#fafafa] via-[#f5f5f5] to-[#f0f0f0] flex flex-col items-center justify-center px-4 py-12">
-      {/* 메인 콘텐츠 */}
-      <div className={`text-center max-w-3xl ${styles.animateFadeInUp}`}>
-        {/* 로고/제목 */}
-        <div className="mb-6">
-          <h1
-            onClick={handleTitleClick}
-            className={`text-7xl md:text-8xl font-extrabold bg-gradient-to-r from-[#000000] via-[#1a1a1a] to-[#3a3a3a] bg-clip-text text-transparent mb-4 tracking-tighter uppercase cursor-pointer transition-opacity hover:opacity-80 ${
-              isRefreshing ? styles.titleRefresh : ""
-            } ${styles.shimmerText}`}
-          >
-tiktok killa
-          </h1>
-          <div className="h-1 w-32 bg-gradient-to-r from-[#000000] to-[#6b6b6b] mx-auto rounded-full"></div>
-        </div>
-
-        {/* 부제목 */}
-        <p className="text-3xl font-semibold text-[#1a1a1a] mb-3">TikTok 영상 분석의 새로운 기준</p>
-        <p className="text-lg text-[#6b6b6b] mb-32 leading-relaxed font-medium">
-          고급 검색 필터와 실시간 통계로 트렌드를 빠르게 파악하세요
-        </p>
-
-        {/* 주요 기능 카드 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-48">
-          {/* 기능 1 */}
-          <div
-            className={`${styles.premiumCard} rounded-3xl p-10 hover:shadow-2xl transition-all duration-300 hover:scale-105 hover:-translate-y-2 group relative`}
-            onMouseEnter={() => setHoveredIndex(0)}
-            onMouseLeave={() => setHoveredIndex(null)}
-          >
-            <div className={`${styles.cardGlow} rounded-3xl`} style={{
-              background: hoveredIndex === 0 ? 'radial-gradient(circle at center, rgba(0, 0, 0, 0.05), transparent 70%)' : 'transparent'
-            }}></div>
-            <div className={`inline-block mb-4 group-hover:${styles.animateFloat} transition-all duration-300`} style={{
-              color: hoveredIndex === 0 ? 'rgb(0, 0, 0)' : 'rgb(26, 26, 26)'
-            }}>
-              <BarChart3 size={56} strokeWidth={1.5} />
-            </div>
-            <h3 className="text-2xl font-bold text-[#1a1a1a] mb-3">정밀한 검색</h3>
-            <p className="text-[#6b6b6b] text-base leading-relaxed font-medium">
-              기간, 영상 길이, 구독자 비율별로 원하는 콘텐츠를 정확하게 찾으세요
-            </p>
-          </div>
-
-          {/* 기능 2 */}
-          <div
-            className={`${styles.premiumCard} rounded-3xl p-10 hover:shadow-2xl transition-all duration-300 hover:scale-105 hover:-translate-y-2 group relative`}
-            onMouseEnter={() => setHoveredIndex(1)}
-            onMouseLeave={() => setHoveredIndex(null)}
-          >
-            <div className={`${styles.cardGlow} rounded-3xl`} style={{
-              background: hoveredIndex === 1 ? 'radial-gradient(circle at center, rgba(0, 0, 0, 0.05), transparent 70%)' : 'transparent'
-            }}></div>
-            <div className={`inline-block mb-4 group-hover:${styles.animateFloat} transition-all duration-300`} style={{
-              color: hoveredIndex === 1 ? 'rgb(0, 0, 0)' : 'rgb(26, 26, 26)'
-            }}>
-              <TrendingUp size={56} strokeWidth={1.5} />
-            </div>
-            <h3 className="text-2xl font-bold text-[#1a1a1a] mb-3">심층 분석</h3>
-            <p className="text-[#6b6b6b] text-base leading-relaxed font-medium">
-              조회수, 구독자, 참여율 등 주요 지표를 한눈에 파악하고 비교하세요
-            </p>
-          </div>
-
-          {/* 기능 3 */}
-          <div
-            className={`${styles.premiumCard} rounded-3xl p-10 hover:shadow-2xl transition-all duration-300 hover:scale-105 hover:-translate-y-2 group relative`}
-            onMouseEnter={() => setHoveredIndex(2)}
-            onMouseLeave={() => setHoveredIndex(null)}
-          >
-            <div className={`${styles.cardGlow} rounded-3xl`} style={{
-              background: hoveredIndex === 2 ? 'radial-gradient(circle at center, rgba(0, 0, 0, 0.05), transparent 70%)' : 'transparent'
-            }}></div>
-            <div className={`inline-block mb-4 group-hover:${styles.animateFloat} transition-all duration-300`} style={{
-              color: hoveredIndex === 2 ? 'rgb(0, 0, 0)' : 'rgb(26, 26, 26)'
-            }}>
-              <Download size={56} strokeWidth={1.5} />
-            </div>
-            <h3 className="text-2xl font-bold text-[#1a1a1a] mb-3">데이터 내보내기</h3>
-            <p className="text-[#6b6b6b] text-base leading-relaxed font-medium">
-              분석 결과를 엑셀로 저장하고 검색을 저장하여 재사용하세요
-            </p>
-          </div>
-        </div>
-
-        {/* CTA 섹션 */}
-        <div className="space-y-6">
-          {/* 시작하기 버튼 */}
-          <Link
-            href="/dashboard"
-            className={`inline-block bg-[#000000] text-white font-bold py-5 px-20 rounded-2xl text-lg uppercase tracking-wide transition-all duration-300 shadow-lg hover:shadow-2xl hover:-translate-y-1 no-underline ${styles.buttonShimmer}`}
-          >
-            지금 시작하기
-          </Link>
-        </div>
+    <div className={styles.mainContainer}>
+      {/* 배경 요소들 */}
+      <div className={styles.bgOrbs}>
+        <div className={`${styles.orb} ${styles.orb1}`}></div>
+        <div className={`${styles.orb} ${styles.orb2}`}></div>
+        <div className={`${styles.orb} ${styles.orb3}`}></div>
+      </div>
+      <div className={styles.gridPattern}></div>
+      <div className={styles.platformWatermarks}>
+        <div className={`${styles.platformLogo} ${styles.tiktokLogo}`}></div>
+        <div className={`${styles.platformLogo} ${styles.douyinLogo}`}></div>
+        <div className={`${styles.platformLogo} ${styles.xiaohongshuLogo}`}></div>
       </div>
 
-      {/* 하단 배경 장식 */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className={`absolute top-20 left-20 w-[600px] h-[600px] bg-[#e5e5e5] rounded-full mix-blend-multiply filter blur-[120px] opacity-[0.06] -z-10 ${styles.premiumOrb}`}></div>
-        <div className={`absolute bottom-20 right-20 w-[800px] h-[800px] bg-[#d0d0d0] rounded-full mix-blend-multiply filter blur-[140px] opacity-[0.04] -z-10 ${styles.premiumOrb}`} style={{ animationDelay: '-3s' }}></div>
-        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-[#c0c0c0] rounded-full mix-blend-multiply filter blur-[100px] opacity-[0.03] -z-10 ${styles.pulsingOrb}`}></div>
+      {/* 메인 콘텐츠 */}
+      <div className={`${styles.contentWrapper} ${styles.animateFadeInUp}`}>
+        {/* 타이틀 */}
+        <div className={styles.titleSection}>
+          <h1
+            onClick={handleTitleClick}
+            className={`${styles.neonTitle} ${isRefreshing ? styles.titleRefresh : ""}`}
+          >
+            tiktok killa
+          </h1>
+          <div className={styles.titleUnderline}></div>
+        </div>
+
+        {/* 히어로 섹션 */}
+        <div className={styles.heroSection}>
+          <h2 className={styles.heroTitle}>숏폼의 모든 것을 한눈에</h2>
+          <p className={styles.heroSubtitle}>
+            TikTok · Douyin · 샤오홍서 | 3개 플랫폼, 무한한 인사이트
+          </p>
+
+          {/* 통계 하이라이트 */}
+          <div className={styles.statsHighlight}>
+            <span className={styles.statItem}>
+              <span className={styles.neonText}>3</span> 플랫폼
+            </span>
+            <span className={styles.divider}>•</span>
+            <span className={styles.statItem}>
+              <span className={styles.neonText}>∞</span> 영상
+            </span>
+            <span className={styles.divider}>•</span>
+            <span className={styles.statItem}>
+              <span className={styles.neonText}>실시간</span> 분석
+            </span>
+          </div>
+        </div>
+
+        {/* 플랫폼 카드들 */}
+        <div className={styles.platformCardsGrid}>
+          {platforms.map((platform) => (
+            <div
+              key={platform.id}
+              className={styles.platformCard}
+              style={{
+                "--gradient": `linear-gradient(135deg, var(--${platform.id === 0 ? "pink" : platform.id === 1 ? "red" : "pink-light"}), var(--${platform.id === 0 ? "cyan" : platform.id === 1 ? "red" : "pink-light"}))`,
+              } as any}
+              onMouseEnter={() => setHoveredCard(platform.id)}
+              onMouseLeave={() => setHoveredCard(null)}
+            >
+              <div className={styles.cardGradient}></div>
+              <div className={styles.cardContent}>
+                <div className={styles.platformIcon}>{platform.icon}</div>
+                <h3 className={styles.platformTitle}>{platform.title}</h3>
+                <p className={styles.platformDescription}>{platform.description}</p>
+                <ul className={styles.featuresList}>
+                  {platform.features.map((feature, idx) => (
+                    <li key={idx} className={styles.featureItem}>
+                      <span className={styles.featureBullet}>•</span> {feature}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* CTA 버튼 */}
+        <Link href="/dashboard" className={styles.neonCtaButton}>
+          <span className={styles.ctaText}>지금 시작하기</span>
+          <span className={styles.ctaArrow}>→</span>
+        </Link>
       </div>
     </div>
   );
