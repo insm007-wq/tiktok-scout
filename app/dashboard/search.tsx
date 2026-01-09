@@ -62,7 +62,7 @@ export default function Search() {
   const [sortBy, setSortBy] = useState("plays");
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [isTitleRefreshing, setIsTitleRefreshing] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState<number>(480);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState(false);
   const [error, setError] = useState("");
   const [downloadingVideoId, setDownloadingVideoId] = useState<string | null>(null);
@@ -71,7 +71,7 @@ export default function Search() {
     maxPlayCount: null,
     uploadPeriod: "all",
     videoLength: "all",
-    engagementScore: [],
+    engagementScore: ["all"],
   });
   const [targetLanguage, setTargetLanguage] = useState<Language>("ko");
   const [isTranslating, setIsTranslating] = useState(false);

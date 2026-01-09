@@ -48,7 +48,9 @@
       "Bash(__NEW_LINE__ echo \"=== 컴포넌트 사용 여부 확인 ===\")",
       "Bash(__NEW_LINE__ echo \"=== 프로젝트 구조 최종 정리 ===\")",
       "Bash(ls:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(git pull:*)",
+      "Bash(git merge:*)"
     ],
     "deny": [],
     "ask": []

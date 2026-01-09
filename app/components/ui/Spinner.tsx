@@ -12,7 +12,7 @@ interface SpinnerProps {
 
 export default function Spinner({
   size = 'md',
-  color = '#ff4757',
+  color = '#000000',
   text,
   className = '',
   fullscreen = false
