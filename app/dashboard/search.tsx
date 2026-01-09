@@ -129,6 +129,7 @@ export default function Search() {
         // API 호출
         console.log(`[VideoPreview] API 호출 시작: ${video.id}`);
         setLoadingVideoId(video.id);
+        const apiStartTime = Date.now();
 
         try {
           const response = await fetch('/api/douyin/fetch-video-url', {
@@ -141,8 +142,9 @@ export default function Search() {
             }),
           });
 
+          const apiElapsed = Date.now() - apiStartTime;
           const data = await response.json();
-          console.log(`[VideoPreview] API 응답:`, data);
+          console.log(`[VideoPreview] API 응답 (${apiElapsed}ms):`, data);
 
           if (data.success && data.videoUrl) {
             console.log(`[VideoPreview] ✅ URL 로드됨: ${data.videoUrl}`);

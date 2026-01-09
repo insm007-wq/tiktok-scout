@@ -11,6 +11,7 @@ const videoUrlCache = new Map<string, string>();
 
 export async function POST(req: NextRequest) {
   try {
+    const startTime = Date.now();
     const body: FetchVideoUrlRequest = await req.json();
     const { videoId, query, dateRange } = body;
 
@@ -120,7 +121,8 @@ export async function POST(req: NextRequest) {
     // 캐시 저장 (프록시 URL)
     videoUrlCache.set(videoId, proxyUrl);
 
-    console.log(`[Douyin VideoUrl] ✅ 완료: ${videoId}`);
+    const elapsed = Date.now() - startTime;
+    console.log(`[Douyin VideoUrl] ✅ 완료: ${videoId} (${elapsed}ms / ${(elapsed/1000).toFixed(2)}초)`);
 
     return NextResponse.json({
       success: true,
