@@ -103,21 +103,24 @@ export async function POST(req: NextRequest) {
     }
 
     const targetVideo = video || dataset[0];
-    const videoUrl = targetVideo.video?.video_url || targetVideo.video?.download_url;
+    const originalVideoUrl = targetVideo.video?.video_url || targetVideo.video?.download_url;
 
-    if (!videoUrl) {
+    if (!originalVideoUrl) {
       return NextResponse.json({ error: 'videoUrl 없음' }, { status: 404 });
     }
 
-    // 캐시 저장
-    videoUrlCache.set(videoId, videoUrl);
+    // 프록시 URL 생성 (브라우저 직접 접근 403 우회)
+    const proxyUrl = `/api/video/stream?url=${encodeURIComponent(originalVideoUrl)}&platform=douyin`;
+
+    // 캐시 저장 (프록시 URL)
+    videoUrlCache.set(videoId, proxyUrl);
 
     console.log(`[Douyin VideoUrl] ✅ 완료: ${videoId}`);
 
     return NextResponse.json({
       success: true,
       videoId,
-      videoUrl,
+      videoUrl: proxyUrl,
       fromCache: false,
     });
   } catch (error) {
