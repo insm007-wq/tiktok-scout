@@ -11,7 +11,7 @@ export async function searchDouyinVideos(
   dateRange?: string
 ): Promise<VideoResult[]> {
   try {
-    const actorId = 'cloudcharlestom~douyin-search-scraper';
+    const actorId = 'natanielsantos~douyin-scraper';
     const startTime = Date.now();
     console.log(`[Douyin] 검색 시작: ${query} (제한: ${limit}, 기간: ${dateRange || 'all'})`);
 
@@ -166,7 +166,7 @@ export async function fetchDouyinVideoUrls(
   apiKey: string,
   dateRange?: string
 ): Promise<Map<string, string>> {
-  const actorId = 'cloudcharlestom~douyin-search-scraper';
+  const actorId = 'natanielsantos~douyin-scraper';
 
   console.log(`[Douyin VideoURLs] 비디오 URL 가져오기 시작: ${query}`);
 
