@@ -78,8 +78,11 @@ export default function Search() {
   const [translatedQuery, setTranslatedQuery] = useState<string>("");
   const [detectedLanguage, setDetectedLanguage] = useState<Language | null>(null);
   const [toasts, setToasts] = useState<ToastType[]>([]);
+  const [hoveredVideoId, setHoveredVideoId] = useState<string | null>(null);
+  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Toast 추가 함수
   const addToast = useCallback((type: 'success' | 'error' | 'warning' | 'info', message: string, title?: string, duration = 3000) => {
@@ -101,6 +104,29 @@ export default function Search() {
     }, 600);
   };
 
+  // 비디오 카드 마우스 오버 핸들러
+  const handleVideoCardMouseEnter = useCallback((videoId: string) => {
+    setHoveredVideoId(videoId);
+
+    // 0.5초 후 재생 시작
+    hoverTimeoutRef.current = setTimeout(() => {
+      setPlayingVideoId(videoId);
+    }, 500);
+  }, []);
+
+  // 비디오 카드 마우스 아웃 핸들러
+  const handleVideoCardMouseLeave = useCallback(() => {
+    // 타이머 취소
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+
+    // 상태 초기화
+    setHoveredVideoId(null);
+    setPlayingVideoId(null);
+  }, []);
+
   // 언어 감지 함수
   const detectLanguage = (text: string): Language => {
     const trimmed = text.trim();
@@ -118,6 +144,15 @@ export default function Search() {
     // 기본값: 영어
     return "en";
   };
+
+  // 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // 저장된 너비 복원
   useEffect(() => {
@@ -1036,17 +1071,32 @@ export default function Search() {
                             window.open(video.webVideoUrl, "_blank");
                           }
                         }}
+                        onMouseEnter={() => handleVideoCardMouseEnter(video.id)}
+                        onMouseLeave={handleVideoCardMouseLeave}
                       >
                         {/* 썸네일 */}
                         {video.thumbnail ? (
                           <img
                             src={video.thumbnail}
                             alt={video.title}
-                            className="card-thumbnail"
+                            className={`card-thumbnail ${playingVideoId === video.id ? 'card-thumbnail-hidden' : ''}`}
                             loading="lazy"
                           />
                         ) : (
                           <div className="card-thumbnail-fallback">🎬</div>
+                        )}
+
+                        {/* 비디오 미리보기 */}
+                        {video.videoUrl && playingVideoId === video.id && (
+                          <video
+                            className="card-video-preview"
+                            src={video.videoUrl}
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                            preload="metadata"
+                          />
                         )}
 
                         {/* Duration 뱃지 - 왼쪽 상단 */}
