@@ -139,7 +139,7 @@ export async function searchDouyinVideos(
         videoDuration: parseInt(item.videoMeta?.duration || item.duration || 0),
         hashtags: hashtags,
         thumbnail: item.videoMeta?.cover || item.videoMeta?.originCover || item.thumb || undefined,
-        videoUrl: item.videoMeta?.playUrl || item.video?.url || item.downloadUrl || item.playUrl || undefined,
+        videoUrl: undefined, // 초기 검색에서는 제외 (호버 시 /api/douyin/fetch-video-url에서 프록시 URL 로드)
         webVideoUrl: item.url || undefined,
       };
     });
