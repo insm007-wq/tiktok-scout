@@ -182,7 +182,7 @@ export async function searchDouyinVideosParallel(
     };
 
     // 🔑 3가지 정렬 옵션으로 다양한 결과 확보
-    const sortFilters = ['most_liked', 'most_recent', 'most_relevant'];
+    const sortFilters = ['most_liked', 'latest', 'general'];
 
     console.log(`[Douyin Parallel] 3개 Run 병렬 시작: ${query} (제한: ${limit}, 기간: ${dateRange || 'all'})`);
 
