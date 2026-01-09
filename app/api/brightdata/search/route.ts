@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFromCache, setCache } from '@/lib/cache';
 import { searchTikTokVideos } from '@/lib/scrapers/tiktok';
-import { searchDouyinVideos } from '@/lib/scrapers/douyin';
+import { searchDouyinVideos, searchDouyinVideosParallel } from '@/lib/scrapers/douyin';
 import { searchXiaohongshuVideos } from '@/lib/scrapers/xiaohongshu';
 import { VideoResult, Platform } from '@/types/video';
 
@@ -54,7 +54,8 @@ export async function POST(req: NextRequest) {
     if (platform === 'tiktok') {
       videoResults = await searchTikTokVideos(query, limit, apiKey, dateRange);
     } else if (platform === 'douyin') {
-      videoResults = await searchDouyinVideos(query, limit, apiKey, dateRange);
+      // 3개 정렬 병렬 실행 (인기순 + 최신순 + 관련성순)
+      videoResults = await searchDouyinVideosParallel(query, limit, apiKey, dateRange);
     } else if (platform === 'xiaohongshu') {
       videoResults = await searchXiaohongshuVideos(query, limit, apiKey, dateRange);
     }
