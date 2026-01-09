@@ -80,6 +80,9 @@ export default function Search() {
   const [toasts, setToasts] = useState<ToastType[]>([]);
   const [hoveredVideoId, setHoveredVideoId] = useState<string | null>(null);
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+  const [loadingVideoId, setLoadingVideoId] = useState<string | null>(null);
+  const [videoUrlCache, setVideoUrlCache] = useState<Map<string, string>>(new Map());
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const resizeRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -104,15 +107,65 @@ export default function Search() {
     }, 600);
   };
 
-  // 비디오 카드 마우스 오버 핸들러
-  const handleVideoCardMouseEnter = useCallback((videoId: string) => {
-    setHoveredVideoId(videoId);
+  // 비디오 카드 마우스 오버 핸들러 (Douyin: URL 개별 로드, 다른 플랫폼: 즉시 재생)
+  const handleVideoCardMouseEnter = useCallback((video: Video) => {
+    setHoveredVideoId(video.id);
 
-    // 0.2초 후 재생 시작
-    hoverTimeoutRef.current = setTimeout(() => {
-      setPlayingVideoId(videoId);
-    }, 200);
-  }, []);
+    // Douyin인 경우 3초 후 URL 로드, 아니면 0.2초 후 즉시 재생
+    const delay = platform === 'douyin' && !video.videoUrl ? 3000 : 200;
+
+    hoverTimeoutRef.current = setTimeout(async () => {
+      // Douyin이고 videoUrl이 없으면 API 호출
+      if (platform === 'douyin' && !video.videoUrl) {
+        // 캐시 확인
+        if (videoUrlCache.has(video.id)) {
+          setPlayingVideoId(video.id);
+          return;
+        }
+
+        // API 호출
+        setLoadingVideoId(video.id);
+
+        try {
+          const response = await fetch('/api/douyin/fetch-video-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              videoId: video.id,
+              query: searchQuery,
+              dateRange: filters.uploadPeriod,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (data.success && data.videoUrl) {
+            // 캐시 저장
+            setVideoUrlCache(prev => new Map(prev).set(video.id, data.videoUrl));
+
+            // 결과 업데이트 (videoUrl 추가)
+            setVideos(prevVideos =>
+              prevVideos.map(v =>
+                v.id === video.id ? { ...v, videoUrl: data.videoUrl } : v
+              )
+            );
+
+            // 재생 시작
+            setPlayingVideoId(video.id);
+          } else {
+            console.error('[VideoUrl] 실패:', data.error);
+          }
+        } catch (error) {
+          console.error('[VideoUrl] 오류:', error);
+        } finally {
+          setLoadingVideoId(null);
+        }
+      } else {
+        // 다른 플랫폼 또는 이미 videoUrl이 있는 경우 즉시 재생
+        setPlayingVideoId(video.id);
+      }
+    }, delay);
+  }, [platform, searchQuery, filters.uploadPeriod, videoUrlCache]);
 
   // 비디오 카드 마우스 아웃 핸들러
   const handleVideoCardMouseLeave = useCallback(() => {
@@ -125,6 +178,7 @@ export default function Search() {
     // 상태 초기화
     setHoveredVideoId(null);
     setPlayingVideoId(null);
+    setLoadingVideoId(null);
   }, []);
 
   // 언어 감지 함수
@@ -407,6 +461,7 @@ export default function Search() {
 
       if (data.success && data.videos && data.videos.length > 0) {
         setVideos(data.videos);
+        setSearchQuery(searchQuery); // Douyin hover 로딩에 필요
         setError("");
       } else {
         setVideos([]);
@@ -1071,7 +1126,7 @@ export default function Search() {
                             window.open(video.webVideoUrl, "_blank");
                           }
                         }}
-                        onMouseEnter={() => handleVideoCardMouseEnter(video.id)}
+                        onMouseEnter={() => handleVideoCardMouseEnter(video)}
                         onMouseLeave={handleVideoCardMouseLeave}
                       >
                         {/* 썸네일 */}
@@ -1086,11 +1141,19 @@ export default function Search() {
                           <div className="card-thumbnail-fallback">🎬</div>
                         )}
 
+                        {/* 로딩 스피너 */}
+                        {loadingVideoId === video.id && (
+                          <div className="card-video-loading">
+                            <div className="spinner"></div>
+                            <p>비디오 로딩 중...</p>
+                          </div>
+                        )}
+
                         {/* 비디오 미리보기 */}
-                        {video.videoUrl && playingVideoId === video.id && (
+                        {video.videoUrl && playingVideoId === video.id && !loadingVideoId && (
                           <video
                             className="card-video-preview"
-                            src={video.videoUrl}
+                            src={videoUrlCache.get(video.id) || video.videoUrl}
                             autoPlay
                             muted
                             loop
