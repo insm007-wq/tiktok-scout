@@ -34,7 +34,7 @@ export async function searchDouyinVideos(
       searchSortFilter: 'most_liked',
       searchPublishTimeFilter: mapSearchPublishTimeFilter(dateRange),
       maxItemsPerUrl: 50,
-      shouldDownloadVideos: false,
+      shouldDownloadVideos: true,
       shouldDownloadCovers: false,
     };
 
