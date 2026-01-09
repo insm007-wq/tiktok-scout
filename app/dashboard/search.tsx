@@ -597,7 +597,11 @@ export default function Search() {
 
   // 영상 다운로드 (클립보드 복사 + 외부 다운로더 열기)
   const handleDownloadVideo = async (video: Video) => {
-    if (!video.videoUrl && !video.webVideoUrl) {
+    // 캐시에서 프록시 URL 확인 (Douyin 호버로 로드된 URL 우선)
+    const cachedUrl = videoUrlCache.get(video.id);
+    const videoUrl = cachedUrl || video.videoUrl;
+
+    if (!videoUrl && !video.webVideoUrl) {
       addToast('error', '영상 다운로드 정보를 불러올 수 없습니다.', '❌ 오류');
       return;
     }
@@ -606,14 +610,14 @@ export default function Search() {
 
     try {
       // videoUrl이 있으면 서버 API로 다운로드
-      if (video.videoUrl) {
-        console.log("[Download] API를 통한 다운로드:", video.id);
+      if (videoUrl) {
+        console.log("[Download] API를 통한 다운로드:", video.id, "URL:", videoUrl);
 
         const response = await fetch("/api/download-video", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            videoUrl: video.videoUrl,
+            videoUrl: videoUrl,  // 캐시된 프록시 URL 또는 원본 URL 사용
             videoId: video.id,
             platform,  // ✅ 플랫폼 정보 전달
           }),
