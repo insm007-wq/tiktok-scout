@@ -108,10 +108,10 @@ export default function Search() {
   const handleVideoCardMouseEnter = useCallback((videoId: string) => {
     setHoveredVideoId(videoId);
 
-    // 0.5초 후 재생 시작
+    // 0.2초 후 재생 시작
     hoverTimeoutRef.current = setTimeout(() => {
       setPlayingVideoId(videoId);
-    }, 500);
+    }, 200);
   }, []);
 
   // 비디오 카드 마우스 아웃 핸들러
@@ -1095,7 +1095,7 @@ export default function Search() {
                             muted
                             loop
                             playsInline
-                            preload="metadata"
+                            preload="auto"
                           />
                         )}
 
