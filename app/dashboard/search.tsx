@@ -117,13 +117,17 @@ export default function Search() {
     hoverTimeoutRef.current = setTimeout(async () => {
       // Douyin이고 videoUrl이 없으면 API 호출
       if (platform === 'douyin' && !video.videoUrl) {
+        console.log(`[VideoPreview] Douyin 비디오 URL 로드 시작: ${video.id}`);
+
         // 캐시 확인
         if (videoUrlCache.has(video.id)) {
+          console.log(`[VideoPreview] 캐시에서 로드: ${video.id}`);
           setPlayingVideoId(video.id);
           return;
         }
 
         // API 호출
+        console.log(`[VideoPreview] API 호출 시작: ${video.id}`);
         setLoadingVideoId(video.id);
 
         try {
@@ -138,8 +142,10 @@ export default function Search() {
           });
 
           const data = await response.json();
+          console.log(`[VideoPreview] API 응답:`, data);
 
           if (data.success && data.videoUrl) {
+            console.log(`[VideoPreview] ✅ URL 로드됨: ${data.videoUrl}`);
             // 캐시 저장
             setVideoUrlCache(prev => new Map(prev).set(video.id, data.videoUrl));
 
@@ -153,15 +159,16 @@ export default function Search() {
             // 재생 시작
             setPlayingVideoId(video.id);
           } else {
-            console.error('[VideoUrl] 실패:', data.error);
+            console.error('[VideoPreview] ❌ 실패:', data.error);
           }
         } catch (error) {
-          console.error('[VideoUrl] 오류:', error);
+          console.error('[VideoPreview] ❌ 오류:', error);
         } finally {
           setLoadingVideoId(null);
         }
       } else {
         // 다른 플랫폼 또는 이미 videoUrl이 있는 경우 즉시 재생
+        console.log(`[VideoPreview] 즉시 재생 (platform=${platform}, videoUrl=${video.videoUrl ? '있음' : '없음'})`);
         setPlayingVideoId(video.id);
       }
     }, delay);

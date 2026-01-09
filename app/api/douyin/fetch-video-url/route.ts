@@ -14,10 +14,12 @@ export async function POST(req: NextRequest) {
     const body: FetchVideoUrlRequest = await req.json();
     const { videoId, query, dateRange } = body;
 
+    console.log(`[Douyin VideoUrl] API 호출됨: videoId=${videoId}, query=${query}, dateRange=${dateRange}`);
+
     // 캐시 확인
     const cached = videoUrlCache.get(videoId);
     if (cached) {
-      console.log(`[Douyin VideoUrl] 캐시 히트: ${videoId}`);
+      console.log(`[Douyin VideoUrl] 캐시 히트: ${videoId}, URL=${cached}`);
       return NextResponse.json({
         success: true,
         videoId,
@@ -111,6 +113,9 @@ export async function POST(req: NextRequest) {
 
     // 프록시 URL 생성 (브라우저 직접 접근 403 우회)
     const proxyUrl = `/api/video/stream?url=${encodeURIComponent(originalVideoUrl)}&platform=douyin`;
+
+    console.log(`[Douyin VideoUrl] 원본 URL: ${originalVideoUrl}`);
+    console.log(`[Douyin VideoUrl] 프록시 URL: ${proxyUrl}`);
 
     // 캐시 저장 (프록시 URL)
     videoUrlCache.set(videoId, proxyUrl);

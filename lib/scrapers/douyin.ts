@@ -32,11 +32,9 @@ export async function searchDouyinVideos(
       searchSortFilter: 'most_liked',
       searchPublishTimeFilter: mapSearchPublishTimeFilter(dateRange),
       maxItemsPerUrl: 50,
-      shouldDownloadVideos: false,  // 테스트: 비디오 URL 다운로드 비활성화
+      shouldDownloadVideos: false,
       shouldDownloadCovers: false,
     };
-
-    const runStartTime = Date.now();
 
     const runRes = await fetch(
       `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
@@ -54,13 +52,12 @@ export async function searchDouyinVideos(
     }
 
     const runId = runData.data.id;
-    const runCreatedTime = Date.now();
     console.log(`[Douyin] Run ID: ${runId}`);
 
     // 2️⃣ 완료 대기 (Polling)
     let status = 'RUNNING';
     let attempt = 0;
-    const maxAttempts = 120;  // 충분한 시간 확보 (비디오 URL 다운로드)
+    const maxAttempts = 120;
     let waitTime = 500;
     const maxWaitTime = 5000;
 
@@ -73,7 +70,9 @@ export async function searchDouyinVideos(
       status = statusData.data.status;
       attempt++;
 
-      console.log(`[Douyin] Polling 시도 ${attempt}/${maxAttempts}: 상태=${status}`);
+      if (attempt % 10 === 0) {
+        console.log(`[Douyin] Polling ${attempt}/${maxAttempts}: ${status}`);
+      }
 
       if (status === 'SUCCEEDED') {
         console.log('[Douyin] Run 완료됨');
@@ -94,8 +93,6 @@ export async function searchDouyinVideos(
       console.warn(`[Douyin] 타임아웃 (상태: ${status})`);
       return [];
     }
-
-    const pollingCompleteTime = Date.now();
 
     // 3️⃣ 결과 조회
     const datasetRes = await fetch(
@@ -155,125 +152,5 @@ export async function searchDouyinVideos(
   } catch (error) {
     console.error('[Douyin] 오류:', error);
     return [];
-  }
-}
-
-/**
- * Douyin 비디오 URL만 추가로 가져오기 (shouldDownloadVideos: true)
- */
-export async function fetchDouyinVideoUrls(
-  query: string,
-  apiKey: string,
-  dateRange?: string
-): Promise<Map<string, string>> {
-  const actorId = 'natanielsantos~douyin-scraper';
-
-  console.log(`[Douyin VideoURLs] 비디오 URL 가져오기 시작: ${query}`);
-
-  const mapSearchPublishTimeFilter = (uploadPeriod?: string): string => {
-    const mapping: Record<string, string> = {
-      'all': 'all',
-      'yesterday': 'last_day',
-      '7days': 'last_week',
-      '6months': 'last_half_year',
-    };
-    return mapping[uploadPeriod || 'all'] || 'all';
-  };
-
-  const inputParams: any = {
-    searchTermsOrHashtags: [query],
-    searchSortFilter: 'most_liked',
-    searchPublishTimeFilter: mapSearchPublishTimeFilter(dateRange),
-    maxItemsPerUrl: 50,
-    shouldDownloadVideos: true,  // ← 비디오 URL 포함
-    shouldDownloadCovers: false,
-  };
-
-  try {
-    // Run 시작
-    const runRes = await fetch(
-      `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inputParams),
-      }
-    );
-
-    const runData = await runRes.json();
-    if (!runRes.ok) {
-      console.error('[Douyin VideoURLs] Run 시작 실패:', runData);
-      return new Map();
-    }
-
-    const runId = runData.data.id;
-    console.log(`[Douyin VideoURLs] Run ID: ${runId}`);
-
-    // Polling (충분한 시간 확보)
-    let status = 'RUNNING';
-    let attempt = 0;
-    const maxAttempts = 120;
-    let waitTime = 500;
-    const maxWaitTime = 5000;
-
-    while ((status === 'RUNNING' || status === 'READY') && attempt < maxAttempts) {
-      const statusRes = await fetch(
-        `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
-      );
-
-      const statusData = await statusRes.json();
-      status = statusData.data.status;
-      attempt++;
-
-      if (attempt % 10 === 0) {
-        console.log(`[Douyin VideoURLs] Polling ${attempt}/${maxAttempts}: ${status}`);
-      }
-
-      if (status === 'SUCCEEDED') {
-        console.log('[Douyin VideoURLs] Run 완료됨');
-        break;
-      }
-      if (status === 'FAILED' || status === 'ABORTED') {
-        console.error('[Douyin VideoURLs] Run 실패:', statusData.data.statusMessage);
-        return new Map();
-      }
-
-      if (status === 'RUNNING' || status === 'READY') {
-        await new Promise(r => setTimeout(r, waitTime));
-        waitTime = Math.min(waitTime * 2, maxWaitTime);
-      }
-    }
-
-    if (status !== 'SUCCEEDED') {
-      console.warn(`[Douyin VideoURLs] 타임아웃 (상태: ${status})`);
-      return new Map();
-    }
-
-    // 결과 조회
-    const datasetRes = await fetch(
-      `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`
-    );
-
-    const dataset = await datasetRes.json();
-    console.log(`[Douyin VideoURLs] 데이터: ${Array.isArray(dataset) ? dataset.length : 0}개`);
-
-    if (!Array.isArray(dataset) || dataset.length === 0) {
-      return new Map();
-    }
-
-    // id → videoUrl 매핑 생성
-    const urlMap = new Map<string, string>();
-    dataset.forEach((item: any) => {
-      const videoUrl = item.videoMeta?.playUrl || item.video?.url || item.downloadUrl || item.playUrl;
-      if (item.id && videoUrl) {
-        urlMap.set(item.id, videoUrl);
-      }
-    });
-
-    console.log(`[Douyin VideoURLs] ✅ 완료: ${urlMap.size}개 비디오 URL`);
-    return urlMap;
-  } catch (error) {
-    console.error('[Douyin VideoURLs] 오류:', error);
-    return new Map();
   }
 }
