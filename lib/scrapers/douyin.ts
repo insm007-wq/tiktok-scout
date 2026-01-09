@@ -192,8 +192,8 @@ export async function searchDouyinVideosParallel(
         searchTermsOrHashtags: [query],
         searchSortFilter: sortFilter,  // 🔑 each run uses different sort
         searchPublishTimeFilter: mapSearchPublishTimeFilter(dateRange),
-        maxItemsPerUrl: 50,  // 각 Run당 50개
-        shouldDownloadVideos: true,  // 프리뷰 가능하도록 설정
+        maxItemsPerUrl: 17,  // 각 Run당 17개 (3개 × 17 = 51개 → 중복 제거 후 ~47개)
+        shouldDownloadVideos: false,  // 속도 우선 (비디오 다운로드 안 함)
         shouldDownloadCovers: false,
       };
 
