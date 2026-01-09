@@ -32,7 +32,7 @@ export async function searchDouyinVideos(
       searchSortFilter: 'most_liked',
       searchPublishTimeFilter: mapSearchPublishTimeFilter(dateRange),
       maxItemsPerUrl: 50,
-      shouldDownloadVideos: false,
+      shouldDownloadVideos: true,  // videoUrl 포함을 위해 true로 설정 (호버 시 즉시 재생 가능)
       shouldDownloadCovers: false,
     };
 
@@ -139,7 +139,7 @@ export async function searchDouyinVideos(
         videoDuration: parseInt(item.videoMeta?.duration || item.duration || 0),
         hashtags: hashtags,
         thumbnail: item.videoMeta?.cover || item.videoMeta?.originCover || item.thumb || undefined,
-        videoUrl: undefined, // 초기 검색에서는 제외 (호버 시 /api/douyin/fetch-video-url에서 프록시 URL 로드)
+        videoUrl: item.videoMeta?.playUrl || item.video?.url || item.downloadUrl || item.playUrl || undefined,
         webVideoUrl: item.url || undefined,
       };
     });
