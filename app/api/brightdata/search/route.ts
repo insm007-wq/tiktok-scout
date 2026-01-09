@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFromCache, setCache } from '@/lib/cache';
 import { searchTikTokVideos } from '@/lib/scrapers/tiktok';
-import { searchDouyinVideos } from '@/lib/scrapers/douyin';
+import { searchDouyinVideos, fetchDouyinVideoUrls } from '@/lib/scrapers/douyin';
 import { searchXiaohongshuVideos } from '@/lib/scrapers/xiaohongshu';
 import { VideoResult, Platform } from '@/types/video';
 
@@ -54,7 +54,28 @@ export async function POST(req: NextRequest) {
     if (platform === 'tiktok') {
       videoResults = await searchTikTokVideos(query, limit, apiKey, dateRange);
     } else if (platform === 'douyin') {
+      // 1단계: 빠른 검색 (shouldDownloadVideos: false)
+      console.log('[Douyin] 1단계: 기본 데이터 로딩...');
       videoResults = await searchDouyinVideos(query, limit, apiKey, dateRange);
+
+      if (videoResults && videoResults.length > 0) {
+        // 2단계: 비디오 URL 추가 (shouldDownloadVideos: true)
+        console.log('[Douyin] 2단계: 비디오 URL 로딩...');
+        try {
+          const videoUrlMap = await fetchDouyinVideoUrls(query, apiKey, dateRange);
+
+          // 비디오 URL 병합
+          videoResults = videoResults.map(video => {
+            const videoUrl = videoUrlMap.get(video.id);
+            return videoUrl ? { ...video, videoUrl } : video;
+          });
+
+          console.log(`[Douyin] ✅ 완료: ${videoResults.length}개 (비디오 URL ${videoUrlMap.size}개 포함)`);
+        } catch (error) {
+          console.error('[Douyin] 비디오 URL 로딩 실패:', error);
+          // 실패해도 기본 결과는 반환
+        }
+      }
     } else if (platform === 'xiaohongshu') {
       videoResults = await searchXiaohongshuVideos(query, limit, apiKey, dateRange);
     }
