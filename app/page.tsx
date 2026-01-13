@@ -24,7 +24,7 @@ export default function Home() {
       gradient: "from-[#FE2C55] to-[#25F4EE]",
       title: "TikTok Global",
       description: "전세계 트렌드를 실시간으로",
-      features: ["글로벌 바이럴 영상", "해시태그 분석", "크리에이터 통계"]
+      features: ["글로벌 바이럴 영상", "해시태그 분석", "크리에이터 통계"],
     },
     {
       id: 1,
@@ -33,17 +33,17 @@ export default function Home() {
       gradient: "from-[#000000] to-[#EE1D51]",
       title: "Douyin China",
       description: "중국 시장의 모든 것",
-      features: ["중국 트렌드 발굴", "한중 번역 지원", "로컬 인사이트"]
+      features: ["중국 트렌드 발굴", "한중 번역 지원", "로컬 인사이트"],
     },
     {
       id: 2,
-      platform: "샤오홍서",
+      platform: "샤오홍슈",
       icon: "📕",
       gradient: "from-[#FF2442] to-[#FFE5E5]",
       title: "Xiaohongshu",
       description: "라이프스타일 콘텐츠 탐색",
-      features: ["뷰티 & 패션", "제품 리뷰 분석", "인플루언서 발굴"]
-    }
+      features: ["뷰티 & 패션", "제품 리뷰 분석", "인플루언서 발굴"],
+    },
   ];
 
   return (
@@ -65,10 +65,7 @@ export default function Home() {
       <div className={`${styles.contentWrapper} ${styles.animateFadeInUp}`}>
         {/* 타이틀 */}
         <div className={styles.titleSection}>
-          <h1
-            onClick={handleTitleClick}
-            className={`${styles.neonTitle} ${isRefreshing ? styles.titleRefresh : ""}`}
-          >
+          <h1 onClick={handleTitleClick} className={`${styles.neonTitle} ${isRefreshing ? styles.titleRefresh : ""}`}>
             tiktok killa
           </h1>
           <div className={styles.titleUnderline}></div>
@@ -77,9 +74,7 @@ export default function Home() {
         {/* 히어로 섹션 */}
         <div className={styles.heroSection}>
           <h2 className={styles.heroTitle}>숏폼의 모든 것을 한눈에</h2>
-          <p className={styles.heroSubtitle}>
-            TikTok · Douyin · 샤오홍서 | 3개 플랫폼, 무한한 인사이트
-          </p>
+          <p className={styles.heroSubtitle}>TikTok · Douyin · 샤오홍슈 | 3개 플랫폼, 무한한 인사이트</p>
 
           {/* 통계 하이라이트 */}
           <div className={styles.statsHighlight}>
@@ -103,9 +98,13 @@ export default function Home() {
             <div
               key={platform.id}
               className={styles.platformCard}
-              style={{
-                "--gradient": `linear-gradient(135deg, var(--${platform.id === 0 ? "pink" : platform.id === 1 ? "red" : "pink-light"}), var(--${platform.id === 0 ? "cyan" : platform.id === 1 ? "red" : "pink-light"}))`,
-              } as any}
+              style={
+                {
+                  "--gradient": `linear-gradient(135deg, var(--${
+                    platform.id === 0 ? "pink" : platform.id === 1 ? "red" : "pink-light"
+                  }), var(--${platform.id === 0 ? "cyan" : platform.id === 1 ? "red" : "pink-light"}))`,
+                } as any
+              }
               onMouseEnter={() => setHoveredCard(platform.id)}
               onMouseLeave={() => setHoveredCard(null)}
             >

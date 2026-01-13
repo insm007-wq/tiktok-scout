@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
 import { getFromCache, setCache } from '@/lib/cache';
 import { searchTikTokVideos } from '@/lib/scrapers/tiktok';
 import { searchDouyinVideos, searchDouyinVideosParallel } from '@/lib/scrapers/douyin';
@@ -14,6 +15,32 @@ interface SearchRequest {
 
 export async function POST(req: NextRequest) {
   try {
+    // 인증 확인
+    const session = await auth();
+
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { error: '인증이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
+    // 승인 상태 확인
+    if (!session.user.isApproved) {
+      return NextResponse.json(
+        { error: '관리자 승인이 필요합니다.' },
+        { status: 403 }
+      );
+    }
+
+    // SMS 인증 확인
+    if (!session.user.isVerified) {
+      return NextResponse.json(
+        { error: 'SMS 인증이 필요합니다.' },
+        { status: 403 }
+      );
+    }
+
     const body: SearchRequest = await req.json();
     const { query, platform, limit, dateRange } = body;
 

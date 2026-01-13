@@ -1,0 +1,69 @@
+import Link from 'next/link'
+import SignupForm from '@/app/components/auth/SignupForm'
+import { AlertCircle } from 'lucide-react'
+
+export const metadata = {
+  title: '회원가입 | 틱톡 킬라',
+  description: '새 계정을 만들고 틱톡 킬라 서비스를 시작하세요',
+}
+
+export default function SignupPage() {
+  return (
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-black via-gray-950 to-black flex items-center justify-center p-4">
+      {/* 배경 Orbs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute w-[600px] h-[600px] bg-gradient-to-br from-pink-500 to-transparent rounded-full blur-[100px] opacity-15 -top-64 -right-32 animate-pulse"></div>
+        <div className="absolute w-[500px] h-[500px] bg-gradient-to-br from-cyan-400 to-transparent rounded-full blur-[100px] opacity-15 -bottom-32 -left-32 animate-pulse" style={{animationDelay: '1s'}}></div>
+        <div className="absolute w-[400px] h-[400px] bg-gradient-to-br from-red-500 to-transparent rounded-full blur-[100px] opacity-15 top-1/2 left-1/3 animate-pulse" style={{animationDelay: '2s'}}></div>
+      </div>
+
+      {/* Grid Pattern */}
+      <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" style={{backgroundImage: 'linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)', backgroundSize: '50px 50px'}}></div>
+
+      <div className="relative z-10 w-full max-w-md">
+        {/* 헤더 */}
+        <div className="text-center mb-8 animate-fade-in-up">
+          <h1 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-pink-400 to-cyan-400 mb-2 drop-shadow-[0_0_10px_rgba(254,44,85,0.5)]">
+            tiktok killa
+          </h1>
+          <p className="text-white/70 text-lg">새 계정을 만들어 시작하세요</p>
+        </div>
+
+        {/* 폼 컨테이너 */}
+        <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-8 shadow-2xl hover:border-white/30 transition-all">
+          {/* 주의사항 */}
+          <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-4 mb-6 flex gap-3">
+            <AlertCircle size={20} className="text-yellow-400 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-yellow-200">
+              <p className="font-semibold mb-1">회원가입 안내</p>
+              <p>SMS 인증 → 관리자 승인 후 서비스를 이용할 수 있습니다</p>
+            </div>
+          </div>
+
+          {/* 회원가입 폼 */}
+          <SignupForm />
+
+          {/* 로그인 링크 */}
+          <div className="mt-6 text-center">
+            <p className="text-white/70">
+              이미 계정이 있으신가요?{' '}
+              <Link href="/auth/login" className="text-pink-400 hover:text-pink-300 font-semibold transition-colors">
+                로그인
+              </Link>
+            </p>
+          </div>
+        </div>
+
+        {/* 푸터 */}
+        <div className="text-center mt-6 text-sm text-white/50">
+          <p>
+            문제가 있으신가요?{' '}
+            <a href="mailto:support@tiktokscout.com" className="text-cyan-400 hover:text-cyan-300 transition-colors">
+              고객 지원
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}

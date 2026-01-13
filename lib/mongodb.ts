@@ -19,7 +19,7 @@ export async function connectToDatabase() {
 
   try {
     await client.connect()
-    const db = client.db('youtube-search')
+    const db = client.db('tiktok-scout')
 
     cachedClient = client
     cachedDb = db

@@ -21,6 +21,7 @@ import VideoLengthFilter from "@/app/components/Filters/VideoLengthFilter/VideoL
 import EngagementRatioFilter from "@/app/components/Filters/EngagementRatioFilter/EngagementRatioFilter";
 import { formatDateWithTime, getRelativeDateString } from "@/lib/dateUtils";
 import { formatNumber, formatVideoDuration } from "@/lib/formatters";
+import UserDropdown from "@/app/components/UserDropdown/UserDropdown";
 import "./search.css";
 
 type Platform = "tiktok" | "douyin" | "xiaohongshu";
@@ -1024,6 +1025,7 @@ export default function Search() {
                 <Download size={16} style={{ display: "inline", marginRight: "4px" }} />
                 엑셀
               </button>
+              <UserDropdown />
             </div>
           </div>
 
