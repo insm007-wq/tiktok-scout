@@ -24,6 +24,8 @@ interface User {
   lastLogin: Date
   createdAt: Date
   updatedAt: Date
+  isAdmin?: boolean  // 관리자 여부
+  isApproved?: boolean  // 가입 승인 여부
 }
 
 function getUsersCollection(db: Db): Collection<User> {
@@ -213,6 +215,348 @@ export async function getUserById(email: string): Promise<User | null> {
     return user || null
   } catch (error) {
     console.error('❌ getUserById 실패:', error)
+    return null
+  }
+}
+
+/**
+ * 전체 사용자 목록 조회 (검색, 필터링, 페이지네이션)
+ */
+export async function getAllUsers(
+  filters?: {
+    search?: string
+    status?: 'all' | 'active' | 'inactive' | 'banned'
+    role?: 'all' | 'admin' | 'user'
+    approved?: 'all' | 'approved' | 'pending'
+  },
+  pagination?: {
+    page?: number
+    limit?: number
+  }
+): Promise<{ users: User[]; total: number }> {
+  try {
+    const { db } = await connectToDatabase()
+    const collection = getUsersCollection(db)
+
+    const page = pagination?.page || 1
+    const limit = pagination?.limit || 20
+    const skip = (page - 1) * limit
+
+    // 쿼리 조건 구성
+    const query: any = {}
+
+    // 검색 조건
+    if (filters?.search) {
+      const searchRegex = { $regex: filters.search, $options: 'i' }
+      query.$or = [
+        { email: searchRegex },
+        { name: searchRegex },
+        { phone: searchRegex },
+      ]
+    }
+
+    // 상태 필터
+    if (filters?.status && filters.status !== 'all') {
+      if (filters.status === 'active') {
+        query.isActive = true
+        query.isBanned = false
+      } else if (filters.status === 'inactive') {
+        query.isActive = false
+      } else if (filters.status === 'banned') {
+        query.isBanned = true
+      }
+    }
+
+    // 권한 필터
+    if (filters?.role && filters.role !== 'all') {
+      query.isAdmin = filters.role === 'admin'
+    }
+
+    // 승인 상태 필터
+    if (filters?.approved && filters.approved !== 'all') {
+      query.isApproved = filters.approved === 'approved'
+    }
+
+    const users = await collection
+      .find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray()
+
+    const total = await collection.countDocuments(query)
+
+    return { users, total }
+  } catch (error) {
+    console.error('❌ getAllUsers 실패:', error)
+    return { users: [], total: 0 }
+  }
+}
+
+/**
+ * 사용자 차단
+ */
+export async function banUser(
+  email: string,
+  adminEmail: string,
+  reason?: string
+): Promise<boolean> {
+  try {
+    const { db } = await connectToDatabase()
+    const collection = getUsersCollection(db)
+
+    const result = await collection.findOneAndUpdate(
+      { email },
+      {
+        $set: {
+          isBanned: true,
+          bannedAt: new Date(),
+          bannedReason: reason || '관리자에 의한 차단',
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: 'after' }
+    )
+
+    if (result) {
+      console.log(`✅ [banUser] ${adminEmail}이 ${email} 사용자를 차단했습니다. 사유: ${reason}`)
+    }
+    return result !== null
+  } catch (error) {
+    console.error('❌ banUser 실패:', error)
+    return false
+  }
+}
+
+/**
+ * 사용자 차단 해제
+ */
+export async function unbanUser(email: string, adminEmail: string): Promise<boolean> {
+  try {
+    const { db } = await connectToDatabase()
+    const collection = getUsersCollection(db)
+
+    const result = await collection.findOneAndUpdate(
+      { email },
+      {
+        $set: {
+          isBanned: false,
+          bannedAt: undefined,
+          bannedReason: undefined,
+          updatedAt: new Date(),
+        },
+        $unset: { bannedAt: '', bannedReason: '' },
+      },
+      { returnDocument: 'after' }
+    )
+
+    if (result) {
+      console.log(`✅ [unbanUser] ${adminEmail}이 ${email} 사용자의 차단을 해제했습니다`)
+    }
+    return result !== null
+  } catch (error) {
+    console.error('❌ unbanUser 실패:', error)
+    return false
+  }
+}
+
+/**
+ * 사용자 활성화/비활성화 토글
+ */
+export async function toggleUserActive(
+  email: string,
+  adminEmail: string,
+  isActive: boolean
+): Promise<boolean> {
+  try {
+    const { db } = await connectToDatabase()
+    const collection = getUsersCollection(db)
+
+    const result = await collection.findOneAndUpdate(
+      { email },
+      {
+        $set: {
+          isActive,
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: 'after' }
+    )
+
+    if (result) {
+      const status = isActive ? '활성화' : '비활성화'
+      console.log(`✅ [toggleUserActive] ${adminEmail}이 ${email} 사용자를 ${status}했습니다`)
+    }
+    return result !== null
+  } catch (error) {
+    console.error('❌ toggleUserActive 실패:', error)
+    return false
+  }
+}
+
+/**
+ * 사용자 관리자 권한 변경
+ */
+export async function updateUserRole(
+  email: string,
+  adminEmail: string,
+  isAdmin: boolean
+): Promise<boolean> {
+  try {
+    const { db } = await connectToDatabase()
+    const collection = getUsersCollection(db)
+
+    // 본인을 관리자에서 해제하려고 하는 경우 방지
+    if (email === adminEmail && !isAdmin) {
+      console.warn(`⚠️ [updateUserRole] 본인의 관리자 권한을 해제할 수 없습니다`)
+      return false
+    }
+
+    const result = await collection.findOneAndUpdate(
+      { email },
+      {
+        $set: {
+          isAdmin,
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: 'after' }
+    )
+
+    if (result) {
+      const role = isAdmin ? '관리자' : '일반 사용자'
+      console.log(`✅ [updateUserRole] ${adminEmail}이 ${email} 사용자의 권한을 ${role}로 변경했습니다`)
+    }
+    return result !== null
+  } catch (error) {
+    console.error('❌ updateUserRole 실패:', error)
+    return false
+  }
+}
+
+/**
+ * 사용자 가입 승인
+ */
+export async function approveUser(email: string, adminEmail: string): Promise<boolean> {
+  try {
+    const { db } = await connectToDatabase()
+    const collection = getUsersCollection(db)
+
+    const result = await collection.findOneAndUpdate(
+      { email },
+      {
+        $set: {
+          isApproved: true,
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: 'after' }
+    )
+
+    if (result) {
+      console.log(`✅ [approveUser] ${adminEmail}이 ${email} 사용자를 승인했습니다`)
+    }
+    return result !== null
+  } catch (error) {
+    console.error('❌ approveUser 실패:', error)
+    return false
+  }
+}
+
+/**
+ * 사용자 가입 거절
+ */
+export async function rejectUser(email: string, adminEmail: string): Promise<boolean> {
+  try {
+    const { db } = await connectToDatabase()
+    const collection = getUsersCollection(db)
+
+    const result = await collection.deleteOne({ email })
+
+    if (result.deletedCount > 0) {
+      console.log(`✅ [rejectUser] ${adminEmail}이 ${email} 사용자의 가입을 거절했습니다`)
+    }
+    return result.deletedCount > 0
+  } catch (error) {
+    console.error('❌ rejectUser 실패:', error)
+    return false
+  }
+}
+
+/**
+ * 새로운 사용자 생성 (회원가입 시)
+ * isApproved를 false로 설정하여 관리자 승인 대기 상태로 생성
+ */
+export async function createUser(userData: {
+  email: string
+  name?: string
+  phone?: string
+  password?: string
+  address?: string
+  marketingConsent?: boolean
+  provider?: string
+  providerId?: string
+}): Promise<User> {
+  const { db } = await connectToDatabase()
+  const collection = getUsersCollection(db)
+
+  const now = new Date()
+  const user: User = {
+    email: userData.email,
+    name: userData.name,
+    phone: userData.phone,
+    provider: userData.provider || 'credentials',
+    providerId: userData.providerId,
+    dailyLimit: DEFAULT_DAILY_LIMIT,
+    remainingLimit: DEFAULT_DAILY_LIMIT,
+    todayUsed: 0,
+    lastResetDate: new Date().toISOString().split('T')[0],
+    isActive: true,
+    isBanned: false,
+    isOnline: false,
+    lastActive: now,
+    lastLogin: new Date(0), // Never logged in
+    createdAt: now,
+    updatedAt: now,
+    isAdmin: false,
+    isApproved: false, // 가입 승인 대기 상태로 생성
+  }
+
+  // password는 선택적으로 추가
+  if (userData.password) {
+    (user as any).password = userData.password
+  }
+
+  // address는 선택적으로 추가
+  if (userData.address) {
+    (user as any).address = userData.address
+  }
+
+  // marketingConsent는 선택적으로 추가
+  if (userData.marketingConsent !== undefined) {
+    (user as any).marketingConsent = userData.marketingConsent
+  }
+
+  const result = await collection.insertOne(user)
+
+  return {
+    ...user,
+    _id: result.insertedId,
+  }
+}
+
+/**
+ * 전화번호로 사용자 조회
+ */
+export async function getUserByPhone(phone: string): Promise<User | null> {
+  try {
+    const { db } = await connectToDatabase()
+    const collection = getUsersCollection(db)
+
+    const user = await collection.findOne({ phone })
+    return user || null
+  } catch (error) {
+    console.error('❌ getUserByPhone 실패:', error)
     return null
   }
 }

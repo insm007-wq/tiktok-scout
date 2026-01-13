@@ -52,9 +52,9 @@ export default async function AdminPage() {
             </div>
           </Link>
 
-          {/* 사용자 관리 (미구현) */}
-          <Link href="#" onClick={(e) => e.preventDefault()}>
-            <div className="bg-white rounded-lg shadow-md p-6 opacity-50 cursor-not-allowed">
+          {/* 사용자 관리 */}
+          <Link href="/admin/users">
+            <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6 cursor-pointer">
               <div className="flex items-center gap-4">
                 <div className="bg-blue-100 rounded-full p-3">
                   <Users size={32} className="text-blue-600" />
@@ -62,7 +62,6 @@ export default async function AdminPage() {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">사용자 관리</h3>
                   <p className="text-sm text-gray-600">모든 사용자 보기 및 관리</p>
-                  <p className="text-xs text-gray-500 mt-1">준비 중</p>
                 </div>
               </div>
             </div>

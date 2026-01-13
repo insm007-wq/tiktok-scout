@@ -66,10 +66,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           //   return null
           // }
 
-          // 관리자 승인 확인 - 개발 중 비활성화
-          // if (!user.isApproved) {
-          //   return null
-          // }
+          // 관리자 승인 확인
+          if (!user.isApproved) {
+            console.warn(`[Auth] 승인 대기 중: ${email}`)
+            throw new Error('PENDING_APPROVAL')
+          }
 
           // 계정 차단 확인
           if (user.isBanned) {
