@@ -546,50 +546,42 @@ export default function Search() {
     setDownloadingVideoId(video.id);
 
     try {
-      // videoUrl이 있으면 서버 API로 다운로드
-      if (video.videoUrl) {
-        console.log("[Download] API를 통한 다운로드:", video.id);
+      console.log("[Download] API를 통한 다운로드:", video.id);
 
-        const response = await fetch("/api/download-video", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            videoUrl: video.videoUrl,
-            videoId: video.id,
-            platform,  // ✅ 플랫폼 정보 전달
-          }),
-        });
+      const response = await fetch("/api/download-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoUrl: video.videoUrl,
+          videoId: video.id,
+          platform,
+          webVideoUrl: video.webVideoUrl,  // Pass webVideoUrl for Xiaohongshu
+        }),
+      });
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "다운로드 실패");
-        }
-
-        // Blob으로 변환
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-
-        // 플랫폼별 파일명 설정
-        const filePrefix = platform === 'douyin' ? 'douyin' :
-                          platform === 'xiaohongshu' ? 'xiaohongshu' : 'tiktok';
-        link.download = `${filePrefix}_${video.id}.mp4`;
-
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-
-        console.log("[Download] ✅ 다운로드 완료:", video.title);
-        addToast('success', '영상이 다운로드 폴더에 저장되었습니다', '✅ 다운로드 완료', 3000);
-      } else if (video.webVideoUrl) {
-        // webVideoUrl만 있으면 링크 복사만 진행 (외부 사이트 제거)
-        console.log("[Download] 링크 복사:", video.webVideoUrl);
-
-        await navigator.clipboard.writeText(video.webVideoUrl);
-        addToast('info', '영상 링크가 클립보드에 복사되었습니다.', '📋 링크 복사됨', 3000);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "다운로드 실패");
       }
+
+      // Blob으로 변환
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+
+      // 플랫폼별 파일명 설정
+      const filePrefix = platform === 'douyin' ? 'douyin' :
+                        platform === 'xiaohongshu' ? 'xiaohongshu' : 'tiktok';
+      link.download = `${filePrefix}_${video.id}.mp4`;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      console.log("[Download] ✅ 다운로드 완료:", video.title);
+      addToast('success', '영상이 다운로드 폴더에 저장되었습니다', '✅ 다운로드 완료', 3000);
     } catch (error) {
       console.error("[Download] Error:", error);
       const errorMsg = error instanceof Error ? error.message : "알 수 없는 오류";

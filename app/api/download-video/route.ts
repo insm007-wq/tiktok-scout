@@ -2,9 +2,36 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { videoUrl, videoId, platform = 'tiktok' } = await req.json();
+    const { videoUrl, videoId, platform = 'tiktok', webVideoUrl } = await req.json();
 
-    if (!videoUrl) {
+    let finalVideoUrl = videoUrl;
+
+    // Handle Xiaohongshu on-demand video URL fetching
+    if (platform === 'xiaohongshu' && !videoUrl && webVideoUrl) {
+      console.log('[Download] Xiaohongshu: Fetching video URL from post URL...');
+
+      try {
+        const fetchRes = await fetch('http://localhost:3000/api/fetch-xiaohongshu-video', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ postUrl: webVideoUrl }),
+        });
+
+        const fetchData = await fetchRes.json();
+
+        if (!fetchData.success) {
+          throw new Error(fetchData.error || 'Failed to fetch video URL');
+        }
+
+        finalVideoUrl = fetchData.videoUrl;
+        console.log('[Download] Xiaohongshu video URL obtained');
+      } catch (error) {
+        console.error('[Download] Xiaohongshu video URL fetch failed:', error);
+        throw new Error('샤오홍슈 영상 URL을 가져올 수 없습니다.');
+      }
+    }
+
+    if (!finalVideoUrl) {
       return NextResponse.json(
         { error: '비디오 URL이 필요합니다.' },
         { status: 400 }
@@ -19,7 +46,7 @@ export async function POST(req: NextRequest) {
     };
 
     // 비디오 URL에서 파일 fetch
-    const videoResponse = await fetch(videoUrl, {
+    const videoResponse = await fetch(finalVideoUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Referer': refererMap[platform] || 'https://www.tiktok.com/',
