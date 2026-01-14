@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { getFromCache, setCache } from '@/lib/cache';
 import { searchTikTokVideos } from '@/lib/scrapers/tiktok';
 import { searchDouyinVideos, searchDouyinVideosParallel } from '@/lib/scrapers/douyin';
-import { searchXiaohongshuVideos } from '@/lib/scrapers/xiaohongshu';
+import { searchXiaohongshuVideos, searchXiaohongshuVideosParallel } from '@/lib/scrapers/xiaohongshu';
 import { VideoResult, Platform } from '@/types/video';
 
 interface SearchRequest {
@@ -82,7 +82,8 @@ export async function POST(req: NextRequest) {
       // 3개 정렬 병렬 실행 (인기순 + 최신순 + 관련성순)
       videoResults = await searchDouyinVideosParallel(query, limit, apiKey, dateRange);
     } else if (platform === 'xiaohongshu') {
-      videoResults = await searchXiaohongshuVideos(query, limit, apiKey, dateRange);
+      // 3개 정렬 병렬 실행 (일반 + 최신순 + 인기순)
+      videoResults = await searchXiaohongshuVideosParallel(query, limit, apiKey, dateRange);
     }
 
     if (videoResults && videoResults.length > 0) {

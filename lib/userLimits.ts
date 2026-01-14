@@ -9,6 +9,8 @@ interface User {
   email: string  // Primary Key
   name?: string
   image?: string
+  phone?: string
+  password?: string
   provider: string
   providerId?: string
   dailyLimit: number
@@ -26,6 +28,7 @@ interface User {
   updatedAt: Date
   isAdmin?: boolean  // 관리자 여부
   isApproved?: boolean  // 가입 승인 여부
+  isVerified?: boolean  // SMS 인증 여부
 }
 
 function getUsersCollection(db: Db): Collection<User> {
@@ -558,5 +561,30 @@ export async function getUserByPhone(phone: string): Promise<User | null> {
   } catch (error) {
     console.error('❌ getUserByPhone 실패:', error)
     return null
+  }
+}
+
+/**
+ * 사용자를 SMS 인증 완료 상태로 표시
+ */
+export async function markUserAsVerified(email: string): Promise<boolean> {
+  try {
+    const { db } = await connectToDatabase()
+    const collection = getUsersCollection(db)
+
+    const result = await collection.updateOne(
+      { email },
+      {
+        $set: {
+          isVerified: true,
+          updatedAt: new Date(),
+        },
+      }
+    )
+
+    return result.modifiedCount > 0
+  } catch (error) {
+    console.error('❌ markUserAsVerified 실패:', error)
+    return false
   }
 }

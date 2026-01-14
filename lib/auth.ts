@@ -91,9 +91,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             email: user.email,
             name: user.name,
             image: user.image,
-            isAdmin: user.isAdmin,
-            isApproved: user.isApproved,
-            isVerified: user.isVerified,
+            isAdmin: user.isAdmin || false,
+            isApproved: user.isApproved || false,
+            isVerified: user.isVerified || false,
             phone: user.phone,
           }
         } catch (error) {

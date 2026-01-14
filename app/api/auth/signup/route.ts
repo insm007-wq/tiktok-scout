@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       name: data.name,
       phone: data.phone.replace(/-/g, ''), // 하이픈 제거
       password: hashedPassword,
-      address: data.address,
+      address: `${data.address.zipCode} ${data.address.address} ${data.address.detailAddress}`,
       marketingConsent: data.marketingConsent,
     })
 

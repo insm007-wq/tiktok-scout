@@ -88,14 +88,25 @@ export async function POST(req: NextRequest) {
       throw new Error('영상 추출 실패: Apify actor에서 에러를 보고했습니다');
     }
 
-    if (!result?.result?.medias?.[0]?.url) {
-      console.error('[Fetch Xiaohongshu Video] No video URL in results:', result);
-      throw new Error('No video URL found in results');
+    // Check if medias array exists
+    if (!result.result.medias || !Array.isArray(result.result.medias)) {
+      console.error('[Fetch Xiaohongshu Video] No medias array in result:', result);
+      throw new Error('미디어 정보를 찾을 수 없습니다.');
     }
 
-    const videoUrl = result.result.medias[0].url;
+    // Find video media (not image)
+    const videoMedia = result.result.medias.find((media: any) => media.type === 'video');
+
+    if (!videoMedia || !videoMedia.url) {
+      console.error('[Fetch Xiaohongshu Video] No video found in medias:', result.result.medias);
+      throw new Error('포스트에 비디오가 없습니다. 이미지만 있는 포스트입니다.');
+    }
+
+    const videoUrl = videoMedia.url;
     console.log('[Fetch Xiaohongshu Video] Video URL extracted:', videoUrl);
-    console.log('[Fetch Xiaohongshu Video] Video quality:', result.result.medias[0].quality);
+    console.log('[Fetch Xiaohongshu Video] Video type:', videoMedia.type);
+    console.log('[Fetch Xiaohongshu Video] Video extension:', videoMedia.extension);
+    console.log('[Fetch Xiaohongshu Video] Video quality:', videoMedia.quality);
 
     return NextResponse.json({
       success: true,
