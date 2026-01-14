@@ -1,4 +1,5 @@
 import { VideoResult } from '@/types/video';
+import { parseXiaohongshuTime } from '@/lib/utils/xiaohongshuTimeParser';
 
 /**
  * Xiaohongshu(小红书) 영상 검색 (easyapi Search Scraper)
@@ -161,7 +162,7 @@ export async function searchXiaohongshuVideos(
           likeCount: likeCount,
           commentCount: commentCount,
           shareCount: shareCount,
-          createTime: Date.now(),
+          createTime: parseXiaohongshuTime(item.item?.note_card?.corner_tag_info),
           videoDuration:
             item.item?.video?.media?.duration ||
             item.item?.note_card?.video?.media?.duration ||
@@ -377,7 +378,7 @@ export async function searchXiaohongshuVideosParallel(
         likeCount: likeCount,
         commentCount: commentCount,
         shareCount: shareCount,
-        createTime: Date.now(),
+        createTime: parseXiaohongshuTime(item.item?.note_card?.corner_tag_info),
         videoDuration:
           item.item?.video?.media?.duration ||
           item.item?.note_card?.video?.media?.duration ||

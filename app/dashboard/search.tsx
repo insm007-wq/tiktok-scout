@@ -1097,10 +1097,12 @@ export default function Search() {
                           />
                         )}
 
-                        {/* Duration 뱃지 - 왼쪽 상단 */}
-                        <div className="card-duration-badge">
-                          {formatVideoDuration(video.videoDuration)}
-                        </div>
+                        {/* Duration 뱃지 - 왼쪽 상단 (샤오홍슈 제외) */}
+                        {platform !== 'xiaohongshu' && (
+                          <div className="card-duration-badge">
+                            {formatVideoDuration(video.videoDuration)}
+                          </div>
+                        )}
 
                         {/* Date 뱃지 - 오른쪽 상단 */}
                         {video.createTime && (
@@ -1220,7 +1222,9 @@ export default function Search() {
                           <td className="table-author" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{video.creator}</td>
                           <td className="table-number">{video.followerCount ? formatNumber(video.followerCount) : "-"}</td>
                           <td className="table-number" style={{ fontSize: "11px" }}>{formatDateWithTime(video.createTime)}</td>
-                          <td className="table-number">{formatVideoDuration(video.videoDuration)}</td>
+                          {platform !== 'xiaohongshu' && (
+                            <td className="table-number">{formatVideoDuration(video.videoDuration)}</td>
+                          )}
                           <td className="table-number">{formatNumber(video.playCount)}</td>
                           <td className="table-number">{formatNumber(video.likeCount)}</td>
                           <td className="table-number">{formatNumber(video.commentCount)}</td>
