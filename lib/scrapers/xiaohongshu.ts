@@ -208,7 +208,7 @@ export async function searchXiaohongshuVideosParallel(
         keywords: [query],
         sortType,  // 🔑 각 Run마다 다른 정렬
         noteType: 'video',  // 🔑 비디오만 필터링 (API 레벨)
-        maxItems: Math.min(34, Math.ceil(limit / 3)),  // 각 Run당 34개
+        maxItems: 20,  // 각 Run당 20개 (3 × 20 = 60개)
       };
 
       const runRes = await fetch(
@@ -293,8 +293,31 @@ export async function searchXiaohongshuVideosParallel(
       return [];
     }
 
-    // 4️⃣ 결과 변환 (API에서 noteType: 'video'로 이미 필터링됨)
-    const results = combinedDataset.slice(0, limit).map((item: any, index: number) => {
+    // 4️⃣ 클라이언트 사이드 필터링 - 이미지 전용 포스트 제거
+    const videoOnlyDataset = combinedDataset.filter((item: any) => {
+      // 비디오 포스트 확인 (구 버전 함수의 필터링 로직과 동일)
+      return (
+        item.item?.note_card?.type === "video" ||
+        item.item?.type === "video" ||
+        !!item.item?.video?.media
+      );
+    });
+
+    // 필터링 통계 로그
+    console.log(`[Xiaohongshu Parallel] 필터링: ${combinedDataset.length}개 → ${videoOnlyDataset.length}개 비디오`);
+    if (combinedDataset.length > videoOnlyDataset.length) {
+      const filtered = combinedDataset.length - videoOnlyDataset.length;
+      console.log(`[Xiaohongshu Parallel] ⚠️ ${filtered}개 이미지 포스트 제거됨`);
+    }
+
+    if (videoOnlyDataset.length === 0) {
+      console.log('[Xiaohongshu Parallel] 필터링 후 비디오 결과 없음');
+      return [];
+    }
+
+    // 5️⃣ 결과 변환 (API에서 noteType: 'video'로 이미 필터링됨)
+    // ✅ 50개 이상의 결과도 모두 반환
+    const results = videoOnlyDataset.map((item: any, index: number) => {
       const title =
         item.item?.note_card?.display_title ||
         item.item?.title ||
@@ -366,7 +389,7 @@ export async function searchXiaohongshuVideosParallel(
       };
     });
 
-    // 5️⃣ 중복 제거 (ID 기준)
+    // 6️⃣ 중복 제거 (ID 기준)
     const uniqueResults = Array.from(
       new Map(results.map((video) => [video.id, video])).values()
     );
