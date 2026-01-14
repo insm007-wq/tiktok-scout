@@ -1,7 +1,12 @@
 /**
- * 간단한 인메모리 캐시 시스템
- * TTL (Time To Live) 지원
+ * 계층형 캐시 시스템: L1(메모리) + L2(MongoDB)
+ * - L1: 메모리 캐시 (30분 TTL, 빠르지만 휘발성)
+ * - L2: MongoDB 캐시 (7-30일 TTL, 영구 저장)
  */
+
+import { VideoResult, Platform } from '@/types/video';
+import { getDb } from './mongodb';
+import { VideoCacheDocument, generateCacheKey } from './models/VideoCache';
 
 interface CacheEntry<T> {
   data: T;
@@ -145,4 +150,154 @@ export function setTranslationCache(
   });
 
   console.log(`[Translation Cache] 저장: ${key} (TTL: ${ttlHours}시간)`);
+}
+
+/**
+ * ========================================
+ * L2: MongoDB 캐시 함수들
+ * ========================================
+ */
+
+/**
+ * MongoDB에서 영상 캐시 조회 (L2 캐시)
+ */
+export async function getVideoFromMongoDB(
+  query: string,
+  platform: Platform,
+  dateRange?: string
+): Promise<{ videos: VideoResult[] } | null> {
+  try {
+    const db = await getDb();
+    const cacheKey = generateCacheKey(platform, query, dateRange);
+
+    const cached = await db.collection<VideoCacheDocument>('video_cache')
+      .findOne({ cacheKey });
+
+    if (!cached) {
+      console.log(`[MongoDB Cache] MISS: ${cacheKey}`);
+      return null;
+    }
+
+    // 만료 확인 (TTL 인덱스 대비 이중 체크)
+    if (cached.expiresAt < new Date()) {
+      console.log(`[MongoDB Cache] EXPIRED: ${cacheKey}`);
+      return null;
+    }
+
+    // 조회 통계 업데이트 (비동기로 실행)
+    db.collection('video_cache').updateOne(
+      { cacheKey },
+      {
+        $inc: { accessCount: 1 },
+        $set: { lastAccessedAt: new Date() }
+      }
+    ).catch(err => console.warn('[MongoDB Cache] Failed to update stats:', err));
+
+    console.log(`[MongoDB Cache] HIT: ${cacheKey} (${cached.videoCount} 개 영상, 조회: ${cached.accessCount + 1}회)`);
+    return { videos: cached.videos };
+  } catch (error) {
+    console.error('[MongoDB Cache] 조회 오류:', error);
+    return null;
+  }
+}
+
+/**
+ * MongoDB에 영상 캐시 저장 (L2 캐시)
+ */
+export async function setVideoToMongoDB(
+  query: string,
+  platform: Platform,
+  videos: VideoResult[],
+  dateRange?: string,
+  ttlDays: number = 7
+): Promise<void> {
+  try {
+    const db = await getDb();
+    const cacheKey = generateCacheKey(platform, query, dateRange);
+
+    const doc: VideoCacheDocument = {
+      cacheKey,
+      platform,
+      query: query.trim(),
+      dateRange: dateRange || 'all',
+      videos,
+      videoCount: videos.length,
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000),
+      accessCount: 1,
+      lastAccessedAt: new Date(),
+    };
+
+    await db.collection('video_cache').updateOne(
+      { cacheKey },
+      { $set: doc },
+      { upsert: true }
+    );
+
+    console.log(`[MongoDB Cache] 저장: ${cacheKey} (${videos.length} 개 영상, TTL: ${ttlDays}일)`);
+  } catch (error) {
+    console.error('[MongoDB Cache] 저장 오류:', error);
+  }
+}
+
+/**
+ * ========================================
+ * 통합 캐시 함수 (L1 + L2)
+ * ========================================
+ */
+
+/**
+ * 영상 캐시 조회: 메모리(L1) → MongoDB(L2)
+ */
+export async function getVideoFromCache(
+  query: string,
+  platform: Platform,
+  dateRange?: string
+): Promise<{ videos: VideoResult[] } | null> {
+  const memoryKey = `video:${platform}:${query}:${dateRange || 'all'}`;
+
+  // L1: 메모리 캐시 확인
+  const memoryCache = cache.get(memoryKey);
+  if (memoryCache && Date.now() <= memoryCache.expiresAt) {
+    console.log(`[Memory Cache] HIT: ${memoryKey}`);
+    return memoryCache.data;
+  }
+
+  // L2: MongoDB 캐시 확인
+  const mongoCache = await getVideoFromMongoDB(query, platform, dateRange);
+  if (mongoCache) {
+    // L1 캐시 웜업 (메모리에도 저장)
+    const expiresAt = Date.now() + 30 * 60 * 1000; // 30분
+    cache.set(memoryKey, {
+      data: mongoCache,
+      expiresAt,
+    });
+    return mongoCache;
+  }
+
+  console.log(`[Video Cache] MISS: ${memoryKey}`);
+  return null;
+}
+
+/**
+ * 영상 캐시 저장: 메모리(L1) + MongoDB(L2)
+ */
+export async function setVideoToCache(
+  query: string,
+  platform: Platform,
+  videos: VideoResult[],
+  dateRange?: string
+): Promise<void> {
+  const memoryKey = `video:${platform}:${query}:${dateRange || 'all'}`;
+  const data = { videos };
+
+  // L1: 메모리 캐시 (30분)
+  const expiresAt = Date.now() + 30 * 60 * 1000;
+  cache.set(memoryKey, {
+    data,
+    expiresAt,
+  });
+
+  // L2: MongoDB 캐시 (7일)
+  await setVideoToMongoDB(query, platform, videos, dateRange, 7);
 }

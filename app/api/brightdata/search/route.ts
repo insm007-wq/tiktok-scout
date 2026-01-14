@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getFromCache, setCache } from '@/lib/cache';
+import { getVideoFromCache, setVideoToCache } from '@/lib/cache';
 import { searchTikTokVideos } from '@/lib/scrapers/tiktok';
 import { searchDouyinVideos, searchDouyinVideosParallel } from '@/lib/scrapers/douyin';
 import { searchXiaohongshuVideos, searchXiaohongshuVideosParallel } from '@/lib/scrapers/xiaohongshu';
@@ -60,8 +60,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 캐시 확인
-    const cached = getFromCache<{ videos: VideoResult[] }>(query, platform, dateRange);
+    // 캐시 확인 (L1 메모리 + L2 MongoDB)
+    const cached = await getVideoFromCache(query, platform, dateRange);
     if (cached) {
       return NextResponse.json({
         success: true,
@@ -92,8 +92,8 @@ export async function POST(req: NextRequest) {
         new Map(videoResults.map((video) => [video.id, video])).values()
       );
 
-      // 캐시 저장
-      setCache(query, platform, { videos: uniqueVideos }, dateRange);
+      // 캐시 저장 (L1 메모리 + L2 MongoDB)
+      await setVideoToCache(query, platform, uniqueVideos, dateRange);
 
       return NextResponse.json({
         success: true,

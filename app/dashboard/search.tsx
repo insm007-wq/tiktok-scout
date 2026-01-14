@@ -22,6 +22,7 @@ import EngagementRatioFilter from "@/app/components/Filters/EngagementRatioFilte
 import { formatDateWithTime, getRelativeDateString } from "@/lib/dateUtils";
 import { formatNumber, formatVideoDuration } from "@/lib/formatters";
 import UserDropdown from "@/app/components/UserDropdown/UserDropdown";
+import { SearchProgress } from "@/components/SearchProgress";
 import "./search.css";
 
 type Platform = "tiktok" | "douyin" | "xiaohongshu";
@@ -84,6 +85,7 @@ export default function Search() {
   const resizeRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Toast 추가 함수
   const addToast = useCallback((type: 'success' | 'error' | 'warning' | 'info', message: string, title?: string, duration = 3000) => {
@@ -383,6 +385,9 @@ export default function Search() {
     setSearchHistory(newHistory);
     localStorage.setItem("titok killa-search-history", JSON.stringify(newHistory));
 
+    // AbortController 생성
+    abortControllerRef.current = new AbortController();
+
     setIsLoading(true);
     setError("");
     setVideos([]);
@@ -401,6 +406,7 @@ export default function Search() {
           limit: 50,
           dateRange: dateRange,
         }),
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) {
@@ -417,14 +423,20 @@ export default function Search() {
         setVideos([]);
         setError(data.error || "검색 결과가 없습니다");
       }
-    } catch (error) {
-      console.error("검색 오류:", error);
-      setError(error instanceof Error ? error.message : "검색 중 오류가 발생했습니다");
-      setVideos([]);
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('[Search] 사용자가 검색을 취소했습니다.');
+        addToast('error', '검색이 취소되었습니다.');
+      } else {
+        console.error("검색 오류:", error);
+        setError(error instanceof Error ? error.message : "검색 중 오류가 발생했습니다");
+        setVideos([]);
+      }
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
-  }, [searchInput, platform, targetLanguage, searchHistory, filters.uploadPeriod]);
+  }, [searchInput, platform, targetLanguage, searchHistory, filters.uploadPeriod, addToast]);
 
   // 디바운싱된 검색 함수
   const debouncedSearch = useCallback(() => {
@@ -443,6 +455,14 @@ export default function Search() {
       debouncedSearch();
     }
   };
+
+  const handleCancelSearch = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  }, []);
 
   // 히스토리 항목 클릭 - 검색 입력 필드에만 값 설정
   const handleHistoryClick = useCallback((keyword: string) => {
@@ -1024,7 +1044,12 @@ export default function Search() {
             overflowY: 'auto'
           }}>
             {isLoading ? (
-              <Spinner text="검색 중..." />
+              <div style={{ width: '100%', maxWidth: '600px' }}>
+                <SearchProgress
+                  isSearching={isLoading}
+                  onCancel={handleCancelSearch}
+                />
+              </div>
             ) : results.length === 0 ? (
               <div className="no-results" style={{
                 display: "flex",
