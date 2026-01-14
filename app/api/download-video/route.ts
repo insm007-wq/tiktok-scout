@@ -11,8 +11,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('[Download] 비디오 다운로드 시작:', videoId, `(${platform})`);
-
     // 플랫폼별 Referer 설정
     const refererMap: Record<string, string> = {
       'tiktok': 'https://www.tiktok.com/',
@@ -37,12 +35,6 @@ export async function POST(req: NextRequest) {
     }
 
     const buffer = await videoResponse.arrayBuffer();
-
-    console.log('[Download] 다운로드 완료:', {
-      videoId,
-      platform,
-      size: `${(buffer.byteLength / 1024 / 1024).toFixed(2)}MB`,
-    });
 
     // 파일명 생성 (플랫폼별)
     const filePrefix = platform === 'douyin' ? 'douyin' :

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { signupSchema, infoSchema, type SignupFormData } from '@/lib/validations/auth'
 import PasswordStrengthMeter from './PasswordStrengthMeter'
 import AddressInput from './AddressInput'
-import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react'
 
 type FormStep = 'info' | 'address' | 'consent' | 'loading'
 

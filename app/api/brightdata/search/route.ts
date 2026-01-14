@@ -60,8 +60,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(`[${platform.toUpperCase()}] 검색 시작: ${query}`);
-
     // 캐시 확인
     const cached = getFromCache<{ videos: VideoResult[] }>(query, platform, dateRange);
     if (cached) {
@@ -92,8 +90,6 @@ export async function POST(req: NextRequest) {
       const uniqueVideos = Array.from(
         new Map(videoResults.map((video) => [video.id, video])).values()
       );
-
-      console.log(`[${platform.toUpperCase()}] 완료: ${videoResults.length}개 → 중복 제거 후: ${uniqueVideos.length}개`);
 
       // 캐시 저장
       setCache(query, platform, { videos: uniqueVideos }, dateRange);

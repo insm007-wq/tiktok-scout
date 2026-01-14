@@ -338,7 +338,6 @@ export default function Search() {
     // 1. 입력 언어 감지
     const inputLanguage = detectLanguage(searchInput);
     setDetectedLanguage(inputLanguage);
-    console.log(`[Language Detection] Detected: ${inputLanguage}, Target: ${targetLanguage}`);
 
     // 2. 번역이 필요한지 확인 (입력 언어 ≠ 선택 언어)
     const needsTranslation = inputLanguage !== targetLanguage;
@@ -357,7 +356,6 @@ export default function Search() {
         });
 
         const translateData = await translateRes.json();
-        console.log(`[Translation API Response]:`, translateData);
 
         if (!translateRes.ok) {
           console.error(`[Translation] API Error: ${translateRes.status}`, translateData);
@@ -368,7 +366,6 @@ export default function Search() {
         if (translateData.success && translateData.translatedText) {
           searchQuery = translateData.translatedText;
           setTranslatedQuery(searchQuery);
-          console.log(`[Translation] ✅ ${searchInput} (${inputLanguage}) → ${searchQuery} (${targetLanguage})`);
         } else {
           console.warn("[Translation] Invalid response:", translateData);
           setError(`번역 실패: 잘못된 응답 형식`);
@@ -379,8 +376,6 @@ export default function Search() {
       } finally {
         setIsTranslating(false);
       }
-    } else {
-      console.log(`[Translation] Skipped: Input is already in ${targetLanguage}`);
     }
 
     // 검색 히스토리 저장

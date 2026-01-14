@@ -52,8 +52,6 @@ export async function POST(req: NextRequest) {
       marketingConsent: data.marketingConsent,
     })
 
-    console.log(`[Signup] 새 사용자 가입: ${data.email}`)
-
     return NextResponse.json(
       {
         success: true,
