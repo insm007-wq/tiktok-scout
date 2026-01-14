@@ -81,13 +81,21 @@ export async function POST(req: NextRequest) {
 
     // 4. Extract video URL from results
     const result = dataset[0];
+
+    // Check for actor-reported errors
+    if (result?.result?.error === true) {
+      console.error('[Fetch Xiaohongshu Video] Actor reported error:', result);
+      throw new Error('영상 추출 실패: Apify actor에서 에러를 보고했습니다');
+    }
+
     if (!result?.result?.medias?.[0]?.url) {
       console.error('[Fetch Xiaohongshu Video] No video URL in results:', result);
       throw new Error('No video URL found in results');
     }
 
     const videoUrl = result.result.medias[0].url;
-    console.log('[Fetch Xiaohongshu Video] Video URL obtained successfully');
+    console.log('[Fetch Xiaohongshu Video] Video URL extracted:', videoUrl);
+    console.log('[Fetch Xiaohongshu Video] Video quality:', result.result.medias[0].quality);
 
     return NextResponse.json({
       success: true,

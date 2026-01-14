@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
         console.log('[Download] Xiaohongshu video URL obtained');
       } catch (error) {
         console.error('[Download] Xiaohongshu video URL fetch failed:', error);
-        throw new Error('샤오홍슈 영상 URL을 가져올 수 없습니다.');
+        const errorMsg = error instanceof Error ? error.message : '샤오홍슈 영상 URL을 가져올 수 없습니다.';
+        throw new Error(errorMsg);
       }
     }
 
@@ -61,7 +62,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Validate Content-Type
+    const contentType = videoResponse.headers.get('Content-Type');
+    console.log('[Download] Content-Type:', contentType);
+
+    if (!contentType || !(contentType.includes('video') || contentType.includes('octet-stream'))) {
+      console.error('[Download] Invalid Content-Type:', contentType);
+      console.error('[Download] Response might be an error page, not a video');
+      return NextResponse.json(
+        { error: '다운로드한 파일이 비디오 형식이 아닙니다. CDN 접근 권한 문제일 수 있습니다.' },
+        { status: 400 }
+      );
+    }
+
     const buffer = await videoResponse.arrayBuffer();
+
+    // Validate file size (at least 50KB for a valid video)
+    if (buffer.byteLength < 50000) {
+      console.error('[Download] File too small:', buffer.byteLength, 'bytes');
+      console.error('[Download] This is likely an error page, not a real video');
+      return NextResponse.json(
+        { error: `다운로드한 파일이 너무 작습니다 (${buffer.byteLength} bytes). 유효한 비디오가 아닙니다.` },
+        { status: 400 }
+      );
+    }
+
+    console.log('[Download] Video file size:', buffer.byteLength, 'bytes');
 
     // 파일명 생성 (플랫폼별)
     const filePrefix = platform === 'douyin' ? 'douyin' :
