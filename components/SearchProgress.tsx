@@ -74,7 +74,7 @@ export function SearchProgress({ isSearching, onCancel }: SearchProgressProps) {
       <div className="progress-content">
         {/* 스피너 + 경과 시간 */}
         <div className="spinner-container">
-          <Loader2 className="spinner-icon" />
+          <Loader2 className="spinner-icon animate-spin" />
           <span className="elapsed-time">{elapsedSeconds}초</span>
         </div>
 
@@ -113,15 +113,6 @@ export function SearchProgress({ isSearching, onCancel }: SearchProgressProps) {
           }
         }
 
-        @keyframes spin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
         .search-progress-container {
           margin: 24px 0;
           padding: 32px;
@@ -150,7 +141,6 @@ export function SearchProgress({ isSearching, onCancel }: SearchProgressProps) {
           width: 24px;
           height: 24px;
           color: #1a1a1a;
-          animation: spin 1.4s linear infinite;
           opacity: 0.8;
         }
 
