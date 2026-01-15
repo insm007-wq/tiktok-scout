@@ -71,6 +71,7 @@ export default function Search() {
   const [toasts, setToasts] = useState<ToastType[]>([]);
   const [hoveredVideoId, setHoveredVideoId] = useState<string | null>(null);
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+  const [showTranslationPanel, setShowTranslationPanel] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -179,11 +180,12 @@ export default function Search() {
     localStorage.setItem("titok killa-language-preference", targetLanguage);
   }, [targetLanguage]);
 
-  // 검색어 입력 시 자동으로 언어 감지
+  // 검색어 입력 시 자동으로 언어 감지 및 번역 패널 표시
   useEffect(() => {
     if (searchInput.trim()) {
       const detected = detectLanguage(searchInput);
       setDetectedLanguage(detected);
+      setShowTranslationPanel(true); // ← 검색어가 있으면 패널 항상 표시
     } else {
       setDetectedLanguage(null);
     }
@@ -627,8 +629,8 @@ export default function Search() {
               </div>
             </div>
 
-            {/* 번역 정보 표시 (검색어 입력 바로 아래) - 항상 표시 */}
-            {searchInput && (
+            {/* 번역 정보 표시 (검색어 입력 바로 아래) - 한 번 나타나면 계속 표시 */}
+            {showTranslationPanel && (
               <div
                 style={{
                   marginTop: "12px",
@@ -754,7 +756,7 @@ export default function Search() {
                 )}
 
                 {/* 번역 안 됨 안내 (같은 언어) */}
-                {!isTranslating && !translatedQuery && searchInput && detectedLanguage === targetLanguage && (
+                {!isTranslating && !translatedQuery && detectedLanguage === targetLanguage && (
                   <div
                     style={{
                       padding: "12px",
