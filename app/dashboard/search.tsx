@@ -633,12 +633,12 @@ export default function Search() {
             {showTranslationPanel && (
               <div
                 style={{
-                  marginTop: "12px",
-                  padding: "12px",
-                  backgroundColor: "rgba(255, 255, 255, 0.95)",
-                  border: "1px solid rgba(0, 0, 0, 0.08)",
-                  borderRadius: "10px",
-                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.06)",
+                  marginTop: "16px",
+                  padding: "14px",
+                  background: "linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 249, 250, 0.95) 100%)",
+                  border: "1px solid rgba(0, 0, 0, 0.12)",
+                  borderRadius: "12px",
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
                   minHeight: "80px",
                 }}
               >
@@ -647,27 +647,34 @@ export default function Search() {
                   style={{
                     display: "flex",
                     flexDirection: "column",
-                    gap: "6px",
-                    marginBottom: translatedQuery || isTranslating ? "12px" : "0",
+                    gap: "8px",
+                    marginBottom: translatedQuery || isTranslating ? "14px" : "0",
+                    padding: "12px",
+                    background: "rgba(248, 249, 250, 0.8)",
+                    borderRadius: "10px",
+                    border: "1px solid rgba(0, 0, 0, 0.06)",
                   }}
                 >
                   <div
                     style={{
-                      fontSize: "10px",
-                      color: "#9ca3af",
-                      fontWeight: "600",
+                      fontSize: "11px",
+                      color: "#6b7280",
+                      fontWeight: "700",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
                     }}
                   >
                     📋 원문 ({detectedLanguage === "ko" ? "한국어" : detectedLanguage === "zh" ? "中文" : "English"})
                   </div>
                   <div
                     style={{
-                      fontSize: "13px",
+                      fontSize: "14px",
                       fontWeight: "600",
                       color: "#1a1a1a",
+                      lineHeight: "1.5",
                     }}
                   >
-                    "{searchInput}"
+                    - {searchInput}
                   </div>
                 </div>
 
@@ -675,10 +682,10 @@ export default function Search() {
                 {isTranslating && (
                   <div
                     style={{
-                      padding: "12px",
-                      background: "rgba(59, 130, 246, 0.05)",
-                      border: "1px dashed rgba(59, 130, 246, 0.3)",
-                      borderRadius: "8px",
+                      padding: "14px",
+                      background: "linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.04) 100%)",
+                      border: "1px solid rgba(59, 130, 246, 0.25)",
+                      borderRadius: "10px",
                       textAlign: "center",
                       color: "#3b82f6",
                       fontSize: "13px",
@@ -695,9 +702,10 @@ export default function Search() {
                     <div
                       style={{
                         textAlign: "center",
-                        fontSize: "12px",
+                        fontSize: "11px",
                         color: "#9ca3af",
-                        margin: "8px 0",
+                        margin: "6px 0 12px 0",
+                        fontWeight: "600",
                       }}
                     >
                       ↓ 번역됨 ↓
@@ -706,30 +714,33 @@ export default function Search() {
                       style={{
                         display: "flex",
                         flexDirection: "column",
-                        gap: "6px",
-                        padding: "10px",
-                        background: "rgba(34, 197, 94, 0.05)",
-                        border: "1px solid rgba(34, 197, 94, 0.2)",
-                        borderRadius: "8px",
+                        gap: "8px",
+                        padding: "12px",
+                        background: "linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(34, 197, 94, 0.04) 100%)",
+                        border: "1px solid rgba(34, 197, 94, 0.25)",
+                        borderRadius: "10px",
                       }}
                     >
                       <div
                         style={{
-                          fontSize: "10px",
-                          color: "#000000",
-                          fontWeight: "600",
+                          fontSize: "11px",
+                          color: "#16a34a",
+                          fontWeight: "700",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.5px",
                         }}
                       >
                         🌐 번역본 ({targetLanguage === "ko" ? "한국어" : targetLanguage === "zh" ? "中文" : "English"})
                       </div>
                       <div
                         style={{
-                          fontSize: "13px",
+                          fontSize: "14px",
                           fontWeight: "600",
-                          color: "#16a34a",
+                          color: "#1a1a1a",
+                          lineHeight: "1.5",
                         }}
                       >
-                        "{translatedQuery}"
+                        - {translatedQuery}
                       </div>
                       <button
                         onClick={() => {
@@ -737,16 +748,25 @@ export default function Search() {
                           addToast("success", "번역 결과가 클립보드에 복사되었습니다!", "📋 복사 완료");
                         }}
                         style={{
-                          marginTop: "8px",
-                          padding: "6px 12px",
-                          background: "#22c55e",
+                          marginTop: "4px",
+                          padding: "8px 16px",
+                          background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
                           color: "white",
                           border: "none",
-                          borderRadius: "6px",
-                          fontSize: "11px",
+                          borderRadius: "8px",
+                          fontSize: "12px",
                           fontWeight: "600",
                           cursor: "pointer",
-                          transition: "all 0.2s",
+                          transition: "all 0.3s",
+                          boxShadow: "0 2px 6px rgba(34, 197, 94, 0.2)",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.boxShadow = "0 4px 12px rgba(34, 197, 94, 0.3)";
+                          e.currentTarget.style.transform = "translateY(-2px)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.boxShadow = "0 2px 6px rgba(34, 197, 94, 0.2)";
+                          e.currentTarget.style.transform = "translateY(0)";
                         }}
                       >
                         📋 복사
@@ -759,13 +779,14 @@ export default function Search() {
                 {!isTranslating && !translatedQuery && detectedLanguage === targetLanguage && (
                   <div
                     style={{
-                      padding: "12px",
-                      background: "rgba(156, 163, 175, 0.1)",
-                      border: "1px solid rgba(156, 163, 175, 0.3)",
-                      borderRadius: "8px",
+                      padding: "14px",
+                      background: "linear-gradient(135deg, rgba(156, 163, 175, 0.08) 0%, rgba(156, 163, 175, 0.04) 100%)",
+                      border: "1px solid rgba(156, 163, 175, 0.25)",
+                      borderRadius: "10px",
                       textAlign: "center",
                       color: "#6b7280",
-                      fontSize: "12px",
+                      fontSize: "13px",
+                      fontWeight: "500",
                     }}
                   >
                     ℹ️ 입력 언어와 선택 언어가 동일하여 번역하지 않습니다
@@ -776,14 +797,14 @@ export default function Search() {
                 {!isTranslating && !translatedQuery && detectedLanguage !== targetLanguage && (
                   <div
                     style={{
-                      padding: "12px",
-                      background: "rgba(249, 115, 22, 0.05)",
-                      border: "1px dashed rgba(249, 115, 22, 0.3)",
-                      borderRadius: "8px",
+                      padding: "14px",
+                      background: "linear-gradient(135deg, rgba(124, 58, 237, 0.08) 0%, rgba(124, 58, 237, 0.04) 100%)",
+                      border: "1px solid rgba(124, 58, 237, 0.25)",
+                      borderRadius: "10px",
                       textAlign: "center",
-                      color: "#f97316",
-                      fontSize: "12px",
-                      fontWeight: "500",
+                      color: "#7c3aed",
+                      fontSize: "13px",
+                      fontWeight: "600",
                     }}
                   >
                     💬 검색 버튼을 클릭하면 번역 후 검색됩니다
