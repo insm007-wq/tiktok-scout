@@ -880,21 +880,29 @@ export default function Search() {
                 </label>
               </div>
 
-              {/* 플랫폼별 추천 표시 */}
-              {(platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" && (
-                <div
-                  style={{
-                    fontSize: "11px",
-                    color: "#000000",
-                    marginTop: "6px",
-                    padding: "6px 8px",
-                    backgroundColor: "#f5f5f5",
-                    borderRadius: "4px",
-                  }}
-                >
-                  💡 팁: {platform === "douyin" ? "Douyin" : "Xiaohongshu"}은 중국어 검색이 더 정확합니다
-                </div>
-              )}
+              {/* 플랫폼별 추천 표시 - 항상 표시 */}
+              <div
+                style={{
+                  fontSize: "11px",
+                  marginTop: "6px",
+                  padding: "6px 8px",
+                  backgroundColor: (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh"
+                    ? "#f5f5f5"
+                    : "transparent",
+                  borderRadius: "4px",
+                  minHeight: "28px",
+                  opacity: (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh"
+                    ? 1
+                    : 0,
+                  transition: "opacity 0.2s ease, background-color 0.2s ease",
+                }}
+              >
+                {(platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" && (
+                  <span style={{ color: "#000000" }}>
+                    💡 팁: {platform === "douyin" ? "Douyin" : "Xiaohongshu"}은 중국어 검색이 더 정확합니다
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* 필터 섹션 */}
