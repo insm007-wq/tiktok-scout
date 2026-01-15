@@ -883,14 +883,14 @@ export default function Search() {
               {/* 플랫폼별 추천 표시 - 항상 표시 */}
               <div
                 style={{
-                  fontSize: "13px",
+                  fontSize: "12px",
                   marginTop: "6px",
-                  padding: "10px 12px",
+                  padding: "8px 10px",
                   backgroundColor: (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh"
                     ? "#f5f5f5"
                     : "transparent",
                   borderRadius: "4px",
-                  minHeight: "36px",
+                  minHeight: "32px",
                   opacity: (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh"
                     ? 1
                     : 0,

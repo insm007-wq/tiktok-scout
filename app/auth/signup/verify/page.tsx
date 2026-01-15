@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { AlertCircle, CheckCircle2, Loader2, RefreshCw } from 'lucide-react'
 
 export default function VerifyPage() {
@@ -234,6 +235,16 @@ export default function VerifyPage() {
           >
             ← 회원가입으로 돌아가기
           </button>
+        </div>
+
+        {/* 메인으로 버튼 */}
+        <div className="text-center mt-6">
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center px-6 py-2 text-sm font-semibold text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 border border-gray-300 hover:border-gray-400 rounded-lg transition-all"
+          >
+            ← 메인으로
+          </Link>
         </div>
       </div>
     </div>
