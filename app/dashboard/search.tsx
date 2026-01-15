@@ -111,12 +111,7 @@ export default function Search() {
   const handleVideoCardMouseEnter = useCallback((video: Video) => {
     setHoveredVideoId(video.id);
 
-    // Douyin은 프리뷰 보류 (다른 플랫폼만 재생)
-    if (platform === 'douyin') {
-      return;
-    }
-
-    // 0.2초 후 즉시 재생 (videoUrl은 이미 있음)
+    // 0.2초 후 즉시 재생 (videoUrl이 있으면 재생)
     const delay = 200;
 
     hoverTimeoutRef.current = setTimeout(() => {
@@ -124,7 +119,7 @@ export default function Search() {
         setPlayingVideoId(video.id);
       }
     }, delay);
-  }, [platform]);
+  }, []);
 
   // 비디오 카드 마우스 아웃 핸들러
   const handleVideoCardMouseLeave = useCallback(() => {

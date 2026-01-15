@@ -121,13 +121,13 @@ export async function POST(req: NextRequest) {
     // 캐시 확인 (L1 메모리 + L2 MongoDB)
     const cached = await getVideoFromCache(query, platform, dateRange);
     if (cached) {
-      console.log(`[Cache] ✅ 캐시 히트: ${platform} - "${query}"`);
+      console.log(`[Cache] ✅ 캐시 히트: ${platform} - "${query}" (${cached.videos.length}개)`);
       return NextResponse.json({
         success: true,
         query,
         platform,
-        videos: cached.videos.slice(0, limit),
-        count: { videos: Math.min(cached.videos.length, limit) },
+        videos: cached.videos,
+        count: { videos: cached.videos.length },
         fromCache: true,
       });
     }
