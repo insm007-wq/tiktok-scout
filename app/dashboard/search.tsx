@@ -883,22 +883,24 @@ export default function Search() {
               {/* 플랫폼별 추천 표시 - 항상 표시 */}
               <div
                 style={{
-                  fontSize: "11px",
+                  fontSize: "13px",
                   marginTop: "6px",
-                  padding: "6px 8px",
+                  padding: "10px 12px",
                   backgroundColor: (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh"
                     ? "#f5f5f5"
                     : "transparent",
                   borderRadius: "4px",
-                  minHeight: "28px",
+                  minHeight: "36px",
                   opacity: (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh"
                     ? 1
                     : 0,
                   transition: "opacity 0.2s ease, background-color 0.2s ease",
+                  display: "flex",
+                  alignItems: "center",
                 }}
               >
                 {(platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" && (
-                  <span style={{ color: "#000000" }}>
+                  <span style={{ color: "#000000", fontWeight: "600" }}>
                     💡 팁: {platform === "douyin" ? "Douyin" : "Xiaohongshu"}은 중국어 검색이 더 정확합니다
                   </span>
                 )}
