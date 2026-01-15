@@ -46,7 +46,6 @@ export async function POST(req: NextRequest) {
     // 캐시 확인
     const cached = getTranslationFromCache(text, targetLanguage);
     if (cached) {
-      console.log(`[Translation] 캐시에서 조회됨: ${text} → ${cached}`);
       return NextResponse.json({
         success: true,
         originalText: text,
@@ -59,7 +58,6 @@ export async function POST(req: NextRequest) {
 
     // 소스/타겟 언어가 같으면 번역 불필요
     if (sourceLanguage === targetLanguage) {
-      console.log(`[Translation] 스킵됨: 입력 언어와 선택 언어가 동일 (${sourceLanguage})`);
       return NextResponse.json({
         success: true,
         originalText: text,
@@ -70,13 +68,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    console.log(`[Translation] 시작: ${text} (${sourceLanguage}) → (${targetLanguage})`);
-
     // Google Translate (MyMemory API) - 무료 번역
     const targetLangCode = targetLanguage === 'zh' ? 'zh-CN' : targetLanguage;
     const sourceLangCode = sourceLanguage === 'zh' ? 'zh-CN' : sourceLanguage;
-
-    console.log(`[Translation] MyMemory 호출:`, { sourceLangCode, targetLangCode, text });
 
     const translatedText = await translateWithGoogle(text, sourceLangCode, targetLangCode);
 

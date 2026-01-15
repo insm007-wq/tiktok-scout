@@ -21,6 +21,8 @@ import VideoLengthFilter from "@/app/components/Filters/VideoLengthFilter/VideoL
 import EngagementRatioFilter from "@/app/components/Filters/EngagementRatioFilter/EngagementRatioFilter";
 import { formatDateWithTime, getRelativeDateString } from "@/lib/dateUtils";
 import { formatNumber, formatVideoDuration } from "@/lib/formatters";
+import UserDropdown from "@/app/components/UserDropdown/UserDropdown";
+import { SearchProgress } from "@/components/SearchProgress";
 import "./search.css";
 
 type Platform = "tiktok" | "douyin" | "xiaohongshu";
@@ -83,6 +85,7 @@ export default function Search() {
   const resizeRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Toast 추가 함수
   const addToast = useCallback((type: 'success' | 'error' | 'warning' | 'info', message: string, title?: string, duration = 3000) => {
@@ -108,12 +111,7 @@ export default function Search() {
   const handleVideoCardMouseEnter = useCallback((video: Video) => {
     setHoveredVideoId(video.id);
 
-    // Douyin은 프리뷰 보류 (다른 플랫폼만 재생)
-    if (platform === 'douyin') {
-      return;
-    }
-
-    // 0.2초 후 즉시 재생 (videoUrl은 이미 있음)
+    // 0.2초 후 즉시 재생 (videoUrl이 있으면 재생)
     const delay = 200;
 
     hoverTimeoutRef.current = setTimeout(() => {
@@ -121,7 +119,7 @@ export default function Search() {
         setPlayingVideoId(video.id);
       }
     }, delay);
-  }, [platform]);
+  }, []);
 
   // 비디오 카드 마우스 아웃 핸들러
   const handleVideoCardMouseLeave = useCallback(() => {
@@ -337,7 +335,6 @@ export default function Search() {
     // 1. 입력 언어 감지
     const inputLanguage = detectLanguage(searchInput);
     setDetectedLanguage(inputLanguage);
-    console.log(`[Language Detection] Detected: ${inputLanguage}, Target: ${targetLanguage}`);
 
     // 2. 번역이 필요한지 확인 (입력 언어 ≠ 선택 언어)
     const needsTranslation = inputLanguage !== targetLanguage;
@@ -356,7 +353,6 @@ export default function Search() {
         });
 
         const translateData = await translateRes.json();
-        console.log(`[Translation API Response]:`, translateData);
 
         if (!translateRes.ok) {
           console.error(`[Translation] API Error: ${translateRes.status}`, translateData);
@@ -367,7 +363,6 @@ export default function Search() {
         if (translateData.success && translateData.translatedText) {
           searchQuery = translateData.translatedText;
           setTranslatedQuery(searchQuery);
-          console.log(`[Translation] ✅ ${searchInput} (${inputLanguage}) → ${searchQuery} (${targetLanguage})`);
         } else {
           console.warn("[Translation] Invalid response:", translateData);
           setError(`번역 실패: 잘못된 응답 형식`);
@@ -378,14 +373,15 @@ export default function Search() {
       } finally {
         setIsTranslating(false);
       }
-    } else {
-      console.log(`[Translation] Skipped: Input is already in ${targetLanguage}`);
     }
 
     // 검색 히스토리 저장
     const newHistory = [searchInput, ...searchHistory.filter(item => item !== searchInput)].slice(0, 10);
     setSearchHistory(newHistory);
     localStorage.setItem("titok killa-search-history", JSON.stringify(newHistory));
+
+    // AbortController 생성
+    abortControllerRef.current = new AbortController();
 
     setIsLoading(true);
     setError("");
@@ -405,6 +401,7 @@ export default function Search() {
           limit: 50,
           dateRange: dateRange,
         }),
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) {
@@ -421,14 +418,20 @@ export default function Search() {
         setVideos([]);
         setError(data.error || "검색 결과가 없습니다");
       }
-    } catch (error) {
-      console.error("검색 오류:", error);
-      setError(error instanceof Error ? error.message : "검색 중 오류가 발생했습니다");
-      setVideos([]);
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('[Search] 사용자가 검색을 취소했습니다.');
+        addToast('error', '검색이 취소되었습니다.');
+      } else {
+        console.error("검색 오류:", error);
+        setError(error instanceof Error ? error.message : "검색 중 오류가 발생했습니다");
+        setVideos([]);
+      }
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
-  }, [searchInput, platform, targetLanguage, searchHistory, filters.uploadPeriod]);
+  }, [searchInput, platform, targetLanguage, searchHistory, filters.uploadPeriod, addToast]);
 
   // 디바운싱된 검색 함수
   const debouncedSearch = useCallback(() => {
@@ -447,6 +450,14 @@ export default function Search() {
       debouncedSearch();
     }
   };
+
+  const handleCancelSearch = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  }, []);
 
   // 히스토리 항목 클릭 - 검색 입력 필드에만 값 설정
   const handleHistoryClick = useCallback((keyword: string) => {
@@ -550,50 +561,42 @@ export default function Search() {
     setDownloadingVideoId(video.id);
 
     try {
-      // videoUrl이 있으면 서버 API로 다운로드
-      if (video.videoUrl) {
-        console.log("[Download] API를 통한 다운로드:", video.id);
+      console.log("[Download] API를 통한 다운로드:", video.id);
 
-        const response = await fetch("/api/download-video", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            videoUrl: video.videoUrl,
-            videoId: video.id,
-            platform,  // ✅ 플랫폼 정보 전달
-          }),
-        });
+      const response = await fetch("/api/download-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoUrl: video.videoUrl,
+          videoId: video.id,
+          platform,
+          webVideoUrl: video.webVideoUrl,  // Pass webVideoUrl for Xiaohongshu
+        }),
+      });
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "다운로드 실패");
-        }
-
-        // Blob으로 변환
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-
-        // 플랫폼별 파일명 설정
-        const filePrefix = platform === 'douyin' ? 'douyin' :
-                          platform === 'xiaohongshu' ? 'xiaohongshu' : 'tiktok';
-        link.download = `${filePrefix}_${video.id}.mp4`;
-
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-
-        console.log("[Download] ✅ 다운로드 완료:", video.title);
-        addToast('success', '영상이 다운로드 폴더에 저장되었습니다', '✅ 다운로드 완료', 3000);
-      } else if (video.webVideoUrl) {
-        // webVideoUrl만 있으면 링크 복사만 진행 (외부 사이트 제거)
-        console.log("[Download] 링크 복사:", video.webVideoUrl);
-
-        await navigator.clipboard.writeText(video.webVideoUrl);
-        addToast('info', '영상 링크가 클립보드에 복사되었습니다.', '📋 링크 복사됨', 3000);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "다운로드 실패");
       }
+
+      // Blob으로 변환
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+
+      // 플랫폼별 파일명 설정
+      const filePrefix = platform === 'douyin' ? 'douyin' :
+                        platform === 'xiaohongshu' ? 'xiaohongshu' : 'tiktok';
+      link.download = `${filePrefix}_${video.id}.mp4`;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      console.log("[Download] ✅ 다운로드 완료:", video.title);
+      addToast('success', '영상이 다운로드 폴더에 저장되었습니다', '✅ 다운로드 완료', 3000);
     } catch (error) {
       console.error("[Download] Error:", error);
       const errorMsg = error instanceof Error ? error.message : "알 수 없는 오류";
@@ -1024,6 +1027,7 @@ export default function Search() {
                 <Download size={16} style={{ display: "inline", marginRight: "4px" }} />
                 엑셀
               </button>
+              <UserDropdown />
             </div>
           </div>
 
@@ -1035,7 +1039,12 @@ export default function Search() {
             overflowY: 'auto'
           }}>
             {isLoading ? (
-              <Spinner text="검색 중..." />
+              <div style={{ width: '100%', maxWidth: '600px' }}>
+                <SearchProgress
+                  isSearching={isLoading}
+                  onCancel={handleCancelSearch}
+                />
+              </div>
             ) : results.length === 0 ? (
               <div className="no-results" style={{
                 display: "flex",
@@ -1108,10 +1117,12 @@ export default function Search() {
                           />
                         )}
 
-                        {/* Duration 뱃지 - 왼쪽 상단 */}
-                        <div className="card-duration-badge">
-                          {formatVideoDuration(video.videoDuration)}
-                        </div>
+                        {/* Duration 뱃지 - 왼쪽 상단 (샤오홍슈 제외) */}
+                        {platform !== 'xiaohongshu' && (
+                          <div className="card-duration-badge">
+                            {formatVideoDuration(video.videoDuration)}
+                          </div>
+                        )}
 
                         {/* Date 뱃지 - 오른쪽 상단 */}
                         {video.createTime && (
@@ -1231,7 +1242,9 @@ export default function Search() {
                           <td className="table-author" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{video.creator}</td>
                           <td className="table-number">{video.followerCount ? formatNumber(video.followerCount) : "-"}</td>
                           <td className="table-number" style={{ fontSize: "11px" }}>{formatDateWithTime(video.createTime)}</td>
-                          <td className="table-number">{formatVideoDuration(video.videoDuration)}</td>
+                          {platform !== 'xiaohongshu' && (
+                            <td className="table-number">{formatVideoDuration(video.videoDuration)}</td>
+                          )}
                           <td className="table-number">{formatNumber(video.playCount)}</td>
                           <td className="table-number">{formatNumber(video.likeCount)}</td>
                           <td className="table-number">{formatNumber(video.commentCount)}</td>

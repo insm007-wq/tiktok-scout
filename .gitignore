@@ -37,3 +37,9 @@ yarn-error.log*
 
 # OS
 nul
+
+# Claude Code temporary files
+tmpclaude-*-cwd
+
+# Claude metadata
+.claude/

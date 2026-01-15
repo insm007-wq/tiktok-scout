@@ -2,16 +2,42 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { videoUrl, videoId, platform = 'tiktok' } = await req.json();
+    const { videoUrl, videoId, platform = 'tiktok', webVideoUrl } = await req.json();
 
-    if (!videoUrl) {
+    let finalVideoUrl = videoUrl;
+
+    // Handle Xiaohongshu on-demand video URL fetching
+    if (platform === 'xiaohongshu' && !videoUrl && webVideoUrl) {
+      console.log('[Download] Xiaohongshu: Fetching video URL from post URL...');
+
+      try {
+        const fetchRes = await fetch('http://localhost:3000/api/fetch-xiaohongshu-video', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ postUrl: webVideoUrl }),
+        });
+
+        const fetchData = await fetchRes.json();
+
+        if (!fetchData.success) {
+          throw new Error(fetchData.error || 'Failed to fetch video URL');
+        }
+
+        finalVideoUrl = fetchData.videoUrl;
+        console.log('[Download] Xiaohongshu video URL obtained');
+      } catch (error) {
+        console.error('[Download] Xiaohongshu video URL fetch failed:', error);
+        const errorMsg = error instanceof Error ? error.message : '샤오홍슈 영상 URL을 가져올 수 없습니다.';
+        throw new Error(errorMsg);
+      }
+    }
+
+    if (!finalVideoUrl) {
       return NextResponse.json(
         { error: '비디오 URL이 필요합니다.' },
         { status: 400 }
       );
     }
-
-    console.log('[Download] 비디오 다운로드 시작:', videoId, `(${platform})`);
 
     // 플랫폼별 Referer 설정
     const refererMap: Record<string, string> = {
@@ -21,7 +47,7 @@ export async function POST(req: NextRequest) {
     };
 
     // 비디오 URL에서 파일 fetch
-    const videoResponse = await fetch(videoUrl, {
+    const videoResponse = await fetch(finalVideoUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Referer': refererMap[platform] || 'https://www.tiktok.com/',
@@ -36,13 +62,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Validate Content-Type
+    const contentType = videoResponse.headers.get('Content-Type');
+    console.log('[Download] Content-Type:', contentType);
+
+    if (!contentType || !(contentType.includes('video') || contentType.includes('octet-stream'))) {
+      console.error('[Download] Invalid Content-Type:', contentType);
+      console.error('[Download] Response might be an error page, not a video');
+      return NextResponse.json(
+        { error: '다운로드한 파일이 비디오 형식이 아닙니다. CDN 접근 권한 문제일 수 있습니다.' },
+        { status: 400 }
+      );
+    }
+
     const buffer = await videoResponse.arrayBuffer();
 
-    console.log('[Download] 다운로드 완료:', {
-      videoId,
-      platform,
-      size: `${(buffer.byteLength / 1024 / 1024).toFixed(2)}MB`,
-    });
+    // Validate file size (at least 50KB for a valid video)
+    if (buffer.byteLength < 50000) {
+      console.error('[Download] File too small:', buffer.byteLength, 'bytes');
+      console.error('[Download] This is likely an error page, not a real video');
+      return NextResponse.json(
+        { error: `다운로드한 파일이 너무 작습니다 (${buffer.byteLength} bytes). 유효한 비디오가 아닙니다.` },
+        { status: 400 }
+      );
+    }
+
+    console.log('[Download] Video file size:', buffer.byteLength, 'bytes');
 
     // 파일명 생성 (플랫폼별)
     const filePrefix = platform === 'douyin' ? 'douyin' :

@@ -19,7 +19,7 @@ export async function connectToDatabase() {
 
   try {
     await client.connect()
-    const db = client.db('youtube-search')
+    const db = client.db('tiktok-scout')
 
     cachedClient = client
     cachedDb = db
@@ -46,6 +46,7 @@ async function initializeIndexes(db: Db) {
   try {
     const usageCollection = db.collection('api_usage')
     const usersCollection = db.collection('users')
+    const cacheCollection = db.collection('video_cache')
 
     // api_usage: email + date 복합 인덱스 (email 기반)
     await usageCollection.createIndex(
@@ -64,6 +65,26 @@ async function initializeIndexes(db: Db) {
     await usersCollection.createIndex({ lastActive: -1 })
     await usersCollection.createIndex({ createdAt: -1 })
 
+    // video_cache: TTL 인덱스 (자동 삭제)
+    await cacheCollection.createIndex(
+      { expiresAt: 1 },
+      { expireAfterSeconds: 0 }
+    )
+
+    // video_cache: 캐시 조회 최적화 (cacheKey unique)
+    await cacheCollection.createIndex(
+      { cacheKey: 1 },
+      { unique: true }
+    )
+
+    // video_cache: 검색 필터 (platform, query, dateRange 기반 조회)
+    await cacheCollection.createIndex(
+      { platform: 1, query: 1, dateRange: 1 }
+    )
+
+    // video_cache: 인기 검색어 분석용
+    await cacheCollection.createIndex({ accessCount: -1 })
+
     console.log('✓ MongoDB 인덱스 생성 완료')
   } catch (error) {
     if ((error as any).code === 48 || (error as any).code === 68) {
@@ -72,6 +93,14 @@ async function initializeIndexes(db: Db) {
     }
     console.warn('⚠️ MongoDB 인덱스 생성 경고:', (error as any).message)
   }
+}
+
+export async function getDb() {
+  if (!cachedDb) {
+    const { db } = await connectToDatabase()
+    return db
+  }
+  return cachedDb
 }
 
 export async function closeDatabase() {

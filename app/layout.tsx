@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { Providers } from './providers'
 
 export const metadata: Metadata = {
   title: 'tiktok killa',
@@ -19,7 +20,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="bg-white text-gray-900 dark:bg-zinc-950 dark:text-white">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   )
