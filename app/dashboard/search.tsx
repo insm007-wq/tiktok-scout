@@ -1,18 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import {
-  LayoutGrid,
-  Table2,
-  Download,
-  Play,
-  Heart,
-  MessageCircle,
-  Share2,
-  Info,
-  ExternalLink,
-  Loader
-} from "lucide-react";
+import { LayoutGrid, Table2, Download, Play, Heart, MessageCircle, Share2, Info, ExternalLink, Loader } from "lucide-react";
 import Toast, { type Toast as ToastType } from "@/app/components/Toast/Toast";
 import Spinner from "@/app/components/ui/Spinner";
 import ViewCountFilter from "@/app/components/Filters/ViewCountFilter/ViewCountFilter";
@@ -88,7 +77,7 @@ export default function Search() {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Toast 추가 함수
-  const addToast = useCallback((type: 'success' | 'error' | 'warning' | 'info', message: string, title?: string, duration = 3000) => {
+  const addToast = useCallback((type: "success" | "error" | "warning" | "info", message: string, title?: string, duration = 3000) => {
     const id = Math.random().toString(36).substr(2, 9);
     const newToast: ToastType = { id, type, message, title, duration };
     setToasts((prev) => [...prev, newToast]);
@@ -265,10 +254,7 @@ export default function Search() {
       }
 
       // 4. Engagement 점수 필터 (좋아요 + 댓글 + 공유 합산)
-      if (
-        filterState.engagementScore.length > 0 &&
-        !filterState.engagementScore.includes("all")
-      ) {
+      if (filterState.engagementScore.length > 0 && !filterState.engagementScore.includes("all")) {
         const totalEngagement = video.likeCount + video.commentCount + video.shareCount;
         const engagementRatio = video.playCount > 0 ? totalEngagement / video.playCount : 0;
 
@@ -316,9 +302,7 @@ export default function Search() {
 
   const results = useMemo(() => {
     // 중복 제거 (같은 ID를 가진 영상이 여러 번 나타나는 경우 방지)
-    const uniqueVideos = Array.from(
-      new Map(videos.map((video) => [video.id, video])).values()
-    );
+    const uniqueVideos = Array.from(new Map(videos.map((video) => [video.id, video])).values());
     const filtered = filterVideos(uniqueVideos, filters);
     return sortVideos(filtered, sortBy);
   }, [videos, filters, sortBy]);
@@ -356,7 +340,7 @@ export default function Search() {
 
         if (!translateRes.ok) {
           console.error(`[Translation] API Error: ${translateRes.status}`, translateData);
-          setError(`번역 실패: ${translateData.error || '알 수 없는 오류'}`);
+          setError(`번역 실패: ${translateData.error || "알 수 없는 오류"}`);
           throw new Error(translateData.error || `HTTP ${translateRes.status}`);
         }
 
@@ -369,14 +353,14 @@ export default function Search() {
         }
       } catch (error) {
         console.error("[Translation] Exception:", error);
-        setError(`번역 오류: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+        setError(`번역 오류: ${error instanceof Error ? error.message : "알 수 없는 오류"}`);
       } finally {
         setIsTranslating(false);
       }
     }
 
     // 검색 히스토리 저장
-    const newHistory = [searchInput, ...searchHistory.filter(item => item !== searchInput)].slice(0, 10);
+    const newHistory = [searchInput, ...searchHistory.filter((item) => item !== searchInput)].slice(0, 10);
     setSearchHistory(newHistory);
     localStorage.setItem("titok killa-search-history", JSON.stringify(newHistory));
 
@@ -390,7 +374,7 @@ export default function Search() {
     try {
       // Bright Data API 호출 (번역된 쿼리 사용)
       // Xiaohongshu는 기간 필터를 지원하지 않으므로 "all"로 고정
-      const dateRange = platform === 'xiaohongshu' ? 'all' : filters.uploadPeriod;
+      const dateRange = platform === "xiaohongshu" ? "all" : filters.uploadPeriod;
 
       const response = await fetch("/api/brightdata/search", {
         method: "POST",
@@ -419,9 +403,9 @@ export default function Search() {
         setError(data.error || "검색 결과가 없습니다");
       }
     } catch (error: any) {
-      if (error.name === 'AbortError') {
-        console.log('[Search] 사용자가 검색을 취소했습니다.');
-        addToast('error', '검색이 취소되었습니다.');
+      if (error.name === "AbortError") {
+        console.log("[Search] 사용자가 검색을 취소했습니다.");
+        addToast("error", "검색이 취소되었습니다.");
       } else {
         console.error("검색 오류:", error);
         setError(error instanceof Error ? error.message : "검색 중 오류가 발생했습니다");
@@ -467,7 +451,7 @@ export default function Search() {
   // 히스토리 항목 삭제
   const handleDeleteHistory = (e: React.MouseEvent, keyword: string) => {
     e.stopPropagation();
-    const newHistory = searchHistory.filter(item => item !== keyword);
+    const newHistory = searchHistory.filter((item) => item !== keyword);
     setSearchHistory(newHistory);
     localStorage.setItem("titok killa-search-history", JSON.stringify(newHistory));
   };
@@ -497,13 +481,7 @@ export default function Search() {
 
     (results as Video[]).forEach((video) => {
       const engagementRate =
-        video.playCount > 0
-          ? (
-              ((video.likeCount + video.commentCount + video.shareCount) /
-                video.playCount) *
-              100
-            ).toFixed(2)
-          : "-";
+        video.playCount > 0 ? (((video.likeCount + video.commentCount + video.shareCount) / video.playCount) * 100).toFixed(2) : "-";
       const videoDurationStr = formatVideoDuration(video.videoDuration);
 
       csvRows.push([
@@ -523,10 +501,7 @@ export default function Search() {
       ]);
     });
 
-    const csv = [
-      csvHeader.join(","),
-      ...csvRows.map((row) => row.join(",")),
-    ].join("\n");
+    const csv = [csvHeader.join(","), ...csvRows.map((row) => row.join(","))].join("\n");
 
     const blob = new Blob(["\uFEFF" + csv], {
       type: "text/csv;charset=utf-8;",
@@ -534,10 +509,7 @@ export default function Search() {
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `${platform}-videos-${new Date().toISOString().split("T")[0]}.csv`
-    );
+    link.setAttribute("download", `${platform}-videos-${new Date().toISOString().split("T")[0]}.csv`);
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
@@ -554,7 +526,7 @@ export default function Search() {
   // 영상 다운로드 (클립보드 복사 + 외부 다운로더 열기)
   const handleDownloadVideo = async (video: Video) => {
     if (!video.videoUrl && !video.webVideoUrl) {
-      addToast('error', '영상 다운로드 정보를 불러올 수 없습니다.', '❌ 오류');
+      addToast("error", "영상 다운로드 정보를 불러올 수 없습니다.", "❌ 오류");
       return;
     }
 
@@ -570,7 +542,7 @@ export default function Search() {
           videoUrl: video.videoUrl,
           videoId: video.id,
           platform,
-          webVideoUrl: video.webVideoUrl,  // Pass webVideoUrl for Xiaohongshu
+          webVideoUrl: video.webVideoUrl, // Pass webVideoUrl for Xiaohongshu
         }),
       });
 
@@ -586,8 +558,7 @@ export default function Search() {
       link.href = url;
 
       // 플랫폼별 파일명 설정
-      const filePrefix = platform === 'douyin' ? 'douyin' :
-                        platform === 'xiaohongshu' ? 'xiaohongshu' : 'tiktok';
+      const filePrefix = platform === "douyin" ? "douyin" : platform === "xiaohongshu" ? "xiaohongshu" : "tiktok";
       link.download = `${filePrefix}_${video.id}.mp4`;
 
       document.body.appendChild(link);
@@ -596,11 +567,11 @@ export default function Search() {
       window.URL.revokeObjectURL(url);
 
       console.log("[Download] ✅ 다운로드 완료:", video.title);
-      addToast('success', '영상이 다운로드 폴더에 저장되었습니다', '✅ 다운로드 완료', 3000);
+      addToast("success", "영상이 다운로드 폴더에 저장되었습니다", "✅ 다운로드 완료", 3000);
     } catch (error) {
       console.error("[Download] Error:", error);
       const errorMsg = error instanceof Error ? error.message : "알 수 없는 오류";
-      addToast('error', errorMsg, '❌ 다운로드 실패', 5000);
+      addToast("error", errorMsg, "❌ 다운로드 실패", 5000);
     } finally {
       setDownloadingVideoId(null);
     }
@@ -611,11 +582,7 @@ export default function Search() {
 
   return (
     <>
-      <Toast
-        toasts={toasts}
-        onRemove={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))}
-        position="top-center"
-      />
+      <Toast toasts={toasts} onRemove={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} position="top-center" />
       <div className="main-container">
         {/* 왼쪽 패널 */}
         <div className="sidebar" style={{ width: `${sidebarWidth}px` }}>
@@ -624,7 +591,7 @@ export default function Search() {
             onClick={handleTitleClick}
             style={{ cursor: "pointer", transition: "opacity 0.3s", opacity: isTitleRefreshing ? 0.5 : 1 }}
           >
-            Titok Killa
+            Tictalk Killa
           </div>
 
           <div className="search-section">
@@ -644,17 +611,9 @@ export default function Search() {
                   {searchHistory.length > 0 && searchInput === "" && (
                     <div className="search-history-dropdown active">
                       {searchHistory.map((keyword) => (
-                        <div
-                          key={keyword}
-                          className="history-item"
-                          onClick={() => handleHistoryClick(keyword)}
-                        >
+                        <div key={keyword} className="history-item" onClick={() => handleHistoryClick(keyword)}>
                           <span>{keyword}</span>
-                          <button
-                            className="history-delete"
-                            onClick={(e) => handleDeleteHistory(e, keyword)}
-                            title="삭제"
-                          >
+                          <button className="history-delete" onClick={(e) => handleDeleteHistory(e, keyword)} title="삭제">
                             ✕
                           </button>
                         </div>
@@ -668,103 +627,124 @@ export default function Search() {
               </div>
             </div>
 
-            {/* 번역 정보 표시 (검색어 입력 바로 아래) */}
+            {/* 번역 정보 표시 (검색어 입력 바로 아래) - 항상 표시 */}
             {searchInput && (
-              <div style={{
-                marginTop: "12px",
-                padding: "12px",
-                backgroundColor: "#ffffff",
-                borderRadius: "8px",
-                border: "1px solid rgba(0, 0, 0, 0.08)"
-              }}>
-                <div style={{
-                  fontSize: "11px",
-                  fontWeight: "600",
-                  color: "#6b6b6b",
-                  marginBottom: "8px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.4px"
-                }}>
-                  📝 검색 정보
-                </div>
-
+              <div
+                style={{
+                  marginTop: "12px",
+                  padding: "12px",
+                  backgroundColor: "rgba(255, 255, 255, 0.95)",
+                  border: "1px solid rgba(0, 0, 0, 0.08)",
+                  borderRadius: "10px",
+                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.06)",
+                  minHeight: "80px",
+                }}
+              >
                 {/* 원문 표시 */}
-                <div style={{
-                  marginBottom: "8px",
-                  padding: "8px",
-                  backgroundColor: "#f5f5f5",
-                  borderRadius: "6px",
-                  border: "1px solid rgba(0, 0, 0, 0.08)"
-                }}>
-                  <div style={{
-                    fontSize: "10px",
-                    color: "#9ca3af",
-                    marginBottom: "4px"
-                  }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                    marginBottom: translatedQuery || isTranslating ? "12px" : "0",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "10px",
+                      color: "#9ca3af",
+                      fontWeight: "600",
+                    }}
+                  >
                     📋 원문 ({detectedLanguage === "ko" ? "한국어" : detectedLanguage === "zh" ? "中文" : "English"})
                   </div>
-                  <div style={{
-                    fontSize: "13px",
-                    fontWeight: "600",
-                    color: "#1a1a1a",
-                    wordBreak: "break-word"
-                  }}>
+                  <div
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      color: "#1a1a1a",
+                    }}
+                  >
                     "{searchInput}"
                   </div>
                 </div>
 
-                {/* 번역본 표시 (필요시) */}
-                {translatedQuery && translatedQuery !== searchInput && (
+                {/* 번역 중 상태 */}
+                {isTranslating && (
+                  <div
+                    style={{
+                      padding: "12px",
+                      background: "rgba(59, 130, 246, 0.05)",
+                      border: "1px dashed rgba(59, 130, 246, 0.3)",
+                      borderRadius: "8px",
+                      textAlign: "center",
+                      color: "#3b82f6",
+                      fontSize: "13px",
+                      fontWeight: "600",
+                    }}
+                  >
+                    ⏳ 번역 중...
+                  </div>
+                )}
+
+                {/* 번역본 표시 (translatedQuery가 있고 원문과 다를 때) */}
+                {!isTranslating && translatedQuery && translatedQuery !== searchInput && (
                   <>
-                    <div style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      marginBottom: "8px",
-                      fontSize: "12px",
-                      color: "#6b6b6b"
-                    }}>
+                    <div
+                      style={{
+                        textAlign: "center",
+                        fontSize: "12px",
+                        color: "#9ca3af",
+                        margin: "8px 0",
+                      }}
+                    >
                       ↓ 번역됨 ↓
                     </div>
-                    <div style={{
-                      marginBottom: "8px",
-                      padding: "8px",
-                      backgroundColor: "#f5f5f5",
-                      borderRadius: "6px",
-                      border: "1px solid rgba(0, 0, 0, 0.08)"
-                    }}>
-                      <div style={{
-                        fontSize: "10px",
-                        color: "#000000",
-                        marginBottom: "4px",
-                        fontWeight: "600"
-                      }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "6px",
+                        padding: "10px",
+                        background: "rgba(34, 197, 94, 0.05)",
+                        border: "1px solid rgba(34, 197, 94, 0.2)",
+                        borderRadius: "8px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: "10px",
+                          color: "#000000",
+                          fontWeight: "600",
+                        }}
+                      >
                         🌐 번역본 ({targetLanguage === "ko" ? "한국어" : targetLanguage === "zh" ? "中文" : "English"})
                       </div>
-                      <div style={{
-                        fontSize: "13px",
-                        fontWeight: "600",
-                        color: "#1a1a1a",
-                        wordBreak: "break-word",
-                        marginBottom: "8px"
-                      }}>
+                      <div
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: "600",
+                          color: "#16a34a",
+                        }}
+                      >
                         "{translatedQuery}"
                       </div>
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(translatedQuery);
-                          addToast('success', '번역 결과가 클립보드에 복사되었습니다!', '📋 복사 완료');
+                          addToast("success", "번역 결과가 클립보드에 복사되었습니다!", "📋 복사 완료");
                         }}
                         style={{
-                          width: "100%",
-                          padding: "6px",
-                          background: "linear-gradient(135deg, #000000 0%, #1a1a1a 100%)",
-                          color: "#ffffff",
+                          marginTop: "8px",
+                          padding: "6px 12px",
+                          background: "#22c55e",
+                          color: "white",
                           border: "none",
-                          borderRadius: "4px",
-                          cursor: "pointer",
+                          borderRadius: "6px",
                           fontSize: "11px",
-                          fontWeight: "600"
+                          fontWeight: "600",
+                          cursor: "pointer",
+                          transition: "all 0.2s",
                         }}
                       >
                         📋 복사
@@ -773,18 +753,38 @@ export default function Search() {
                   </>
                 )}
 
-                {/* 번역 안 됨 표시 */}
-                {!translatedQuery && searchInput && detectedLanguage === targetLanguage && (
-                  <div style={{
-                    padding: "8px",
-                    backgroundColor: "#f5f5f5",
-                    borderRadius: "6px",
-                    border: "1px solid rgba(0, 0, 0, 0.08)",
-                    fontSize: "12px",
-                    color: "#000000",
-                    fontWeight: "500"
-                  }}>
+                {/* 번역 안 됨 안내 (같은 언어) */}
+                {!isTranslating && !translatedQuery && searchInput && detectedLanguage === targetLanguage && (
+                  <div
+                    style={{
+                      padding: "12px",
+                      background: "rgba(156, 163, 175, 0.1)",
+                      border: "1px solid rgba(156, 163, 175, 0.3)",
+                      borderRadius: "8px",
+                      textAlign: "center",
+                      color: "#6b7280",
+                      fontSize: "12px",
+                    }}
+                  >
                     ℹ️ 입력 언어와 선택 언어가 동일하여 번역하지 않습니다
+                  </div>
+                )}
+
+                {/* 번역 대기 상태 (검색 전) */}
+                {!isTranslating && !translatedQuery && detectedLanguage !== targetLanguage && (
+                  <div
+                    style={{
+                      padding: "12px",
+                      background: "rgba(249, 115, 22, 0.05)",
+                      border: "1px dashed rgba(249, 115, 22, 0.3)",
+                      borderRadius: "8px",
+                      textAlign: "center",
+                      color: "#f97316",
+                      fontSize: "12px",
+                      fontWeight: "500",
+                    }}
+                  >
+                    💬 검색 버튼을 클릭하면 번역 후 검색됩니다
                   </div>
                 )}
               </div>
@@ -794,10 +794,7 @@ export default function Search() {
             <div className="search-input-wrapper">
               <div className="search-label">플랫폼 선택</div>
               <div className="platform-selector">
-                <label
-                  className={`platform-option ${platform === "tiktok" ? "active" : ""}`}
-                  onClick={() => setPlatform("tiktok")}
-                >
+                <label className={`platform-option ${platform === "tiktok" ? "active" : ""}`} onClick={() => setPlatform("tiktok")}>
                   <input
                     type="radio"
                     name="platform"
@@ -809,10 +806,7 @@ export default function Search() {
                   <span className="platform-icon">🎵</span>
                   <span className="platform-name">TikTok</span>
                 </label>
-                <label
-                  className={`platform-option ${platform === "douyin" ? "active" : ""}`}
-                  onClick={() => setPlatform("douyin")}
-                >
+                <label className={`platform-option ${platform === "douyin" ? "active" : ""}`} onClick={() => setPlatform("douyin")}>
                   <input
                     type="radio"
                     name="platform"
@@ -846,10 +840,7 @@ export default function Search() {
             <div className="search-input-wrapper" style={{ marginTop: "16px" }}>
               <div className="search-label">검색 언어</div>
               <div className="platform-selector">
-                <label
-                  className={`platform-option ${targetLanguage === "ko" ? "active" : ""}`}
-                  onClick={() => setTargetLanguage("ko")}
-                >
+                <label className={`platform-option ${targetLanguage === "ko" ? "active" : ""}`} onClick={() => setTargetLanguage("ko")}>
                   <input
                     type="radio"
                     name="language"
@@ -861,10 +852,7 @@ export default function Search() {
                   <span className="platform-icon">🇰🇷</span>
                   <span className="platform-name">한국어</span>
                 </label>
-                <label
-                  className={`platform-option ${targetLanguage === "zh" ? "active" : ""}`}
-                  onClick={() => setTargetLanguage("zh")}
-                >
+                <label className={`platform-option ${targetLanguage === "zh" ? "active" : ""}`} onClick={() => setTargetLanguage("zh")}>
                   <input
                     type="radio"
                     name="language"
@@ -876,10 +864,7 @@ export default function Search() {
                   <span className="platform-icon">🇨🇳</span>
                   <span className="platform-name">中文</span>
                 </label>
-                <label
-                  className={`platform-option ${targetLanguage === "en" ? "active" : ""}`}
-                  onClick={() => setTargetLanguage("en")}
-                >
+                <label className={`platform-option ${targetLanguage === "en" ? "active" : ""}`} onClick={() => setTargetLanguage("en")}>
                   <input
                     type="radio"
                     name="language"
@@ -895,41 +880,58 @@ export default function Search() {
 
               {/* 플랫폼별 추천 표시 */}
               {(platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" && (
-                <div style={{
-                  fontSize: "11px",
-                  color: "#000000",
-                  marginTop: "6px",
-                  padding: "6px 8px",
-                  backgroundColor: "#f5f5f5",
-                  borderRadius: "4px"
-                }}>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: "#000000",
+                    marginTop: "6px",
+                    padding: "6px 8px",
+                    backgroundColor: "#f5f5f5",
+                    borderRadius: "4px",
+                  }}
+                >
                   💡 팁: {platform === "douyin" ? "Douyin" : "Xiaohongshu"}은 중국어 검색이 더 정확합니다
                 </div>
               )}
             </div>
 
             {/* 필터 섹션 */}
-            <div style={{
-              marginTop: "24px",
-              paddingTop: "0",
-            }}>
-              <div style={{
-                fontSize: "13px",
-                fontWeight: "700",
-                marginBottom: "16px",
-                color: "#000000",
-                letterSpacing: "0.5px",
-              }}>
+            <div
+              style={{
+                marginTop: "24px",
+                paddingTop: "0",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "13px",
+                  fontWeight: "700",
+                  marginBottom: "16px",
+                  color: "#000000",
+                  letterSpacing: "0.5px",
+                }}
+              >
                 필터
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                <div style={{
-                  background: "linear-gradient(135deg, #ffffff 0%, #fafafa 100%)",
-                  borderRadius: "8px",
-                  padding: "10px 8px",
-                }}>
-                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#000000", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                <div
+                  style={{
+                    background: "linear-gradient(135deg, #ffffff 0%, #fafafa 100%)",
+                    borderRadius: "8px",
+                    padding: "10px 8px",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: "600",
+                      color: "#000000",
+                      marginBottom: "6px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.4px",
+                    }}
+                  >
                     조회수
                   </div>
                   <ViewCountFilter
@@ -939,13 +941,24 @@ export default function Search() {
                   />
                 </div>
 
-                {platform !== 'xiaohongshu' && (
-                  <div style={{
-                    background: "linear-gradient(135deg, #ffffff 0%, #fafafa 100%)",
-                    borderRadius: "8px",
-                    padding: "10px 8px",
-                  }}>
-                    <div style={{ fontSize: "11px", fontWeight: "600", color: "#000000", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                {platform !== "xiaohongshu" && (
+                  <div
+                    style={{
+                      background: "linear-gradient(135deg, #ffffff 0%, #fafafa 100%)",
+                      borderRadius: "8px",
+                      padding: "10px 8px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: "600",
+                        color: "#000000",
+                        marginBottom: "6px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.4px",
+                      }}
+                    >
                       기간
                     </div>
                     <PeriodFilter
@@ -956,26 +969,45 @@ export default function Search() {
                   </div>
                 )}
 
-                <div style={{
-                  background: "linear-gradient(135deg, #ffffff 0%, #fafafa 100%)",
-                  borderRadius: "8px",
-                  padding: "10px 8px",
-                }}>
-                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#000000", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                <div
+                  style={{
+                    background: "linear-gradient(135deg, #ffffff 0%, #fafafa 100%)",
+                    borderRadius: "8px",
+                    padding: "10px 8px",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: "600",
+                      color: "#000000",
+                      marginBottom: "6px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.4px",
+                    }}
+                  >
                     길이
                   </div>
-                  <VideoLengthFilter
-                    value={filters.videoLength}
-                    onChange={(value) => setFilters({ ...filters, videoLength: value })}
-                  />
+                  <VideoLengthFilter value={filters.videoLength} onChange={(value) => setFilters({ ...filters, videoLength: value })} />
                 </div>
 
-                <div style={{
-                  background: "linear-gradient(135deg, #ffffff 0%, #fafafa 100%)",
-                  borderRadius: "8px",
-                  padding: "10px 8px",
-                }}>
-                  <div style={{ fontSize: "11px", fontWeight: "600", color: "#000000", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                <div
+                  style={{
+                    background: "linear-gradient(135deg, #ffffff 0%, #fafafa 100%)",
+                    borderRadius: "8px",
+                    padding: "10px 8px",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: "600",
+                      color: "#000000",
+                      marginBottom: "6px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.4px",
+                    }}
+                  >
                     인기도
                   </div>
                   <EngagementRatioFilter
@@ -988,7 +1020,17 @@ export default function Search() {
 
             {/* 에러 메시지 */}
             {error && (
-              <div style={{ color: "#ff6b6b", fontSize: "12px", marginTop: "10px", padding: "10px", backgroundColor: "rgba(255, 107, 107, 0.1)", borderRadius: "4px", border: "1px solid rgba(255, 107, 107, 0.3)" }}>
+              <div
+                style={{
+                  color: "#ff6b6b",
+                  fontSize: "12px",
+                  marginTop: "10px",
+                  padding: "10px",
+                  backgroundColor: "rgba(255, 107, 107, 0.1)",
+                  borderRadius: "4px",
+                  border: "1px solid rgba(255, 107, 107, 0.3)",
+                }}
+              >
                 {error}
               </div>
             )}
@@ -996,11 +1038,7 @@ export default function Search() {
         </div>
 
         {/* 리사이저 */}
-        <div
-          ref={resizeRef}
-          className="sidebar-resizer"
-          onMouseDown={() => setIsResizing(true)}
-        ></div>
+        <div ref={resizeRef} className="sidebar-resizer" onMouseDown={() => setIsResizing(true)}></div>
 
         {/* 오른쪽 컨텐츠 영역 */}
         <div className="content">
@@ -1031,40 +1069,44 @@ export default function Search() {
             </div>
           </div>
 
-          <div style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: isLoading || results.length === 0 ? 'center' : 'flex-start',
-            justifyContent: 'center',
-            overflowY: 'auto'
-          }}>
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: isLoading || results.length === 0 ? "center" : "flex-start",
+              justifyContent: "center",
+              overflowY: "auto",
+            }}
+          >
             {isLoading ? (
-              <div style={{ width: '100%', maxWidth: '600px' }}>
-                <SearchProgress
-                  isSearching={isLoading}
-                  onCancel={handleCancelSearch}
-                />
+              <div style={{ width: "100%", maxWidth: "600px" }}>
+                <SearchProgress isSearching={isLoading} onCancel={handleCancelSearch} />
               </div>
             ) : results.length === 0 ? (
-              <div className="no-results" style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                height: "100%",
-                padding: "40px 20px",
-              }}>
-                <div style={{
-                  width: "60px",
-                  height: "60px",
-                  borderRadius: "50%",
-                  backgroundColor: "#f5f5f5",
+              <div
+                className="no-results"
+                style={{
                   display: "flex",
+                  flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  marginBottom: "20px",
-                  fontSize: "28px"
-                }}>
+                  height: "100%",
+                  padding: "40px 20px",
+                }}
+              >
+                <div
+                  style={{
+                    width: "60px",
+                    height: "60px",
+                    borderRadius: "50%",
+                    backgroundColor: "#f5f5f5",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: "20px",
+                    fontSize: "28px",
+                  }}
+                >
                   🔍
                 </div>
                 <p style={{ fontSize: "16px", fontWeight: "600", marginBottom: "8px", color: "#1a1a1a", textAlign: "center" }}>
@@ -1076,188 +1118,185 @@ export default function Search() {
               </div>
             ) : (
               <>
-                <div style={{ width: '100%' }}>
+                <div style={{ width: "100%" }}>
                   <div className="results-count">총 {results.length}개의 영상</div>
                   {viewMode === "card" ? (
                     <div className="results-grid">
-                  {(results as Video[]).map((video) => (
-                    <div key={video.id} className="result-card">
-                      <div
-                        className="card-thumbnail-container"
-                        onClick={() => {
-                          if (video.webVideoUrl) {
-                            window.open(video.webVideoUrl, "_blank");
-                          }
-                        }}
-                        onMouseEnter={() => handleVideoCardMouseEnter(video)}
-                        onMouseLeave={handleVideoCardMouseLeave}
-                      >
-                        {/* 썸네일 */}
-                        {video.thumbnail ? (
-                          <img
-                            src={video.thumbnail}
-                            alt={video.title}
-                            className={`card-thumbnail ${playingVideoId === video.id ? 'card-thumbnail-hidden' : ''}`}
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="card-thumbnail-fallback">🎬</div>
-                        )}
-
-                        {/* 비디오 미리보기 */}
-                        {video.videoUrl && playingVideoId === video.id && (
-                          <video
-                            className="card-video-preview"
-                            src={video.videoUrl}
-                            autoPlay
-                            muted
-                            loop
-                            playsInline
-                            preload="auto"
-                          />
-                        )}
-
-                        {/* Duration 뱃지 - 왼쪽 상단 (샤오홍슈 제외) */}
-                        {platform !== 'xiaohongshu' && (
-                          <div className="card-duration-badge">
-                            {formatVideoDuration(video.videoDuration)}
-                          </div>
-                        )}
-
-                        {/* Date 뱃지 - 오른쪽 상단 */}
-                        {video.createTime && (
-                          <div className="card-date-badge">
-                            {getRelativeDateString(new Date(video.createTime))}
-                          </div>
-                        )}
-
-                        {/* 그라데이션 오버레이 - 하단 */}
-                        <div className="card-overlay">
-                          {/* 크리에이터 */}
-                          <div className="card-overlay-creator">
-                            <span>@{video.creator}</span>
-                            {video.followerCount && (
-                              <span style={{ fontSize: "10px", opacity: 0.9 }}>
-                                · {formatNumber(video.followerCount)}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* 제목 */}
-                          <div className="card-overlay-title">{video.title}</div>
-
-                          {/* 통계 */}
-                          <div className="card-overlay-stats">
-                            <div className="card-overlay-stat-item">
-                              <Play className="card-overlay-stat-icon" />
-                              <span>{formatNumber(video.playCount)}</span>
-                            </div>
-                            <div className="card-overlay-stat-item">
-                              <Heart className="card-overlay-stat-icon" />
-                              <span>{formatNumber(video.likeCount)}</span>
-                            </div>
-                            <div className="card-overlay-stat-item">
-                              <MessageCircle className="card-overlay-stat-icon" />
-                              <span>{formatNumber(video.commentCount)}</span>
-                            </div>
-                            <div className="card-overlay-stat-item">
-                              <Share2 className="card-overlay-stat-icon" />
-                              <span>{formatNumber(video.shareCount)}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 오른쪽 액션 버튼 */}
-                        <div className="card-actions-vertical">
-                          {/* 상세 버튼 */}
-                          <button
-                            className="card-action-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedVideo(video);
-                            }}
-                            title="상세 정보"
-                          >
-                            <Info className="card-action-icon" />
-                            <span className="card-action-label">상세</span>
-                          </button>
-
-                          {/* 다운로드 버튼 */}
-                          <button
-                            className="card-action-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDownloadVideo(video);
-                            }}
-                            disabled={downloadingVideoId === video.id}
-                            title="다운로드"
-                          >
-                            {downloadingVideoId === video.id ? (
-                              <Loader className="card-action-icon animate-spin" />
-                            ) : (
-                              <Download className="card-action-icon" />
-                            )}
-                            <span className="card-action-label">
-                              {downloadingVideoId === video.id ? "준비중" : "다운"}
-                            </span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="results-table-wrapper">
-                  <table className="results-table">
-                    <thead>
-                      <tr>
-                        <th style={{ width: "50px" }}>썸네일</th>
-                        <th style={{ width: "150px" }}>제목</th>
-                        <th style={{ width: "100px" }}>크리에이터</th>
-                        <th style={{ width: "80px" }}>팔로워</th>
-                        <th style={{ width: "100px" }}>게시일</th>
-                        <th style={{ width: "70px" }}>길이</th>
-                        <th style={{ width: "70px" }}>조회수</th>
-                        <th style={{ width: "70px" }}>좋아요</th>
-                        <th style={{ width: "70px" }}>댓글</th>
-                        <th style={{ width: "70px" }}>공유</th>
-                        <th style={{ width: "60px" }}>참여율</th>
-                      </tr>
-                    </thead>
-                    <tbody>
                       {(results as Video[]).map((video) => (
-                        <tr key={video.id} style={{ fontSize: "12px" }}>
-                          <td style={{ textAlign: "center", cursor: "pointer" }} onClick={() => {
-                            if (video.webVideoUrl) {
-                              window.open(video.webVideoUrl, "_blank");
-                            }
-                          }}>
+                        <div key={video.id} className="result-card">
+                          <div
+                            className="card-thumbnail-container"
+                            onClick={() => {
+                              if (video.webVideoUrl) {
+                                window.open(video.webVideoUrl, "_blank");
+                              }
+                            }}
+                            onMouseEnter={() => handleVideoCardMouseEnter(video)}
+                            onMouseLeave={handleVideoCardMouseLeave}
+                          >
+                            {/* 썸네일 */}
                             {video.thumbnail ? (
-                              <img src={video.thumbnail} alt={video.title} className="table-thumbnail" style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "2px" }} />
+                              <img
+                                src={video.thumbnail}
+                                alt={video.title}
+                                className={`card-thumbnail ${playingVideoId === video.id ? "card-thumbnail-hidden" : ""}`}
+                                loading="lazy"
+                              />
                             ) : (
-                              <span>🎬</span>
+                              <div className="card-thumbnail-fallback">🎬</div>
                             )}
-                          </td>
-                          <td className="table-title" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{video.title}</td>
-                          <td className="table-author" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{video.creator}</td>
-                          <td className="table-number">{video.followerCount ? formatNumber(video.followerCount) : "-"}</td>
-                          <td className="table-number" style={{ fontSize: "11px" }}>{formatDateWithTime(video.createTime)}</td>
-                          {platform !== 'xiaohongshu' && (
-                            <td className="table-number">{formatVideoDuration(video.videoDuration)}</td>
-                          )}
-                          <td className="table-number">{formatNumber(video.playCount)}</td>
-                          <td className="table-number">{formatNumber(video.likeCount)}</td>
-                          <td className="table-number">{formatNumber(video.commentCount)}</td>
-                          <td className="table-number">{formatNumber(video.shareCount)}</td>
-                          <td className="table-number" style={{ color: "#f4d03f", fontWeight: "600" }}>
-                            {video.playCount > 0 ? ((video.likeCount + video.commentCount + video.shareCount) / video.playCount * 100).toFixed(2) : "-"}%
-                          </td>
-                        </tr>
+
+                            {/* 비디오 미리보기 */}
+                            {video.videoUrl && playingVideoId === video.id && (
+                              <video className="card-video-preview" src={video.videoUrl} autoPlay muted loop playsInline preload="auto" />
+                            )}
+
+                            {/* Duration 뱃지 - 왼쪽 상단 (샤오홍슈 제외) */}
+                            {platform !== "xiaohongshu" && (
+                              <div className="card-duration-badge">{formatVideoDuration(video.videoDuration)}</div>
+                            )}
+
+                            {/* Date 뱃지 - 오른쪽 상단 */}
+                            {video.createTime && <div className="card-date-badge">{getRelativeDateString(new Date(video.createTime))}</div>}
+
+                            {/* 그라데이션 오버레이 - 하단 */}
+                            <div className="card-overlay">
+                              {/* 크리에이터 */}
+                              <div className="card-overlay-creator">
+                                <span>@{video.creator}</span>
+                                {video.followerCount && (
+                                  <span style={{ fontSize: "10px", opacity: 0.9 }}>· {formatNumber(video.followerCount)}</span>
+                                )}
+                              </div>
+
+                              {/* 제목 */}
+                              <div className="card-overlay-title">{video.title}</div>
+
+                              {/* 통계 */}
+                              <div className="card-overlay-stats">
+                                <div className="card-overlay-stat-item">
+                                  <Play className="card-overlay-stat-icon" />
+                                  <span>{formatNumber(video.playCount)}</span>
+                                </div>
+                                <div className="card-overlay-stat-item">
+                                  <Heart className="card-overlay-stat-icon" />
+                                  <span>{formatNumber(video.likeCount)}</span>
+                                </div>
+                                <div className="card-overlay-stat-item">
+                                  <MessageCircle className="card-overlay-stat-icon" />
+                                  <span>{formatNumber(video.commentCount)}</span>
+                                </div>
+                                <div className="card-overlay-stat-item">
+                                  <Share2 className="card-overlay-stat-icon" />
+                                  <span>{formatNumber(video.shareCount)}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 오른쪽 액션 버튼 */}
+                            <div className="card-actions-vertical">
+                              {/* 상세 버튼 */}
+                              <button
+                                className="card-action-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedVideo(video);
+                                }}
+                                title="상세 정보"
+                              >
+                                <Info className="card-action-icon" />
+                                <span className="card-action-label">상세</span>
+                              </button>
+
+                              {/* 다운로드 버튼 */}
+                              <button
+                                className="card-action-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownloadVideo(video);
+                                }}
+                                disabled={downloadingVideoId === video.id}
+                                title="다운로드"
+                              >
+                                {downloadingVideoId === video.id ? (
+                                  <Loader className="card-action-icon animate-spin" />
+                                ) : (
+                                  <Download className="card-action-icon" />
+                                )}
+                                <span className="card-action-label">{downloadingVideoId === video.id ? "준비중" : "다운"}</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                    </div>
+                  ) : (
+                    <div className="results-table-wrapper">
+                      <table className="results-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: "50px" }}>썸네일</th>
+                            <th style={{ width: "150px" }}>제목</th>
+                            <th style={{ width: "100px" }}>크리에이터</th>
+                            <th style={{ width: "80px" }}>팔로워</th>
+                            <th style={{ width: "100px" }}>게시일</th>
+                            <th style={{ width: "70px" }}>길이</th>
+                            <th style={{ width: "70px" }}>조회수</th>
+                            <th style={{ width: "70px" }}>좋아요</th>
+                            <th style={{ width: "70px" }}>댓글</th>
+                            <th style={{ width: "70px" }}>공유</th>
+                            <th style={{ width: "60px" }}>참여율</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(results as Video[]).map((video) => (
+                            <tr key={video.id} style={{ fontSize: "12px" }}>
+                              <td
+                                style={{ textAlign: "center", cursor: "pointer" }}
+                                onClick={() => {
+                                  if (video.webVideoUrl) {
+                                    window.open(video.webVideoUrl, "_blank");
+                                  }
+                                }}
+                              >
+                                {video.thumbnail ? (
+                                  <img
+                                    src={video.thumbnail}
+                                    alt={video.title}
+                                    className="table-thumbnail"
+                                    style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "2px" }}
+                                  />
+                                ) : (
+                                  <span>🎬</span>
+                                )}
+                              </td>
+                              <td className="table-title" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {video.title}
+                              </td>
+                              <td className="table-author" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {video.creator}
+                              </td>
+                              <td className="table-number">{video.followerCount ? formatNumber(video.followerCount) : "-"}</td>
+                              <td className="table-number" style={{ fontSize: "11px" }}>
+                                {formatDateWithTime(video.createTime)}
+                              </td>
+                              {platform !== "xiaohongshu" && <td className="table-number">{formatVideoDuration(video.videoDuration)}</td>}
+                              <td className="table-number">{formatNumber(video.playCount)}</td>
+                              <td className="table-number">{formatNumber(video.likeCount)}</td>
+                              <td className="table-number">{formatNumber(video.commentCount)}</td>
+                              <td className="table-number">{formatNumber(video.shareCount)}</td>
+                              <td className="table-number" style={{ color: "#f4d03f", fontWeight: "600" }}>
+                                {video.playCount > 0
+                                  ? (((video.likeCount + video.commentCount + video.shareCount) / video.playCount) * 100).toFixed(2)
+                                  : "-"}
+                                %
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -1267,14 +1306,8 @@ export default function Search() {
 
       {/* 상세 모달 */}
       {selectedVideo && (
-        <div
-          className="modal-overlay"
-          onClick={() => setSelectedVideo(null)}
-        >
-          <div
-            className="modal-content"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="modal-overlay" onClick={() => setSelectedVideo(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             {/* 스크롤 가능한 콘텐츠 */}
             <div className="modal-scroll">
               {/* 썸네일 */}
@@ -1296,16 +1329,18 @@ export default function Search() {
               <h2 style={{ margin: "0 0 12px 0", fontSize: "18px", color: "#000000", lineHeight: 1.4 }}>{selectedVideo.title}</h2>
 
               {/* 크리에이터 */}
-              <div style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "10px 12px",
-                background: "linear-gradient(135deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.02) 100%)",
-                borderRadius: "10px",
-                marginBottom: "16px",
-                border: "1px solid rgba(0, 0, 0, 0.08)"
-              }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "10px 12px",
+                  background: "linear-gradient(135deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.02) 100%)",
+                  borderRadius: "10px",
+                  marginBottom: "16px",
+                  border: "1px solid rgba(0, 0, 0, 0.08)",
+                }}
+              >
                 <span style={{ fontSize: "16px" }}>👤</span>
                 <div>
                   <div style={{ fontSize: "11px", color: "#6b6b6b", marginBottom: "2px" }}>크리에이터</div>
@@ -1315,57 +1350,57 @@ export default function Search() {
 
               {/* 통계 */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "16px" }}>
-                <div style={{
-                  background: "linear-gradient(135deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.01) 100%)",
-                  padding: "12px",
-                  borderRadius: "10px",
-                  color: "#000000",
-                  border: "1px solid rgba(0, 0, 0, 0.08)",
-                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)"
-                }}>
+                <div
+                  style={{
+                    background: "linear-gradient(135deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.01) 100%)",
+                    padding: "12px",
+                    borderRadius: "10px",
+                    color: "#000000",
+                    border: "1px solid rgba(0, 0, 0, 0.08)",
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+                  }}
+                >
                   <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px", color: "#6b6b6b" }}>조회수</div>
-                  <div style={{ fontSize: "20px", fontWeight: "700" }}>
-                    {(selectedVideo.playCount / 1000000).toFixed(1)}M
-                  </div>
+                  <div style={{ fontSize: "20px", fontWeight: "700" }}>{(selectedVideo.playCount / 1000000).toFixed(1)}M</div>
                 </div>
-                <div style={{
-                  background: "linear-gradient(135deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.01) 100%)",
-                  padding: "12px",
-                  borderRadius: "10px",
-                  color: "#000000",
-                  border: "1px solid rgba(0, 0, 0, 0.08)",
-                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)"
-                }}>
+                <div
+                  style={{
+                    background: "linear-gradient(135deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.01) 100%)",
+                    padding: "12px",
+                    borderRadius: "10px",
+                    color: "#000000",
+                    border: "1px solid rgba(0, 0, 0, 0.08)",
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+                  }}
+                >
                   <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px", color: "#6b6b6b" }}>좋아요</div>
-                  <div style={{ fontSize: "20px", fontWeight: "700" }}>
-                    {(selectedVideo.likeCount / 1000).toFixed(1)}K
-                  </div>
+                  <div style={{ fontSize: "20px", fontWeight: "700" }}>{(selectedVideo.likeCount / 1000).toFixed(1)}K</div>
                 </div>
-                <div style={{
-                  background: "linear-gradient(135deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.01) 100%)",
-                  padding: "12px",
-                  borderRadius: "10px",
-                  color: "#000000",
-                  border: "1px solid rgba(0, 0, 0, 0.08)",
-                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)"
-                }}>
+                <div
+                  style={{
+                    background: "linear-gradient(135deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.01) 100%)",
+                    padding: "12px",
+                    borderRadius: "10px",
+                    color: "#000000",
+                    border: "1px solid rgba(0, 0, 0, 0.08)",
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+                  }}
+                >
                   <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px", color: "#6b6b6b" }}>댓글</div>
-                  <div style={{ fontSize: "20px", fontWeight: "700" }}>
-                    {(selectedVideo.commentCount / 1000).toFixed(1)}K
-                  </div>
+                  <div style={{ fontSize: "20px", fontWeight: "700" }}>{(selectedVideo.commentCount / 1000).toFixed(1)}K</div>
                 </div>
-                <div style={{
-                  background: "linear-gradient(135deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.01) 100%)",
-                  padding: "12px",
-                  borderRadius: "10px",
-                  color: "#000000",
-                  border: "1px solid rgba(0, 0, 0, 0.08)",
-                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)"
-                }}>
+                <div
+                  style={{
+                    background: "linear-gradient(135deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.01) 100%)",
+                    padding: "12px",
+                    borderRadius: "10px",
+                    color: "#000000",
+                    border: "1px solid rgba(0, 0, 0, 0.08)",
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+                  }}
+                >
                   <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px", color: "#6b6b6b" }}>공유</div>
-                  <div style={{ fontSize: "20px", fontWeight: "700" }}>
-                    {(selectedVideo.shareCount / 1000).toFixed(1)}K
-                  </div>
+                  <div style={{ fontSize: "20px", fontWeight: "700" }}>{(selectedVideo.shareCount / 1000).toFixed(1)}K</div>
                 </div>
               </div>
 
@@ -1384,7 +1419,7 @@ export default function Search() {
                           borderRadius: "16px",
                           fontSize: "11px",
                           fontWeight: "600",
-                          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)"
+                          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
                         }}
                       >
                         #{tag}
@@ -1454,22 +1489,13 @@ export default function Search() {
                   color: "#ffffff",
                   border: "none",
                   borderRadius: "4px",
-                  cursor:
-                    selectedVideo && downloadingVideoId === selectedVideo.id
-                      ? "not-allowed"
-                      : "pointer",
+                  cursor: selectedVideo && downloadingVideoId === selectedVideo.id ? "not-allowed" : "pointer",
                   fontWeight: "bold",
-                  opacity:
-                    selectedVideo && downloadingVideoId === selectedVideo.id ? 0.6 : 1,
-                  boxShadow:
-                    selectedVideo && downloadingVideoId === selectedVideo.id
-                      ? "none"
-                      : "0 4px 12px rgba(0, 0, 0, 0.15)",
+                  opacity: selectedVideo && downloadingVideoId === selectedVideo.id ? 0.6 : 1,
+                  boxShadow: selectedVideo && downloadingVideoId === selectedVideo.id ? "none" : "0 4px 12px rgba(0, 0, 0, 0.15)",
                 }}
               >
-                {selectedVideo && downloadingVideoId === selectedVideo.id
-                  ? "⏳ 준비 중..."
-                  : "⬇️ 다운로드"}
+                {selectedVideo && downloadingVideoId === selectedVideo.id ? "⏳ 준비 중..." : "⬇️ 다운로드"}
               </button>
             </div>
           </div>
