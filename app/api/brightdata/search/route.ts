@@ -126,8 +126,8 @@ export async function POST(req: NextRequest) {
         success: true,
         query,
         platform,
-        videos: cached.videos,
-        count: { videos: cached.videos.length },
+        videos: cached.videos.slice(0, 100),
+        count: { videos: Math.min(cached.videos.length, 100) },
         fromCache: true,
       });
     }
