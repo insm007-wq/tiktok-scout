@@ -71,7 +71,7 @@ export default function Search() {
   const [toasts, setToasts] = useState<ToastType[]>([]);
   const [hoveredVideoId, setHoveredVideoId] = useState<string | null>(null);
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
-  const [showTranslationPanel, setShowTranslationPanel] = useState(false);
+  const [showTranslationPanel, setShowTranslationPanel] = useState(true);
   const resizeRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
