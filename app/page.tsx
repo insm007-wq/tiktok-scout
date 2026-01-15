@@ -66,7 +66,7 @@ export default function Home() {
         {/* 타이틀 */}
         <div className={styles.titleSection}>
           <h1 onClick={handleTitleClick} className={`${styles.neonTitle} ${isRefreshing ? styles.titleRefresh : ""}`}>
-            tiktok killa
+            tiktalk killa
           </h1>
           <div className={styles.titleUnderline}></div>
         </div>
