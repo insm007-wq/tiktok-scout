@@ -62,7 +62,6 @@ export function setCache<T>(
     expiresAt,
   });
 
-  console.log(`[Cache] 저장: ${key} (TTL: ${ttlMinutes}분)`);
 }
 
 /**
@@ -99,7 +98,6 @@ export function cleanupExpiredCache() {
   });
 
   if (cleaned > 0) {
-    console.log(`[Cache] ${cleaned}개의 만료된 항목 제거`);
   }
 
   return cleaned;
@@ -111,7 +109,6 @@ export function cleanupExpiredCache() {
 export function clearCache() {
   const size = cache.size;
   cache.clear();
-  console.log(`[Cache] 전체 캐시 삭제 (${size}개)`);
 }
 
 /**
@@ -149,7 +146,6 @@ export function setTranslationCache(
     expiresAt,
   });
 
-  console.log(`[Translation Cache] 저장: ${key} (TTL: ${ttlHours}시간)`);
 }
 
 /**
@@ -174,13 +170,11 @@ export async function getVideoFromMongoDB(
       .findOne({ cacheKey });
 
     if (!cached) {
-      console.log(`[MongoDB Cache] MISS: ${cacheKey}`);
       return null;
     }
 
     // 만료 확인 (TTL 인덱스 대비 이중 체크)
     if (cached.expiresAt < new Date()) {
-      console.log(`[MongoDB Cache] EXPIRED: ${cacheKey}`);
       return null;
     }
 
@@ -191,12 +185,10 @@ export async function getVideoFromMongoDB(
         $inc: { accessCount: 1 },
         $set: { lastAccessedAt: new Date() }
       }
-    ).catch(err => console.warn('[MongoDB Cache] Failed to update stats:', err));
+    ).catch(() => {});
 
-    console.log(`[MongoDB Cache] HIT: ${cacheKey} (${cached.videoCount} 개 영상, 조회: ${cached.accessCount + 1}회)`);
     return { videos: cached.videos };
   } catch (error) {
-    console.error('[MongoDB Cache] 조회 오류:', error);
     return null;
   }
 }
@@ -234,9 +226,7 @@ export async function setVideoToMongoDB(
       { upsert: true }
     );
 
-    console.log(`[MongoDB Cache] 저장: ${cacheKey} (${videos.length} 개 영상, TTL: ${ttlDays}일)`);
   } catch (error) {
-    console.error('[MongoDB Cache] 저장 오류:', error);
   }
 }
 
@@ -259,7 +249,6 @@ export async function getVideoFromCache(
   // L1: 메모리 캐시 확인
   const memoryCache = cache.get(memoryKey);
   if (memoryCache && Date.now() <= memoryCache.expiresAt) {
-    console.log(`[Memory Cache] HIT: ${memoryKey}`);
     return memoryCache.data;
   }
 
@@ -275,7 +264,6 @@ export async function getVideoFromCache(
     return mongoCache;
   }
 
-  console.log(`[Video Cache] MISS: ${memoryKey}`);
   return null;
 }
 

@@ -28,12 +28,10 @@ async function scrapeViaRailway(
 
   // 환경 변수 미설정 시 스킵
   if (!railwayUrl || !apiSecret) {
-    console.log('[Railway] 환경 변수 미설정, 로컬 스크래퍼 사용');
     return [];
   }
 
   try {
-    console.log(`[Railway] 요청 시작: ${platform} - "${query}"`);
     const startTime = Date.now();
 
     const response = await fetch(`${railwayUrl}/api/scrape`, {
@@ -50,22 +48,17 @@ async function scrapeViaRailway(
     const duration = Date.now() - startTime;
 
     if (!response.ok) {
-      console.error(`[Railway] 요청 실패 (${response.status}):`, data.error);
       return [];
     }
 
     if (data.success && Array.isArray(data.videos) && data.videos.length > 0) {
-      console.log(`[Railway] ✅ 성공: ${data.videos.length}개 (${(duration / 1000).toFixed(2)}초)`);
       return data.videos;
     } else {
-      console.warn(`[Railway] ⚠️ 비어있는 결과 (${(duration / 1000).toFixed(2)}초)`);
       return [];
     }
   } catch (error) {
     if (error instanceof Error) {
-      console.error('[Railway] ❌ 에러:', error.message);
     } else {
-      console.error('[Railway] ❌ 알 수 없는 에러');
     }
     return [];
   }
@@ -121,7 +114,6 @@ export async function POST(req: NextRequest) {
     // 캐시 확인 (L1 메모리 + L2 MongoDB)
     const cached = await getVideoFromCache(query, platform, dateRange);
     if (cached) {
-      console.log(`[Cache] ✅ 캐시 히트: ${platform} - "${query}" (${cached.videos.length}개)`);
       return NextResponse.json({
         success: true,
         query,
@@ -140,7 +132,6 @@ export async function POST(req: NextRequest) {
 
     // 2️⃣ Fallback: 로컬 스크래퍼 실행
     if (videoResults.length === 0) {
-      console.log(`[Fallback] 로컬 스크래퍼 사용: ${platform}`);
 
       if (platform === 'tiktok') {
         videoResults = await searchTikTokVideos(query, limit, apiKey, dateRange);
@@ -173,7 +164,6 @@ export async function POST(req: NextRequest) {
         fromCache: false,
       });
     } else {
-      console.error(`[${platform.toUpperCase()}] 검색 결과 없음`);
       return NextResponse.json({
         success: false,
         query,
@@ -183,7 +173,6 @@ export async function POST(req: NextRequest) {
       });
     }
   } catch (error) {
-    console.error('[Search] 오류:', error);
     return NextResponse.json(
       { error: '검색 중 오류가 발생했습니다.' },
       { status: 500 }

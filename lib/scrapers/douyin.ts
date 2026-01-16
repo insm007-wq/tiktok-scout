@@ -13,7 +13,6 @@ export async function searchDouyinVideos(
   try {
     const actorId = 'natanielsantos~douyin-scraper';
     const startTime = Date.now();
-    console.log(`[Douyin] 검색 시작: ${query} (제한: ${limit}, 기간: ${dateRange || 'all'})`);
 
     // 날짜 범위 매핑 (Douyin: all, last_day, last_week, last_half_year)
     const mapSearchPublishTimeFilter = (uploadPeriod?: string): string => {
@@ -47,12 +46,10 @@ export async function searchDouyinVideos(
 
     const runData = await runRes.json();
     if (!runRes.ok) {
-      console.error('[Douyin] Run 시작 실패:', runData);
       return [];
     }
 
     const runId = runData.data.id;
-    console.log(`[Douyin] Run ID: ${runId}`);
 
     // 2️⃣ 완료 대기 (Polling)
     let status = 'RUNNING';
@@ -71,15 +68,12 @@ export async function searchDouyinVideos(
       attempt++;
 
       if (attempt % 10 === 0) {
-        console.log(`[Douyin] Polling ${attempt}/${maxAttempts}: ${status}`);
       }
 
       if (status === 'SUCCEEDED') {
-        console.log('[Douyin] Run 완료됨');
         break;
       }
       if (status === 'FAILED' || status === 'ABORTED') {
-        console.error('[Douyin] Run 실패:', statusData.data.statusMessage);
         return [];
       }
 
@@ -90,7 +84,6 @@ export async function searchDouyinVideos(
     }
 
     if (status !== 'SUCCEEDED') {
-      console.warn(`[Douyin] 타임아웃 (상태: ${status})`);
       return [];
     }
 
@@ -100,29 +93,15 @@ export async function searchDouyinVideos(
     );
 
     const dataset = await datasetRes.json();
-    console.log(`[Douyin] API 응답 데이터: ${Array.isArray(dataset) ? dataset.length : 0}개`);
 
     if (!Array.isArray(dataset) || dataset.length === 0) {
-      console.log('[Douyin] 검색 결과 없음');
       return [];
     }
 
     // 결과 변환
     const results = dataset.slice(0, limit).map((item: any, index: number) => {
-      if (index === 0) {
-        console.log(`[Douyin] 첫 번째 아이템:`, { id: item.id, text: item.text, duration: item.videoMeta?.duration });
-      }
       const hashtags = item.hashtags?.map((h: any) => typeof h === 'string' ? h : h.name) || [];
 
-      // videoDuration 로깅 (처음 3개만)
-      if (index < 3) {
-        console.log(`[Douyin] 영상 ${index + 1} duration 데이터:`, {
-          duration: item.duration,
-          videoMetaDuration: item.videoMeta?.duration,
-          type: typeof (item.videoMeta?.duration || item.duration),
-          parsed: parseInt(item.videoMeta?.duration || item.duration || 0)
-        });
-      }
 
       return {
         id: item.id || `douyin-video-${index}`,
@@ -146,11 +125,9 @@ export async function searchDouyinVideos(
 
     const endTime = Date.now();
     const duration = endTime - startTime;
-    console.log(`[Douyin] ✅ 완료: ${results.length}개 (${(duration / 1000).toFixed(2)}초)`);
 
     return results;
   } catch (error) {
-    console.error('[Douyin] 오류:', error);
     return [];
   }
 }
@@ -184,7 +161,6 @@ export async function searchDouyinVideosParallel(
     // 🔑 3가지 정렬 옵션으로 다양한 결과 확보
     const sortFilters = ['most_liked', 'latest', 'general'];
 
-    console.log(`[Douyin Parallel] 3개 Run 병렬 시작: ${query} (제한: ${limit}, 기간: ${dateRange || 'all'})`);
 
     // 1️⃣ 3개 Run 동시 시작 (각각 다른 정렬)
     const runPromises = sortFilters.map(async (sortFilter) => {
@@ -208,11 +184,9 @@ export async function searchDouyinVideosParallel(
 
       const runData = await runRes.json();
       if (!runRes.ok) {
-        console.error(`[Douyin Parallel ${sortFilter}] Run 시작 실패:`, runData);
         return { runId: null, sortFilter };
       }
 
-      console.log(`[Douyin Parallel] Run 시작: ${sortFilter}, ID: ${runData.data.id}`);
       return { runId: runData.data.id, sortFilter };
     });
 
@@ -220,7 +194,6 @@ export async function searchDouyinVideosParallel(
     const validRuns = runs.filter(r => r.runId !== null);
 
     if (validRuns.length === 0) {
-      console.error('[Douyin Parallel] 모든 Run 시작 실패');
       return [];
     }
 
@@ -243,15 +216,12 @@ export async function searchDouyinVideosParallel(
         attempt++;
 
         if (attempt % 10 === 0) {
-          console.log(`[Douyin Parallel ${sortFilter}] Polling ${attempt}/${maxAttempts}: ${status}`);
         }
 
         if (status === 'SUCCEEDED') {
-          console.log(`[Douyin Parallel ${sortFilter}] ✅ 완료`);
           break;
         }
         if (status === 'FAILED' || status === 'ABORTED') {
-          console.error(`[Douyin Parallel ${sortFilter}] ❌ 실패`);
           return [];
         }
 
@@ -259,7 +229,6 @@ export async function searchDouyinVideosParallel(
       }
 
       if (status !== 'SUCCEEDED') {
-        console.warn(`[Douyin Parallel ${sortFilter}] ⏱️ 타임아웃 (상태: ${status})`);
         return [];
       }
 
@@ -268,7 +237,6 @@ export async function searchDouyinVideosParallel(
         `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`
       );
       const dataset = await datasetRes.json();
-      console.log(`[Douyin Parallel ${sortFilter}] 데이터: ${Array.isArray(dataset) ? dataset.length : 0}개`);
       return Array.isArray(dataset) ? dataset : [];
     });
 
@@ -280,10 +248,8 @@ export async function searchDouyinVideosParallel(
       new Map(allItems.map(item => [item.id, item])).values()
     );
 
-    console.log(`[Douyin Parallel] 총 ${allItems.length}개 → 중복 제거 후: ${uniqueItems.length}개`);
 
     if (uniqueItems.length === 0) {
-      console.log('[Douyin Parallel] 병렬 검색 결과 없음');
       return [];
     }
 
@@ -313,11 +279,9 @@ export async function searchDouyinVideosParallel(
 
     const endTime = Date.now();
     const duration = endTime - startTime;
-    console.log(`[Douyin Parallel] ✅ 최종 완료: ${results.length}개 (${(duration / 1000).toFixed(2)}초)`);
 
     return results;
   } catch (error) {
-    console.error('[Douyin Parallel] 오류:', error);
     return [];
   }
 }

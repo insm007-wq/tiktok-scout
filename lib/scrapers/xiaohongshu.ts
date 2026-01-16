@@ -15,7 +15,6 @@ export async function searchXiaohongshuVideos(
   try {
     const actorId = 'easyapi~rednote-xiaohongshu-search-scraper';
     const startTime = Date.now();
-    console.log(`[Xiaohongshu] 검색 시작: ${query} (제한: ${limit})`);
 
     // Note: Search Scraper는 날짜 필터 미지원
     const inputParams = {
@@ -35,12 +34,10 @@ export async function searchXiaohongshuVideos(
 
     const runData = await runRes.json();
     if (!runRes.ok) {
-      console.error('[Xiaohongshu] Run 시작 실패:', runData);
       return [];
     }
 
     const runId = runData.data.id;
-    console.log(`[Xiaohongshu] Run ID: ${runId}`);
 
     // 2️⃣ 완료 대기 (Polling)
     let status = 'RUNNING';
@@ -60,7 +57,6 @@ export async function searchXiaohongshuVideos(
 
       if (status === 'SUCCEEDED') break;
       if (status === 'FAILED' || status === 'ABORTED') {
-        console.error('[Xiaohongshu] Run 실패:', statusData.data.statusMessage);
         return [];
       }
 
@@ -71,7 +67,6 @@ export async function searchXiaohongshuVideos(
     }
 
     if (status !== 'SUCCEEDED') {
-      console.error(`[Xiaohongshu] 타임아웃 (상태: ${status})`);
       return [];
     }
 
@@ -81,13 +76,11 @@ export async function searchXiaohongshuVideos(
     );
 
     if (!datasetRes.ok) {
-      console.error('[Xiaohongshu] Dataset 조회 실패:', datasetRes.status);
       return [];
     }
 
     const dataset = await datasetRes.json();
     if (!Array.isArray(dataset) || dataset.length === 0) {
-      console.log('[Xiaohongshu] 검색 결과 없음');
       return [];
     }
 
@@ -175,11 +168,9 @@ export async function searchXiaohongshuVideos(
       });
 
     const duration = Date.now() - startTime;
-    console.log(`[Xiaohongshu] ✅ 완료: ${results.length}개 (${(duration / 1000).toFixed(2)}초)`);
 
     return results;
   } catch (error) {
-    console.error('[Xiaohongshu] 오류:', error);
     return [];
   }
 }
@@ -201,7 +192,6 @@ export async function searchXiaohongshuVideosParallel(
     // 🔑 3가지 정렬 옵션으로 다양한 결과 확보
     const sortTypes = ['general', 'latest', 'hotest'];
 
-    console.log(`[Xiaohongshu Parallel] 3개 Run 병렬 시작: ${query} (제한: ${limit})`);
 
     // 1️⃣ 3개 Run 동시 시작 (각각 다른 정렬)
     const runPromises = sortTypes.map(async (sortType) => {
@@ -223,11 +213,9 @@ export async function searchXiaohongshuVideosParallel(
 
       const runData = await runRes.json();
       if (!runRes.ok) {
-        console.error(`[Xiaohongshu Parallel ${sortType}] Run 시작 실패:`, runData);
         return { runId: null, sortType };
       }
 
-      console.log(`[Xiaohongshu Parallel] Run 시작: ${sortType}, ID: ${runData.data.id}`);
       return { runId: runData.data.id, sortType };
     });
 
@@ -235,7 +223,6 @@ export async function searchXiaohongshuVideosParallel(
     const validRuns = runs.filter(r => r.runId !== null);
 
     if (validRuns.length === 0) {
-      console.error('[Xiaohongshu Parallel] 모든 Run 시작 실패');
       return [];
     }
 
@@ -258,7 +245,6 @@ export async function searchXiaohongshuVideosParallel(
 
         if (status === 'SUCCEEDED') break;
         if (status === 'FAILED' || status === 'ABORTED' || status === 'TIMED-OUT') {
-          console.error(`[Xiaohongshu Parallel ${sortType}] Run 실패: ${status}`);
           return [];
         }
 
@@ -267,7 +253,6 @@ export async function searchXiaohongshuVideosParallel(
       }
 
       if (status !== 'SUCCEEDED') {
-        console.error(`[Xiaohongshu Parallel ${sortType}] Timeout`);
         return [];
       }
 
@@ -277,12 +262,10 @@ export async function searchXiaohongshuVideosParallel(
       );
 
       if (!datasetRes.ok) {
-        console.error(`[Xiaohongshu Parallel ${sortType}] Dataset 조회 실패`);
         return [];
       }
 
       const dataset = await datasetRes.json();
-      console.log(`[Xiaohongshu Parallel ${sortType}] ✅ ${dataset.length}개 결과`);
       return dataset;
     });
 
@@ -290,7 +273,6 @@ export async function searchXiaohongshuVideosParallel(
     const combinedDataset = allDatasets.flat();
 
     if (combinedDataset.length === 0) {
-      console.log('[Xiaohongshu Parallel] 검색 결과 없음');
       return [];
     }
 
@@ -305,14 +287,11 @@ export async function searchXiaohongshuVideosParallel(
     });
 
     // 필터링 통계 로그
-    console.log(`[Xiaohongshu Parallel] 필터링: ${combinedDataset.length}개 → ${videoOnlyDataset.length}개 비디오`);
     if (combinedDataset.length > videoOnlyDataset.length) {
       const filtered = combinedDataset.length - videoOnlyDataset.length;
-      console.log(`[Xiaohongshu Parallel] ⚠️ ${filtered}개 이미지 포스트 제거됨`);
     }
 
     if (videoOnlyDataset.length === 0) {
-      console.log('[Xiaohongshu Parallel] 필터링 후 비디오 결과 없음');
       return [];
     }
 
@@ -396,11 +375,9 @@ export async function searchXiaohongshuVideosParallel(
     );
 
     const duration = Date.now() - startTime;
-    console.log(`[Xiaohongshu Parallel] ✅ 완료: ${uniqueResults.length}개 (${(duration / 1000).toFixed(2)}초)`);
 
     return uniqueResults;
   } catch (error) {
-    console.error('[Xiaohongshu Parallel] 오류:', error);
     return [];
   }
 }

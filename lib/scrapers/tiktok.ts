@@ -13,7 +13,6 @@ export async function searchTikTokVideos(
   try {
     const actorId = 'apidojo~tiktok-scraper';
     const startTime = Date.now();
-    console.log(`[TikTok] 검색 시작: ${query} (제한: ${limit}, 기간: ${dateRange || 'all'})`);
 
     // 날짜 범위 매핑
     const mapDateRange = (uploadPeriod?: string): string => {
@@ -47,12 +46,10 @@ export async function searchTikTokVideos(
 
     const runData = await runRes.json();
     if (!runRes.ok) {
-      console.error('[TikTok] Run 시작 실패:', runData);
       return [];
     }
 
     const runId = runData.data.id;
-    console.log(`[TikTok] Run ID: ${runId}`);
 
     // 2️⃣ 완료 대기 (Polling)
     let status = 'RUNNING';
@@ -72,7 +69,6 @@ export async function searchTikTokVideos(
 
       if (status === 'SUCCEEDED') break;
       if (status === 'FAILED' || status === 'ABORTED') {
-        console.error('[TikTok] Run 실패:', statusData.data.statusMessage);
         return [];
       }
 
@@ -83,7 +79,6 @@ export async function searchTikTokVideos(
     }
 
     if (status !== 'SUCCEEDED') {
-      console.warn(`[TikTok] 타임아웃 (상태: ${status})`);
       return [];
     }
 
@@ -94,7 +89,6 @@ export async function searchTikTokVideos(
 
     const dataset = await datasetRes.json();
     if (!Array.isArray(dataset) || dataset.length === 0) {
-      console.log('[TikTok] 검색 결과 없음');
       return [];
     }
 
@@ -111,6 +105,15 @@ export async function searchTikTokVideos(
                          (item.channel?.url && item.id ? `${item.channel.url}/video/${item.id}` : undefined) ||
                          undefined;
 
+      // 썸네일 필드 여러 경로 시도
+      const thumbnail = item.video?.thumbnail ||
+                       item.video?.cover ||
+                       item.thumbnail ||
+                       item.image ||
+                       item.coverImage ||
+                       item.videoCover ||
+                       undefined;
+
       return {
         id: item.id || `video-${index}`,
         title: item.title || `영상 ${index + 1}`,
@@ -125,18 +128,16 @@ export async function searchTikTokVideos(
         createTime: item.uploadedAt ? parseInt(String(item.uploadedAt)) * 1000 : Date.now(),
         videoDuration: item.video?.duration ? parseInt(String(item.video.duration)) : 0,
         hashtags: hashtags,
-        thumbnail: item.video?.thumbnail || item.video?.cover || undefined,
+        thumbnail: thumbnail,
         videoUrl: videoUrl,
         webVideoUrl: webVideoUrl,
       };
     });
 
     const duration = Date.now() - startTime;
-    console.log(`[TikTok] ✅ 완료: ${results.length}개 (${(duration / 1000).toFixed(2)}초)`);
 
     return results;
   } catch (error) {
-    console.error('[TikTok] 오류:', error);
     return [];
   }
 }
