@@ -1,0 +1,33 @@
+# TikTalk Killa Robots.txt
+# Allow all robots to crawl the site
+
+User-agent: *
+Allow: /
+Allow: /search
+Allow: /dashboard
+Allow: /auth/login
+Allow: /auth/signup
+Disallow: /api/
+Disallow: /_next/
+Disallow: /private/
+
+# Crawl delay and request rate
+Crawl-delay: 1
+
+# Sitemaps
+Sitemap: https://www.tiktalk-killa.com/sitemap.xml
+
+# Google specific
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+# Bing specific
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+# Naver specific
+User-agent: Yeti
+Allow: /
+Crawl-delay: 1
