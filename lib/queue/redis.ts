@@ -8,12 +8,20 @@ dotenv.config({ path: '.env.local' })
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379'
 
+// Lazy loading - 런타임에만 초기화되도록
+let cachedConnection: any = null
+
 export const redisConnection = {
-  connection: {
-    url: redisUrl,
-    maxRetriesPerRequest: null,
-    enableReadyCheck: false,
-    keepAlive: 30000,
-    tls: {}  // Upstash는 TLS/SSL 필수
+  get connection() {
+    if (!cachedConnection) {
+      cachedConnection = {
+        url: redisUrl,
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+        keepAlive: 30000,
+        tls: {}  // Upstash는 TLS/SSL 필수
+      }
+    }
+    return cachedConnection
   }
 }
