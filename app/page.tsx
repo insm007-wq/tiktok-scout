@@ -1,136 +1,59 @@
-"use client";
+import type { Metadata } from 'next'
+import HomeContent from './home-content'
 
-import Link from "next/link";
-import { useState } from "react";
-import styles from "./page.module.css";
+export const metadata: Metadata = {
+  title: 'TikTalk Killa | 틱톡 영상 검색 및 분석 도구',
+  description: 'TikTok, Douyin, 샤오홍슈 영상을 한눈에 검색하고 분석하세요. 가장 인기 있는 콘텐츠를 발견하세요.',
+  keywords: ['TikTok', '검색', '분석', 'Douyin', '샤오홍슈', '영상', 'TikTalk'],
+  authors: [{ name: 'TikTalk Killa Team' }],
+  creator: 'TikTalk Killa',
+  publisher: 'TikTalk Killa',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-snippet': -1,
+      'max-image-preview': 'large',
+      'max-video-preview': -1,
+    },
+  },
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
+  manifest: '/site.webmanifest',
+  openGraph: {
+    type: 'website',
+    locale: 'ko_KR',
+    url: 'https://www.tiktalk-killa.com',
+    siteName: 'TikTalk Killa',
+    title: 'TikTalk Killa | 틱톡 영상 검색 및 분석 도구',
+    description: 'TikTok, Douyin, 샤오홍슈 영상을 한눈에 검색하고 분석하세요.',
+    images: [
+      {
+        url: 'https://www.tiktalk-killa.com/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'TikTalk Killa',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'TikTalk Killa | 틱톡 영상 검색 및 분석 도구',
+    description: 'TikTok, Douyin, 샤오홍슈 영상을 한눈에 검색하고 분석하세요.',
+    images: ['https://www.tiktalk-killa.com/twitter-image.png'],
+  },
+  alternates: {
+    canonical: 'https://www.tiktalk-killa.com',
+  },
+  verification: {
+    google: 'google-site-verification-code-here',
+  },
+}
 
 export default function Home() {
-  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const handleTitleClick = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-      window.location.reload();
-    }, 600);
-  };
-
-  const platforms = [
-    {
-      id: 0,
-      platform: "TikTok",
-      icon: "🎵",
-      gradient: "from-[#FE2C55] to-[#25F4EE]",
-      title: "TikTok Global",
-      description: "전세계 트렌드를 실시간으로",
-      features: ["글로벌 바이럴 영상", "해시태그 분석", "크리에이터 통계"],
-    },
-    {
-      id: 1,
-      platform: "Douyin",
-      icon: "🎬",
-      gradient: "from-[#EE1D51] to-[#FF6B9D]",
-      title: "Douyin China",
-      description: "중국 시장의 모든 것",
-      features: ["중국 트렌드 발굴", "한중 번역 지원", "로컬 인사이트"],
-    },
-    {
-      id: 2,
-      platform: "샤오홍슈",
-      icon: "📕",
-      gradient: "from-[#FF2442] to-[#FFE5E5]",
-      title: "Xiaohongshu",
-      description: "라이프스타일 콘텐츠 탐색",
-      features: ["뷰티 & 패션", "제품 리뷰 분석", "인플루언서 발굴"],
-    },
-  ];
-
-  return (
-    <div className={styles.mainContainer}>
-      {/* 배경 요소들 */}
-      <div className={styles.bgOrbs}>
-        <div className={`${styles.orb} ${styles.orb1}`}></div>
-        <div className={`${styles.orb} ${styles.orb2}`}></div>
-        <div className={`${styles.orb} ${styles.orb3}`}></div>
-      </div>
-      <div className={styles.gridPattern}></div>
-      <div className={styles.platformWatermarks}>
-        <div className={`${styles.platformLogo} ${styles.tiktokLogo}`}></div>
-        <div className={`${styles.platformLogo} ${styles.douyinLogo}`}></div>
-        <div className={`${styles.platformLogo} ${styles.xiaohongshuLogo}`}></div>
-      </div>
-
-      {/* 메인 콘텐츠 */}
-      <div className={`${styles.contentWrapper} ${styles.animateFadeInUp}`}>
-        {/* 타이틀 */}
-        <div className={styles.titleSection}>
-          <h1 onClick={handleTitleClick} className={`${styles.neonTitle} ${isRefreshing ? styles.titleRefresh : ""}`}>
-            tiktalk killa
-          </h1>
-          <div className={styles.titleUnderline}></div>
-        </div>
-
-        {/* 히어로 섹션 */}
-        <div className={styles.heroSection}>
-          <h2 className={styles.heroTitle}>숏폼의 모든 것을 한눈에</h2>
-          <p className={styles.heroSubtitle}>TikTok · Douyin · 샤오홍슈 | 3개 플랫폼, 무한한 인사이트</p>
-
-          {/* 통계 하이라이트 */}
-          <div className={styles.statsHighlight}>
-            <span className={styles.statItem}>
-              <span className={styles.neonText}>3</span> 플랫폼
-            </span>
-            <span className={styles.divider}>•</span>
-            <span className={styles.statItem}>
-              <span className={styles.neonText}>∞</span> 영상
-            </span>
-            <span className={styles.divider}>•</span>
-            <span className={styles.statItem}>
-              <span className={styles.neonText}>실시간</span> 분석
-            </span>
-          </div>
-        </div>
-
-        {/* 플랫폼 카드들 */}
-        <div className={styles.platformCardsGrid}>
-          {platforms.map((platform) => (
-            <div
-              key={platform.id}
-              className={styles.platformCard}
-              style={
-                {
-                  "--gradient": `linear-gradient(135deg, var(--${
-                    platform.id === 0 ? "pink" : platform.id === 1 ? "red" : "pink-light"
-                  }), var(--${platform.id === 0 ? "cyan" : platform.id === 1 ? "red" : "pink-light"}))`,
-                } as any
-              }
-              onMouseEnter={() => setHoveredCard(platform.id)}
-              onMouseLeave={() => setHoveredCard(null)}
-            >
-              <div className={styles.cardGradient}></div>
-              <div className={styles.cardContent}>
-                <div className={styles.platformIcon}>{platform.icon}</div>
-                <h3 className={styles.platformTitle}>{platform.title}</h3>
-                <p className={styles.platformDescription}>{platform.description}</p>
-                <ul className={styles.featuresList}>
-                  {platform.features.map((feature, idx) => (
-                    <li key={idx} className={styles.featureItem}>
-                      <span className={styles.featureBullet}>•</span> {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* CTA 버튼 */}
-        <Link href="/dashboard" className={styles.neonCtaButton}>
-          <span className={styles.ctaText}>지금 시작하기</span>
-          <span className={styles.ctaArrow}>→</span>
-        </Link>
-      </div>
-    </div>
-  );
+  return <HomeContent />
 }

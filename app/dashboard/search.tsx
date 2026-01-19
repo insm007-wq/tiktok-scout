@@ -450,10 +450,29 @@ export default function Search() {
               addToast("success", "검색 완료!", "검색 결과를 표시합니다");
               clearInterval(pollInterval);
             } else if (statusData.status === "failed") {
-              setError(statusData.error || "검색 중 오류가 발생했습니다");
+              // 에러 타입에 따라 다른 처리
+              const errorMessage = statusData.error || "검색 중 오류가 발생했습니다";
+              const errorType = statusData.errorType || "UNKNOWN_ERROR";
+
+              setError(errorMessage);
               setIsLoading(false);
               setJobStatus(null);
               clearInterval(pollInterval);
+
+              // 에러 타입별 토스트 메시지 표시
+              if (errorType === "RATE_LIMIT") {
+                addToast("warning", "Apify API 할당량이 제한되었습니다. 30초 후 다시 시도해주세요.", "⏳ 잠시만요");
+              } else if (errorType === "NETWORK_ERROR") {
+                addToast("error", "네트워크 연결을 확인해주세요.", "❌ 연결 오류");
+              } else if (errorType === "AUTH_ERROR") {
+                addToast("error", "API 인증에 실패했습니다. 관리자에게 연락해주세요.", "❌ 인증 오류");
+              } else if (errorType === "APIFY_ERROR") {
+                addToast("warning", "Apify 서비스가 일시적으로 불안정합니다.\n몇 분 후 다시 시도해주세요.", "🔧 서비스 점검 중");
+              } else if (errorType === "NO_RESULTS") {
+                addToast("info", "검색어를 바꿔서 다시 시도해보세요.", "🔍 결과 없음");
+              } else {
+                addToast("error", "검색 중 오류가 발생했습니다.", "❌ 오류");
+              }
             }
           } catch (err) {
             // 폴링 중 에러는 무시
@@ -473,10 +492,26 @@ export default function Search() {
     } catch (error: any) {
       if (error.name === "AbortError") {
         console.log("[Search] 사용자가 검색을 취소했습니다.");
-        addToast("error", "검색이 취소되었습니다.");
+        addToast("info", "검색이 취소되었습니다.", "⏹️ 취소됨");
       } else {
         console.error("검색 오류:", error);
-        setError(error instanceof Error ? error.message : "검색 중 오류가 발생했습니다");
+
+        // 에러 메시지를 사용자 친화적으로 변환
+        let userMessage = "검색 중 오류가 발생했습니다.";
+
+        if (error instanceof Error) {
+          if (error.message.includes("Failed to fetch")) {
+            userMessage = "네트워크 연결이 불안정합니다.\n잠시 후 다시 시도해주세요.";
+            addToast("warning", "네트워크 연결을 확인해주세요.", "📡 네트워크 오류");
+          } else if (error.message.includes("429")) {
+            userMessage = "검색 서버가 과부하 상태입니다.\n30초 후 다시 시도해주세요.";
+            addToast("warning", "검색 서버가 잠시 혼잡합니다. 30초 후 다시 시도해주세요.", "⏳ 잠시만요");
+          } else {
+            userMessage = error.message;
+          }
+        }
+
+        setError(userMessage);
         setVideos([]);
       }
       setIsLoading(false);

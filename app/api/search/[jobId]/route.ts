@@ -37,10 +37,37 @@ export async function GET(
     // 실패한 경우
     if (state === 'failed') {
       const failedReason = job.failedReason || 'Unknown error'
+
+      // 에러 메시지 분석 및 사용자 친화적인 메시지 생성
+      let userMessage = '잠시 후 다시 시도해주세요.'
+      let errorType = 'UNKNOWN_ERROR'
+
+      if (failedReason.includes('429_RATE_LIMIT')) {
+        userMessage = '🔄 검색 서버가 과부하 상태입니다.\n\n30초 후 다시 시도해주세요.'
+        errorType = 'RATE_LIMIT'
+      } else if (failedReason.includes('NETWORK_ERROR')) {
+        userMessage = '📡 서버에 연결할 수 없습니다.\n\n네트워크를 확인하고 다시 시도해주세요.'
+        errorType = 'NETWORK_ERROR'
+      } else if (failedReason.includes('AUTH_ERROR')) {
+        userMessage = '🔐 API 인증에 실패했습니다.\n\n관리자에게 문의해주세요.'
+        errorType = 'AUTH_ERROR'
+      } else if (failedReason.includes('DNS_ERROR')) {
+        userMessage = '🌐 인터넷 연결을 확인해주세요.\n\nDNS 해석에 실패했습니다.'
+        errorType = 'DNS_ERROR'
+      } else if (failedReason.includes('APIFY_ERROR')) {
+        userMessage = '⚙️ Apify 스크래핑 서비스에 일시적 문제가 있습니다.\n\n몇 분 후 다시 시도해주세요.'
+        errorType = 'APIFY_ERROR'
+      } else if (failedReason.includes('empty') || failedReason.includes('no results')) {
+        userMessage = '🔍 검색 결과를 찾을 수 없습니다.\n\n다른 키워드로 시도해주세요.'
+        errorType = 'NO_RESULTS'
+      }
+
       return NextResponse.json({
         status: 'failed',
         jobId,
-        error: failedReason,
+        error: userMessage,
+        errorType,
+        rawError: process.env.NODE_ENV === 'development' ? failedReason : undefined,
         progress: 0,
         timestamp: Date.now()
       }, { status: 500 })

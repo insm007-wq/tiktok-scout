@@ -51,13 +51,13 @@ const getIconColor = (type: ToastType): string => {
 const getBackgroundColor = (type: ToastType): string => {
   switch (type) {
     case 'error':
-      return '#fee2e2'
+      return '#fecaca'
     case 'warning':
-      return '#fef3c7'
+      return '#fcd34d'
     case 'success':
-      return '#d1fae5'
+      return '#a7f3d0'
     case 'info':
-      return '#dbeafe'
+      return '#bfdbfe'
     default:
       return '#f3f4f6'
   }

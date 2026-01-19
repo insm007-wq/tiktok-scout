@@ -95,7 +95,19 @@ const worker = new Worker<SearchJobData>(
       return videos
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
-      throw new Error(`Scraping failed for ${platform}: ${errorMessage}`)
+
+      // 에러 메시지에 구체적인 정보 포함 (예: 429, timeout, 등)
+      if (errorMessage.includes('429')) {
+        throw new Error(`429_RATE_LIMIT: Apify API rate limit exceeded`)
+      } else if (errorMessage.includes('timeout') || errorMessage.includes('ECONNREFUSED')) {
+        throw new Error(`NETWORK_ERROR: Connection timeout or refused`)
+      } else if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+        throw new Error(`AUTH_ERROR: Invalid API key or authorization`)
+      } else if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('DNS')) {
+        throw new Error(`DNS_ERROR: Cannot resolve host`)
+      } else {
+        throw new Error(`APIFY_ERROR: Scraping failed for ${platform}: ${errorMessage}`)
+      }
     }
   },
   {
