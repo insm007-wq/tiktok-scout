@@ -16,6 +16,8 @@
     "test:load": "npm run build && npm run worker:pm2 & npm run dev"
   },
   "dependencies": {
+    "@bull-board/api": "^6.16.2",
+    "@bull-board/ui": "^6.16.2",
     "@hookform/resolvers": "^5.2.2",
     "@opentelemetry/api": "^1.9.0",
     "bcryptjs": "^3.0.3",
