@@ -73,7 +73,7 @@ export default function Search() {
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
   const [showTranslationPanel, setShowTranslationPanel] = useState(true);
   const [jobStatus, setJobStatus] = useState<{
-    status: 'waiting' | 'active' | 'delayed' | 'paused';
+    status: "waiting" | "active" | "delayed" | "paused";
     progress: number;
     queuePosition: number;
     message: string;
@@ -433,10 +433,10 @@ export default function Search() {
             // 실시간 상태 업데이트
             if (statusData.status && statusData.queuePosition !== undefined) {
               setJobStatus({
-                status: statusData.status as 'waiting' | 'active' | 'delayed' | 'paused',
+                status: statusData.status as "waiting" | "active" | "delayed" | "paused",
                 progress: statusData.progress || 0,
                 queuePosition: statusData.queuePosition,
-                message: statusData.message || '',
+                message: statusData.message || "",
                 totalQueueSize: initialQueueSize,
                 estimatedWaitSeconds: statusData.estimatedWaitSeconds,
               });
@@ -697,7 +697,7 @@ export default function Search() {
             onClick={handleTitleClick}
             style={{ cursor: "pointer", transition: "opacity 0.3s", opacity: isTitleRefreshing ? 0.5 : 1 }}
           >
-            Tictalk Killa
+            틱톡킬라
           </div>
 
           <div className="search-section">
@@ -1011,14 +1011,11 @@ export default function Search() {
                   fontSize: "12px",
                   marginTop: "6px",
                   padding: "8px 10px",
-                  backgroundColor: (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh"
-                    ? "#f5f5f5"
-                    : "transparent",
+                  backgroundColor:
+                    (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" ? "#f5f5f5" : "transparent",
                   borderRadius: "4px",
                   minHeight: "32px",
-                  opacity: (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh"
-                    ? 1
-                    : 0,
+                  opacity: (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" ? 1 : 0,
                   transition: "opacity 0.2s ease, background-color 0.2s ease",
                   display: "flex",
                   alignItems: "center",
