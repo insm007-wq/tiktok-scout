@@ -15,13 +15,12 @@ export async function GET(request: NextRequest) {
     const queue = new Queue('video-search', { connection: connection as any });
 
     // 각 상태별 작업 수 조회
-    const [waiting, active, completed, failed, delayed, paused] = await Promise.all([
+    const [waiting, active, completed, failed, delayed] = await Promise.all([
       queue.getWaitingCount(),
       queue.getActiveCount(),
       queue.getCompletedCount(),
       queue.getFailedCount(),
       queue.getDelayedCount(),
-      queue.getPausedCount(),
     ]);
 
     // 최근 작업들 조회 (상태별로 일부씩)
@@ -31,14 +30,12 @@ export async function GET(request: NextRequest) {
       completedJobs,
       failedJobs,
       delayedJobs,
-      pausedJobs,
     ] = await Promise.all([
       queue.getWaiting(0, 10),
       queue.getActive(0, 10),
       queue.getCompleted(0, 10),
       queue.getFailed(0, 10),
       queue.getDelayed(0, 10),
-      queue.getPaused(0, 10),
     ]);
 
     // 작업 정보 포맷팅
@@ -55,7 +52,6 @@ export async function GET(request: NextRequest) {
       ...activeJobs.map((job) => formatJobInfo(job, 'active')),
       ...waitingJobs.map((job) => formatJobInfo(job, 'waiting')),
       ...delayedJobs.map((job) => formatJobInfo(job, 'delayed')),
-      ...pausedJobs.map((job) => formatJobInfo(job, 'paused')),
       ...completedJobs.map((job) => formatJobInfo(job, 'completed')),
       ...failedJobs.map((job) => formatJobInfo(job, 'failed')),
     ];
@@ -67,8 +63,7 @@ export async function GET(request: NextRequest) {
         completed,
         failed,
         delayed,
-        paused,
-        total: waiting + active + completed + failed + delayed + paused,
+        total: waiting + active + completed + failed + delayed,
       },
       jobs: allJobs,
       timestamp: new Date().toISOString(),
@@ -84,7 +79,6 @@ export async function GET(request: NextRequest) {
           completed: 0,
           failed: 0,
           delayed: 0,
-          paused: 0,
         },
         jobs: [],
       },
