@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runCacheWarming, getCacheWarmingStats } from '@/lib/scheduled/cache-warming';
 
-/**
- * GET /api/cron/warm-cache
- * Vercel Cron 또는 외부 스케줄러에서 주기적으로 호출
- * 매 6시간마다 인기 검색어 상위 20개를 캐시로 갱신
- *
- * 설정 (vercel.json):
- * - path: /api/cron/warm-cache
- * - schedule: 0 every-6-hours (cron: 0 */6 * * *)
- */
+// GET /api/cron/warm-cache
+// Vercel Cron 또는 외부 스케줄러에서 주기적으로 호출
+// 매 6시간마다 인기 검색어 상위 20개를 캐시로 갱신
 export async function GET(request: NextRequest) {
   try {
     // Vercel Cron 토큰 검증 (선택사항)
@@ -63,10 +57,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/**
- * 수동 캐시 워밍 (테스트용)
- * POST /api/cron/warm-cache
- */
+// POST /api/cron/warm-cache - 수동 캐시 워밍 (테스트용)
 export async function POST(request: NextRequest) {
   try {
     // 환경변수에서 비밀키 확인
