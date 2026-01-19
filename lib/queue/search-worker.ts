@@ -104,7 +104,12 @@ const worker = new Worker<SearchJobData>(
     limiter: {
       max: 100,
       duration: 1000
-    }
+    },
+    // Job 처리 중 락 유지 설정
+    lockDuration: 300000,      // 5분 (300초) - Job 처리 최대 시간
+    lockRenewTime: 150000,     // 2.5분 (150초) - 락 갱신 주기
+    maxStalledCount: 2,        // 최대 stalled 재시도 횟수
+    stalledInterval: 5000,     // 5초마다 stalled 상태 체크
   }
 )
 

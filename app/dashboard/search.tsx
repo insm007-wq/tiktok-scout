@@ -72,10 +72,19 @@ export default function Search() {
   const [hoveredVideoId, setHoveredVideoId] = useState<string | null>(null);
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
   const [showTranslationPanel, setShowTranslationPanel] = useState(true);
+  const [jobStatus, setJobStatus] = useState<{
+    status: 'waiting' | 'active' | 'delayed' | 'paused';
+    progress: number;
+    queuePosition: number;
+    message: string;
+    totalQueueSize?: number;
+    estimatedWaitSeconds?: number;
+  } | null>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Toast 추가 함수
   const addToast = useCallback((type: "success" | "error" | "warning" | "info", message: string, title?: string, duration = 3000) => {
@@ -400,14 +409,66 @@ export default function Search() {
       if (data.status === "completed" && data.data) {
         setVideos(data.data);
         setError("");
-        addToast("success", "검색 완료!", "캐시된 결과를 표시합니다");
+        addToast("success", "검색 완료!", "결과를 찾았습니다");
+        setIsLoading(false);
       } else if (data.status === "queued") {
         // 큐에 추가됨 - jobId로 진행 상황 추적 가능
         setVideos([]);
-        addToast("info", `검색 대기 중...`, `작업 ID: ${data.jobId}`);
+        addToast("info", "검색을 시작했습니다");
+
+        // 초기 큐 크기 저장
+        const initialQueueSize = data.totalQueueSize || data.queueSize;
+
+        // 폴링 시작: 2초마다 상태 확인
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusRes = await fetch(`/api/search/${data.jobId}`, {
+              signal: abortControllerRef.current?.signal,
+            });
+
+            if (!statusRes.ok) return;
+
+            const statusData = await statusRes.json();
+
+            // 실시간 상태 업데이트
+            if (statusData.status && statusData.queuePosition !== undefined) {
+              setJobStatus({
+                status: statusData.status as 'waiting' | 'active' | 'delayed' | 'paused',
+                progress: statusData.progress || 0,
+                queuePosition: statusData.queuePosition,
+                message: statusData.message || '',
+                totalQueueSize: initialQueueSize,
+                estimatedWaitSeconds: statusData.estimatedWaitSeconds,
+              });
+            }
+
+            if (statusData.status === "completed" && statusData.data) {
+              setVideos(statusData.data);
+              setIsLoading(false);
+              setError("");
+              setJobStatus(null);
+              addToast("success", "검색 완료!", "검색 결과를 표시합니다");
+              clearInterval(pollInterval);
+            } else if (statusData.status === "failed") {
+              setError(statusData.error || "검색 중 오류가 발생했습니다");
+              setIsLoading(false);
+              setJobStatus(null);
+              clearInterval(pollInterval);
+            }
+          } catch (err) {
+            // 폴링 중 에러는 무시
+            console.error("[Poll] Error:", err);
+          }
+        }, 2000);
+
+        pollIntervalRef.current = pollInterval;
+
+        // 정리 함수: 폴링 중단
+        abortControllerRef.current = new AbortController();
       } else {
         setVideos([]);
         setError(data.error || "검색 결과가 없습니다");
+        setIsLoading(false);
       }
     } catch (error: any) {
       if (error.name === "AbortError") {
@@ -418,9 +479,7 @@ export default function Search() {
         setError(error instanceof Error ? error.message : "검색 중 오류가 발생했습니다");
         setVideos([]);
       }
-    } finally {
       setIsLoading(false);
-      abortControllerRef.current = null;
     }
   }, [searchInput, platform, targetLanguage, searchHistory, filters.uploadPeriod, addToast]);
 
@@ -448,6 +507,11 @@ export default function Search() {
       setIsLoading(false);
       abortControllerRef.current = null;
     }
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    setJobStatus(null);
   }, []);
 
   // 히스토리 항목 클릭 - 검색 입력 필드에만 값 설정
@@ -1118,7 +1182,16 @@ export default function Search() {
           >
             {isLoading ? (
               <div style={{ width: "100%", maxWidth: "600px" }}>
-                <SearchProgress isSearching={isLoading} onCancel={handleCancelSearch} />
+                <SearchProgress
+                  isSearching={isLoading}
+                  onCancel={handleCancelSearch}
+                  jobStatus={jobStatus?.status}
+                  realProgress={jobStatus?.progress}
+                  queuePosition={jobStatus?.queuePosition}
+                  totalQueueSize={jobStatus?.totalQueueSize}
+                  statusMessage={jobStatus?.message}
+                  estimatedWaitSeconds={jobStatus?.estimatedWaitSeconds}
+                />
               </div>
             ) : results.length === 0 ? (
               <div

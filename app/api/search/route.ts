@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 캐시 미스 → 큐에 작업 추가
-    const job = await searchQueue.add({
+    const job = await searchQueue.add('search', {
       query: query.trim(),
       platform,
       dateRange,
