@@ -111,16 +111,6 @@ export const signupSchema = z
 export type SignupFormData = z.infer<typeof signupSchema>
 
 /**
- * SMS 인증 코드 검증 스키마
- */
-export const smsVerificationSchema = z.object({
-  phone: z.string().regex(/^01[0-9]\d{7,8}$/, '올바른 핸드폰 번호 형식이 아닙니다'),
-  code: z.string().length(6, '인증 코드는 6자리 숫자여야 합니다').regex(/^\d{6}$/, '인증 코드는 숫자만 입력해주세요'),
-})
-
-export type SMSVerificationData = z.infer<typeof smsVerificationSchema>
-
-/**
  * 로그인 폼 검증 스키마
  */
 export const loginSchema = z.object({

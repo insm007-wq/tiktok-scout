@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: '회원가입이 완료되었습니다. SMS 인증 코드를 입력해주세요.',
+        message: '회원가입이 완료되었습니다. 로그인해주세요.',
         email: newUser.email,
         phone: newUser.phone,
       },

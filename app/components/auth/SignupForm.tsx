@@ -116,8 +116,8 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
         throw new Error(data.error || '회원가입 실패')
       }
 
-      // SMS 인증 페이지로 이동
-      router.push(`/auth/signup/verify?phone=${encodeURIComponent(result.data.phone)}`)
+      // 로그인 페이지로 이동
+      router.push('/auth/login')
     } catch (err) {
       setError(err instanceof Error ? err.message : '요청 처리 중 오류가 발생했습니다')
       setStep('consent')

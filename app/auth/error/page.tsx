@@ -14,10 +14,6 @@ export default function ErrorPage() {
       title: '승인 대기 중',
       message: '귀하의 계정은 현재 관리자 승인을 기다리고 있습니다. 승인되면 로그인할 수 있습니다.',
     },
-    sms_not_verified: {
-      title: 'SMS 인증 필요',
-      message: 'SMS 인증을 완료해야 합니다. 회원가입 과정을 다시 진행해주세요.',
-    },
     account_banned: {
       title: '계정 차단',
       message: '귀하의 계정이 차단되었습니다. 자세한 내용은 관리자에게 문의하세요.',
@@ -57,19 +53,9 @@ export default function ErrorPage() {
               <div className="text-sm text-blue-700">
                 <p className="font-semibold mb-2">다음 절차를 확인해주세요:</p>
                 <ul className="list-disc list-inside space-y-1">
-                  <li>1. SMS 인증 완료 (회원가입 시 진행됨)</li>
+                  <li>1. 회원가입 완료</li>
                   <li>2. 관리자가 귀하의 계정을 검토</li>
                   <li>3. 승인 후 로그인 가능</li>
-                </ul>
-              </div>
-            )}
-            {error === 'sms_not_verified' && (
-              <div className="text-sm text-blue-700">
-                <p className="font-semibold mb-2">회원가입을 다시 진행해주세요:</p>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>1. 회원가입 페이지에서 정보 입력</li>
-                  <li>2. SMS 인증 코드 입력</li>
-                  <li>3. 관리자 승인 대기</li>
                 </ul>
               </div>
             )}
@@ -95,15 +81,6 @@ export default function ErrorPage() {
               <ArrowLeft size={18} />
               로그인 페이지로
             </button>
-
-            {error === 'sms_not_verified' && (
-              <button
-                onClick={() => router.push('/auth/signup')}
-                className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors font-medium"
-              >
-                회원가입 다시 하기
-              </button>
-            )}
           </div>
         </div>
 
