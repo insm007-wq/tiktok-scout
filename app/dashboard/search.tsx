@@ -374,17 +374,16 @@ export default function Search() {
     setVideos([]);
 
     try {
-      // Bright Data API 호출 (번역된 쿼리 사용)
+      // 새로운 비동기 큐 API 호출
       // Xiaohongshu는 기간 필터를 지원하지 않으므로 "all"로 고정
       const dateRange = platform === "xiaohongshu" ? "all" : filters.uploadPeriod;
 
-      const response = await fetch("/api/brightdata/search", {
+      const response = await fetch("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           query: searchQuery,
           platform,
-          limit: 50,
           dateRange: dateRange,
         }),
         signal: abortControllerRef.current.signal,
@@ -397,9 +396,15 @@ export default function Search() {
 
       const data = await response.json();
 
-      if (data.success && data.videos && data.videos.length > 0) {
-        setVideos(data.videos);
+      // 캐시 히트 시 즉시 결과 표시
+      if (data.status === "completed" && data.data) {
+        setVideos(data.data);
         setError("");
+        addToast("success", "검색 완료!", "캐시된 결과를 표시합니다");
+      } else if (data.status === "queued") {
+        // 큐에 추가됨 - jobId로 진행 상황 추적 가능
+        setVideos([]);
+        addToast("info", `검색 대기 중...`, `작업 ID: ${data.jobId}`);
       } else {
         setVideos([]);
         setError(data.error || "검색 결과가 없습니다");

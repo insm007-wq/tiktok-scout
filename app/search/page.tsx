@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Loader2, MoreVertical } from "lucide-react";
+import { io, Socket } from "socket.io-client";
 
-type Platform = "tiktok" | "douyin";
+type Platform = "tiktok" | "douyin" | "xiaohongshu";
 
 interface SearchResult {
   id: string;
@@ -15,6 +16,13 @@ interface SearchResult {
   profilePicUrl?: string;
 }
 
+interface JobStatus {
+  status: string;
+  progress: number;
+  message: string;
+  queuePosition?: number;
+}
+
 export default function SearchPage() {
   const [platform, setPlatform] = useState<Platform>("tiktok");
   const [query, setQuery] = useState("");
@@ -22,6 +30,60 @@ export default function SearchPage() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
+
+  // WebSocket 연결 초기화
+  useEffect(() => {
+    const newSocket = io("/api/socketio", {
+      transports: ["websocket", "polling"],
+    });
+
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.disconnect();
+    };
+  }, []);
+
+  // WebSocket 이벤트 리스너
+  useEffect(() => {
+    if (!socket || !jobId) return;
+
+    socket.emit("subscribe", jobId);
+
+    socket.on("job:progress", (data) => {
+      setJobStatus((prev) => ({
+        ...prev,
+        ...data,
+      }));
+    });
+
+    socket.on("job:completed", (data) => {
+      setResults(data.result || []);
+      setLoading(false);
+      setJobId(null);
+      socket.off("job:progress");
+      socket.off("job:completed");
+      socket.off("job:failed");
+    });
+
+    socket.on("job:failed", (data) => {
+      setError(data.error || "검색 중 오류가 발생했습니다.");
+      setLoading(false);
+      setJobId(null);
+      socket.off("job:progress");
+      socket.off("job:completed");
+      socket.off("job:failed");
+    });
+
+    return () => {
+      socket.off("job:progress");
+      socket.off("job:completed");
+      socket.off("job:failed");
+    };
+  }, [socket, jobId]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,32 +95,43 @@ export default function SearchPage() {
 
     setLoading(true);
     setError("");
+    setResults([]);
+    setJobId(null);
+    setJobStatus(null);
 
     try {
-      const response = await fetch("/api/brightdata/search", {
+      const response = await fetch("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           query,
           platform,
-          limit,
         }),
       });
 
       if (!response.ok) {
-        throw new Error("검색 중 오류가 발생했습니다.");
+        throw new Error("검색 요청 처리 중 오류가 발생했습니다.");
       }
 
       const data = await response.json();
-      setResults(data.results || []);
 
-      if (data.results.length === 0) {
-        setError("검색 결과가 없습니다.");
+      // 캐시에서 바로 반환된 경우
+      if (data.status === "completed") {
+        setResults(data.data || []);
+        setLoading(false);
+      } else {
+        // 큐에 추가된 경우
+        setJobId(data.jobId);
+        setJobStatus({
+          status: "queued",
+          progress: 0,
+          message: data.message,
+          queuePosition: data.queuePosition,
+        });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "오류가 발생했습니다.");
       setResults([]);
-    } finally {
       setLoading(false);
     }
   };
@@ -152,6 +225,31 @@ export default function SearchPage() {
               </div>
             )}
 
+            {/* 진행 상태 */}
+            {jobStatus && (
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-blue-700 dark:text-blue-300 font-medium">
+                    {jobStatus.message}
+                  </p>
+                  <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                    {jobStatus.progress}%
+                  </span>
+                </div>
+                <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2.5 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 to-cyan-400 h-full rounded-full transition-all duration-300"
+                    style={{ width: `${jobStatus.progress}%` }}
+                  />
+                </div>
+                {jobStatus.queuePosition && jobStatus.queuePosition > 1 && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 text-center">
+                    대기열: {jobStatus.queuePosition}번 위치
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* 검색 버튼 */}
             <button
               type="submit"
@@ -161,7 +259,7 @@ export default function SearchPage() {
               {loading ? (
                 <>
                   <Loader2 className="animate-spin" size={20} />
-                  검색 중...
+                  {jobStatus ? "처리 중..." : "요청 중..."}
                 </>
               ) : (
                 <>

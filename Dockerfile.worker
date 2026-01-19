@@ -1,0 +1,19 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# 기본 패키지 설치
+RUN apk add --no-cache python3 make g++ pm2
+
+# 의존성 설치
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# 소스 코드 복사
+COPY . .
+
+# 빌드 (TypeScript 컴파일)
+RUN npm run build
+
+# PM2로 워커 실행
+CMD ["pm2-runtime", "start", "ecosystem.config.js"]

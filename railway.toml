@@ -1,0 +1,18 @@
+[build]
+builder = "dockerfile"
+
+[[services]]
+name = "app"
+dockerfile = "Dockerfile"
+healthcheck = { cmd = "curl -f http://localhost:3000 || exit 1", interval = 10, timeout = 5, retries = 3 }
+
+[[services]]
+name = "redis"
+image = "redis:7-alpine"
+cmd = "redis-server --maxmemory 2gb --maxmemory-policy allkeys-lru --appendonly yes"
+port = 6379
+
+[[services]]
+name = "worker"
+dockerfile = "Dockerfile.worker"
+startCmd = "npm run worker:pm2"

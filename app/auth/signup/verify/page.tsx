@@ -8,7 +8,7 @@ import { AlertCircle, CheckCircle2, Loader2, RefreshCw } from 'lucide-react'
 export default function VerifyPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const phone = searchParams.get('phone')
+  const phone = searchParams?.get('phone')
 
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)

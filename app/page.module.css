@@ -349,7 +349,7 @@
 }
 
 .platformCard:nth-child(2)::before {
-  background: linear-gradient(90deg, #000000, var(--neon-red));
+  background: linear-gradient(90deg, var(--neon-red), #FF6B9D);
 }
 
 .platformCard:nth-child(3)::before {
@@ -402,7 +402,7 @@
 }
 
 .platformCard:nth-child(2) .platformTitle {
-  background: linear-gradient(135deg, #000000, var(--neon-red));
+  background: linear-gradient(135deg, var(--neon-red), #FF6B9D);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

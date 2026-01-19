@@ -22,7 +22,7 @@ export default function AddressInput({ value, onChange, error }: AddressInputPro
       onChange({
         zipCode: data.zonecode,
         address: data.address,
-        detailAddress: value.detailAddress, // 기존 상세주소 유지
+        detailAddress: value.detailAddress,
       })
       setShowPostcode(false)
     },
@@ -52,27 +52,25 @@ export default function AddressInput({ value, onChange, error }: AddressInputPro
       )}
 
       {/* 우편번호 */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="col-span-1">
-          <label className="block text-sm font-medium text-white/90 mb-2">
-            우편번호 <span className="text-red-400">*</span>
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={value.zipCode}
-              readOnly
-              placeholder="우편번호"
-              className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 cursor-not-allowed"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPostcode(true)}
-              className="px-4 py-3 bg-gradient-to-r from-pink-500 to-cyan-400 text-black rounded-lg hover:shadow-[0_0_20px_rgba(254,44,85,0.5)] transition-all font-semibold"
-            >
-              검색
-            </button>
-          </div>
+      <div>
+        <label className="block text-sm font-medium text-white/90 mb-2">
+          우편번호 <span className="text-red-400">*</span>
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={value.zipCode}
+            readOnly
+            placeholder="우편번호"
+            className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 cursor-not-allowed"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPostcode(true)}
+            className="px-4 py-3 bg-gradient-to-r from-pink-500 to-cyan-400 text-black rounded-lg hover:shadow-[0_0_20px_rgba(254,44,85,0.5)] transition-all font-semibold"
+          >
+            검색
+          </button>
         </div>
       </div>
 

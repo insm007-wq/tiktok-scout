@@ -9,7 +9,7 @@ import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react'
 export default function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
+  const callbackUrl = searchParams?.get('callbackUrl') || '/dashboard'
 
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
@@ -24,7 +24,7 @@ export default function LoginForm() {
 
   // URL의 error 파라미터 확인 (페이지 로드 시)
   useEffect(() => {
-    const errorParam = searchParams.get('error')
+    const errorParam = searchParams?.get('error')
     if (errorParam) {
       if (errorParam === 'CredentialsSignin') {
         setError('아이디 또는 비밀번호를 확인해주세요.')

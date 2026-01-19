@@ -15,7 +15,15 @@ export async function connectToDatabase() {
     throw new Error('Please define MONGODB_URI in .env.local')
   }
 
-  const client = new MongoClient(mongoUri)
+  const client = new MongoClient(mongoUri, {
+    maxPoolSize: 500,
+    minPoolSize: 100,
+    maxIdleTimeMS: 60000,
+    waitQueueTimeoutMS: 2000,
+    compressors: ['zlib'],
+    zlibCompressionLevel: 6,
+    readPreference: 'secondaryPreferred'
+  })
 
   try {
     await client.connect()
@@ -82,6 +90,12 @@ async function initializeIndexes(db: Db) {
 
     // video_cache: 인기 검색어 분석용
     await cacheCollection.createIndex({ accessCount: -1 })
+
+    // video_cache: 최신순 정렬용
+    await cacheCollection.createIndex({ createdAt: -1 })
+
+    // video_cache: 최근 접근순 정렬용
+    await cacheCollection.createIndex({ lastAccessedAt: -1 })
 
   } catch (error) {
     if ((error as any).code === 48 || (error as any).code === 68) {

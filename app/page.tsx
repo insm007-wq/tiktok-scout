@@ -30,7 +30,7 @@ export default function Home() {
       id: 1,
       platform: "Douyin",
       icon: "🎬",
-      gradient: "from-[#000000] to-[#EE1D51]",
+      gradient: "from-[#EE1D51] to-[#FF6B9D]",
       title: "Douyin China",
       description: "중국 시장의 모든 것",
       features: ["중국 트렌드 발굴", "한중 번역 지원", "로컬 인사이트"],
