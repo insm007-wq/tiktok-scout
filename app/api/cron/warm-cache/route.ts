@@ -7,12 +7,8 @@ import { runCacheWarming, getCacheWarmingStats } from '@/lib/scheduled/cache-war
  * 매 6시간마다 인기 검색어 상위 20개를 캐시로 갱신
  *
  * 설정 (vercel.json):
- * {
- *   "crons": [{
- *     "path": "/api/cron/warm-cache",
- *     "schedule": "0 */6 * * *"
- *   }]
- * }
+ * - path: /api/cron/warm-cache
+ * - schedule: 0 every-6-hours (cron: 0 */6 * * *)
  */
 export async function GET(request: NextRequest) {
   try {
