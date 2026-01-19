@@ -71,10 +71,16 @@ async function initializeIndexes(db: Db) {
     await usersCollection.createIndex({ lastActive: -1 })
     await usersCollection.createIndex({ createdAt: -1 })
 
-    // video_cache: TTL 인덱스 (자동 삭제)
+    // video_cache: TTL 인덱스 (자동 삭제, 90일 후 만료)
+    // background: true = 백그라운드에서 삭제 진행
+    // sparse: true = null 값 가진 문서는 무시
     await cacheCollection.createIndex(
       { expiresAt: 1 },
-      { expireAfterSeconds: 0 }
+      {
+        expireAfterSeconds: 0,
+        background: true,
+        sparse: true
+      }
     )
 
     // video_cache: 캐시 조회 최적화 (cacheKey unique)
