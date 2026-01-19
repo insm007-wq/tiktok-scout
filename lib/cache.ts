@@ -1,19 +1,27 @@
 /**
  * 계층형 캐시 시스템: L1(메모리) + L2(MongoDB)
- * - L1: 메모리 캐시 (30분 TTL, 빠르지만 휘발성)
- * - L2: MongoDB 캐시 (7-30일 TTL, 영구 저장)
+ * - L1: LRU 메모리 캐시 (24시간 TTL, 최대 10,000 항목)
+ * - L2: MongoDB 캐시 (90일 TTL, 영구 저장)
  */
 
 import { VideoResult, Platform } from '@/types/video';
 import { getDb } from './mongodb';
 import { VideoCacheDocument, generateCacheKey } from './models/VideoCache';
+import { LRUCache } from 'lru-cache';
 
 interface CacheEntry<T> {
   data: T;
   expiresAt: number;
 }
 
-const cache = new Map<string, CacheEntry<any>>();
+// LRU 캐시 설정: 최대 10,000개 항목, 24시간 TTL
+const cache = new LRUCache<string, CacheEntry<any>>({
+  max: 10000,                    // 최대 10,000개 항목
+  ttl: 24 * 60 * 60 * 1000,     // 24시간
+  updateAgeOnGet: true,          // GET할 때 TTL 갱신
+  allowStale: false,             // 만료된 항목 반환 안 함
+  ttlAutopurge: true             // 만료된 항목 자동 삭제
+});
 
 /**
  * 캐시 키 생성
@@ -195,13 +203,14 @@ export async function getVideoFromMongoDB(
 
 /**
  * MongoDB에 영상 캐시 저장 (L2 캐시)
+ * @param ttlDays - 캐시 유지 기간 (기본값: 90일)
  */
 export async function setVideoToMongoDB(
   query: string,
   platform: Platform,
   videos: VideoResult[],
   dateRange?: string,
-  ttlDays: number = 7
+  ttlDays: number = 90
 ): Promise<void> {
   try {
     const db = await getDb();
@@ -255,8 +264,8 @@ export async function getVideoFromCache(
   // L2: MongoDB 캐시 확인
   const mongoCache = await getVideoFromMongoDB(query, platform, dateRange);
   if (mongoCache) {
-    // L1 캐시 웜업 (메모리에도 저장)
-    const expiresAt = Date.now() + 30 * 60 * 1000; // 30분
+    // L1 캐시 웜업 (메모리에도 저장, 24시간 TTL)
+    const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24시간
     cache.set(memoryKey, {
       data: mongoCache,
       expiresAt,
@@ -279,13 +288,13 @@ export async function setVideoToCache(
   const memoryKey = `video:${platform}:${query}:${dateRange || 'all'}`;
   const data = { videos };
 
-  // L1: 메모리 캐시 (30분)
-  const expiresAt = Date.now() + 30 * 60 * 1000;
+  // L1: 메모리 캐시 (24시간)
+  const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
   cache.set(memoryKey, {
     data,
     expiresAt,
   });
 
-  // L2: MongoDB 캐시 (7일)
-  await setVideoToMongoDB(query, platform, videos, dateRange, 7);
+  // L2: MongoDB 캐시 (90일)
+  await setVideoToMongoDB(query, platform, videos, dateRange, 90);
 }
