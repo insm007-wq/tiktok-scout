@@ -84,14 +84,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // SMS 인증 확인
-    if (!session.user.isVerified) {
-      return NextResponse.json(
-        { error: 'SMS 인증이 필요합니다.' },
-        { status: 403 }
-      );
-    }
-
     const body: SearchRequest = await req.json();
     const { query, platform, limit, dateRange } = body;
 

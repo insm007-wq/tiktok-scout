@@ -4,6 +4,13 @@ import { signupSchema } from '@/lib/validations/auth'
 import { createUser, getUserById, getUserByPhone } from '@/lib/userLimits'
 import { hashPassword } from '@/lib/auth/password'
 
+// 환경 변수에서 초대 코드 로드
+const INVITATION_CODE = process.env.INVITATION_CODE
+
+if (!INVITATION_CODE) {
+  console.error('[Signup API] ⚠️ WARNING: INVITATION_CODE not set!')
+}
+
 /**
  * POST /api/auth/signup
  * 회원가입
@@ -27,6 +34,25 @@ export async function POST(req: NextRequest) {
 
     const data = parsed.data
 
+    // 초대 코드 확인
+    if (!INVITATION_CODE) {
+      return NextResponse.json(
+        { error: '초대 코드 시스템이 설정되지 않았습니다.' },
+        { status: 500 }
+      )
+    }
+
+    const submittedCode = data.invitationCode.trim().toUpperCase()
+    const validCode = INVITATION_CODE.trim().toUpperCase()
+
+    if (submittedCode !== validCode) {
+      console.warn(`[Signup API] Invalid invitation code: ${submittedCode}`)
+      return NextResponse.json(
+        { error: '유효하지 않은 초대 코드입니다' },
+        { status: 403 }
+      )
+    }
+
     // 이메일 중복 확인
     const existingEmail = await getUserById(data.email)
     if (existingEmail) {
@@ -42,7 +68,7 @@ export async function POST(req: NextRequest) {
     // 비밀번호 해싱
     const hashedPassword = await hashPassword(data.password)
 
-    // 사용자 생성
+    // 사용자 생성 (유효한 초대 코드 입력 시 자동 승인)
     const newUser = await createUser({
       email: data.email,
       name: data.name,
@@ -50,6 +76,7 @@ export async function POST(req: NextRequest) {
       password: hashedPassword,
       address: `${data.address.zipCode} ${data.address.address} ${data.address.detailAddress}`,
       marketingConsent: data.marketingConsent,
+      isApproved: true,
     })
 
     return NextResponse.json(

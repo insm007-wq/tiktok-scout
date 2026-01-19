@@ -25,6 +25,13 @@ export const infoSchema = z
       .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, '특수문자를 포함해야 합니다'),
 
     passwordConfirm: z.string(),
+
+    invitationCode: z
+      .string()
+      .min(6, '초대 코드는 6자 이상이어야 합니다')
+      .max(50, '초대 코드는 50자 이하여야 합니다')
+      .regex(/^[A-Za-z0-9-]+$/, '초대 코드는 영문, 숫자, 하이픈만 사용 가능합니다')
+      .transform(val => val.trim().toUpperCase()),
   })
   .refine((data) => data.password === data.passwordConfirm, {
     message: '비밀번호가 일치하지 않습니다',
@@ -88,6 +95,13 @@ export const signupSchema = z
       .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, '특수문자를 포함해야 합니다'),
 
     passwordConfirm: z.string(),
+
+    invitationCode: z
+      .string()
+      .min(6, '초대 코드는 6자 이상이어야 합니다')
+      .max(50, '초대 코드는 50자 이하여야 합니다')
+      .regex(/^[A-Za-z0-9-]+$/, '초대 코드는 영문, 숫자, 하이픈만 사용 가능합니다')
+      .transform(val => val.trim().toUpperCase()),
 
     address: addressSchema,
 

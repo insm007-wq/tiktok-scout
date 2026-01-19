@@ -499,6 +499,7 @@ export async function createUser(userData: {
   marketingConsent?: boolean
   provider?: string
   providerId?: string
+  isApproved?: boolean
 }): Promise<User> {
   const { db } = await connectToDatabase()
   const collection = getUsersCollection(db)
@@ -522,7 +523,7 @@ export async function createUser(userData: {
     createdAt: now,
     updatedAt: now,
     isAdmin: false,
-    isApproved: false, // 가입 승인 대기 상태로 생성
+    isApproved: userData.isApproved ?? false,
   }
 
   // password는 선택적으로 추가
