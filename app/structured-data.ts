@@ -2,9 +2,10 @@ export const structuredData = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
   name: 'TikTalk Killa',
+  alternateName: '틱톡킬라',
   url: 'https://www.tiktalk-killa.com',
   applicationCategory: 'SearchApplication',
-  description: 'TikTok, Douyin, 샤오홍슈 영상을 한눈에 검색하고 분석하세요.',
+  description: '틱톡킬라(TikTalk Killa)는 TikTok, Douyin, 샤오홍슈 영상을 한눈에 검색하고 분석하는 도구입니다. 틱톡 킬라로 인기 콘텐츠를 발견하세요.',
   softwareVersion: '1.0.0',
   author: {
     '@type': 'Organization',
@@ -36,10 +37,11 @@ export const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'TikTalk Killa',
+  alternateName: '틱톡킬라',
   url: 'https://www.tiktalk-killa.com',
   logo: 'https://www.tiktalk-killa.com/logo.png',
   description:
-    'TikTok, Douyin, 샤오홍슈 영상을 한눈에 검색하고 분석하세요. 가장 인기 있는 콘텐츠를 발견하세요.',
+    '틱톡킬라(TikTalk Killa)는 TikTok, Douyin, 샤오홍슈 영상을 한눈에 검색하고 분석합니다. 틱톡 킬라로 인기 콘텐츠와 크리에이터를 발견하세요.',
   sameAs: [],
   contactPoint: {
     '@type': 'ContactPoint',
@@ -52,9 +54,10 @@ export const websiteSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
   name: 'TikTalk Killa',
+  alternateName: '틱톡킬라',
   url: 'https://www.tiktalk-killa.com',
   description:
-    'TikTok, Douyin, 샤오홍슈 영상을 한눈에 검색하고 분석하세요.',
+    '틱톡킬라(TikTalk Killa)는 TikTok, Douyin, 샤오홍슈 영상을 한눈에 검색하고 분석합니다.',
   potentialAction: {
     '@type': 'SearchAction',
     target: {

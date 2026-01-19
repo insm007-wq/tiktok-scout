@@ -66,9 +66,12 @@ export default function HomeContent() {
         {/* 타이틀 */}
         <div className={styles.titleSection}>
           <h1 onClick={handleTitleClick} className={`${styles.neonTitle} ${isRefreshing ? styles.titleRefresh : ""}`}>
-            tiktalk killa
+            틱톡킬라
           </h1>
           <div className={styles.titleUnderline}></div>
+          <p style={{ textAlign: 'center', fontSize: '0.9em', opacity: 0.7, marginTop: '0.5em' }}>
+            TikTalk Killa - 틱톡 영상 검색 및 분석
+          </p>
         </div>
 
         {/* 히어로 섹션 */}
