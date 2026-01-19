@@ -1,8 +1,13 @@
 import { VideoResult } from '@/types/video';
+import { fetchWithRetry, fetchPostWithRetry, fetchGetWithRetry } from '@/lib/utils/fetch-with-retry';
 
 /**
  * TikTok 영상 검색 (Api Dojo TikTok Scraper)
  * ⭐ 최고 평점 (4.8/5), 가장 정확하고 빠름
+ *
+ * ✅ 429 Rate Limit 자동 재시도 (Exponential Backoff)
+ * - 최대 3회 재시도
+ * - 1초, 2초, 4초... 대기
  */
 export async function searchTikTokVideos(
   query: string,
@@ -26,22 +31,20 @@ export async function searchTikTokVideos(
       return mapping[uploadPeriod || 'all'] || 'DEFAULT';
     };
 
-    // 1️⃣ Run 시작
-    const runRes = await fetch(
+    // 1️⃣ Run 시작 (429 에러 시 자동 재시도)
+    const runRes = await fetchPostWithRetry(
       `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
       {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          keywords: [query],
-          maxItems: 50,
-          sortType: 'RELEVANCE',
-          location: 'US',
-          dateRange: mapDateRange(dateRange),
-          includeSearchKeywords: false,
-          startUrls: [],
-        }),
-      }
+        keywords: [query],
+        maxItems: 50,
+        sortType: 'RELEVANCE',
+        location: 'US',
+        dateRange: mapDateRange(dateRange),
+        includeSearchKeywords: false,
+        startUrls: [],
+      },
+      {},
+      { maxRetries: 3, initialDelayMs: 1000 }
     );
 
     const runData = await runRes.json();
@@ -51,7 +54,7 @@ export async function searchTikTokVideos(
 
     const runId = runData.data.id;
 
-    // 2️⃣ 완료 대기 (Polling)
+    // 2️⃣ 완료 대기 (Polling with retry)
     let status = 'RUNNING';
     let attempt = 0;
     const maxAttempts = 60;
@@ -59,8 +62,10 @@ export async function searchTikTokVideos(
     const maxWaitTime = 5000;
 
     while ((status === 'RUNNING' || status === 'READY') && attempt < maxAttempts) {
-      const statusRes = await fetch(
-        `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
+      const statusRes = await fetchGetWithRetry(
+        `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`,
+        {},
+        { maxRetries: 3, initialDelayMs: 1000 }
       );
 
       const statusData = await statusRes.json();
@@ -82,9 +87,11 @@ export async function searchTikTokVideos(
       return [];
     }
 
-    // 3️⃣ 결과 조회
-    const datasetRes = await fetch(
-      `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`
+    // 3️⃣ 결과 조회 (429 에러 시 자동 재시도)
+    const datasetRes = await fetchGetWithRetry(
+      `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`,
+      {},
+      { maxRetries: 3, initialDelayMs: 1000 }
     );
 
     const dataset = await datasetRes.json();

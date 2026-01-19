@@ -1,8 +1,11 @@
 import { VideoResult } from '@/types/video';
+import { fetchPostWithRetry, fetchGetWithRetry } from '@/lib/utils/fetch-with-retry';
 
 /**
  * Douyin 영상 검색 (natanielsantos Douyin Scraper)
  * 검색 → 폴링 → 결과 조회
+ *
+ * ✅ 429 Rate Limit 자동 재시도 (Exponential Backoff)
  */
 export async function searchDouyinVideos(
   query: string,
@@ -25,7 +28,7 @@ export async function searchDouyinVideos(
       return mapping[uploadPeriod || 'all'] || 'all';
     };
 
-    // 1️⃣ Run 시작
+    // 1️⃣ Run 시작 (429 에러 시 자동 재시도)
     const inputParams: any = {
       searchTermsOrHashtags: [query],
       searchSortFilter: 'most_liked',
@@ -35,13 +38,11 @@ export async function searchDouyinVideos(
       shouldDownloadCovers: false,
     };
 
-    const runRes = await fetch(
+    const runRes = await fetchPostWithRetry(
       `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inputParams),
-      }
+      inputParams,
+      {},
+      { maxRetries: 3, initialDelayMs: 1000 }
     );
 
     const runData = await runRes.json();
@@ -51,7 +52,7 @@ export async function searchDouyinVideos(
 
     const runId = runData.data.id;
 
-    // 2️⃣ 완료 대기 (Polling)
+    // 2️⃣ 완료 대기 (Polling with retry)
     let status = 'RUNNING';
     let attempt = 0;
     const maxAttempts = 120;
@@ -59,8 +60,10 @@ export async function searchDouyinVideos(
     const maxWaitTime = 5000;
 
     while ((status === 'RUNNING' || status === 'READY') && attempt < maxAttempts) {
-      const statusRes = await fetch(
-        `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
+      const statusRes = await fetchGetWithRetry(
+        `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`,
+        {},
+        { maxRetries: 3, initialDelayMs: 1000 }
       );
 
       const statusData = await statusRes.json();

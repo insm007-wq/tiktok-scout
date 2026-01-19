@@ -1,10 +1,13 @@
 import { VideoResult } from '@/types/video';
 import { parseXiaohongshuTime } from '@/lib/utils/xiaohongshuTimeParser';
+import { fetchPostWithRetry, fetchGetWithRetry } from '@/lib/utils/fetch-with-retry';
 
 /**
  * Xiaohongshu(小红书) 영상 검색 (easyapi Search Scraper)
  * ⚠️ 현재 액터가 Selector Timeout 이슈 발생 중
  * 액터 복구 후 자동으로 작동
+ *
+ * ✅ 429 Rate Limit 자동 재시도 (Exponential Backoff)
  */
 export async function searchXiaohongshuVideos(
   query: string,
@@ -22,14 +25,12 @@ export async function searchXiaohongshuVideos(
       maxItems: Math.min(limit, 100),
     };
 
-    // 1️⃣ Run 시작
-    const runRes = await fetch(
+    // 1️⃣ Run 시작 (429 에러 시 자동 재시도)
+    const runRes = await fetchPostWithRetry(
       `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inputParams),
-      }
+      inputParams,
+      {},
+      { maxRetries: 3, initialDelayMs: 1000 }
     );
 
     const runData = await runRes.json();
@@ -39,7 +40,7 @@ export async function searchXiaohongshuVideos(
 
     const runId = runData.data.id;
 
-    // 2️⃣ 완료 대기 (Polling)
+    // 2️⃣ 완료 대기 (Polling with retry)
     let status = 'RUNNING';
     let attempt = 0;
     const maxAttempts = 60;
@@ -47,7 +48,7 @@ export async function searchXiaohongshuVideos(
     const maxWaitTime = 5000;
 
     while ((status === 'RUNNING' || status === 'READY') && attempt < maxAttempts) {
-      const statusRes = await fetch(
+      const statusRes = await fetchGetWithRetry(
         `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
       );
 
