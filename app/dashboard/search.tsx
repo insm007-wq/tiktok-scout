@@ -73,6 +73,7 @@ export default function Search() {
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
   const [showTranslationPanel, setShowTranslationPanel] = useState(true);
   const [jobStatus, setJobStatus] = useState<{
+    jobId: string;
     status: "waiting" | "active" | "delayed" | "paused";
     progress: number;
     queuePosition: number;
@@ -436,6 +437,7 @@ export default function Search() {
             // 실시간 상태 업데이트
             if (statusData.status && statusData.queuePosition !== undefined) {
               setJobStatus({
+                jobId: data.jobId,
                 status: statusData.status as "waiting" | "active" | "delayed" | "paused",
                 progress: statusData.progress || 0,
                 queuePosition: statusData.queuePosition,
@@ -544,18 +546,31 @@ export default function Search() {
     }
   };
 
-  const handleCancelSearch = useCallback(() => {
+  const handleCancelSearch = useCallback(async () => {
+    // Call cancel API to remove job from queue
+    if (jobStatus?.jobId) {
+      try {
+        await fetch(`/api/search/${jobStatus.jobId}/cancel`, { method: 'POST' });
+      } catch (err) {
+        console.error('[Cancel] Failed to cancel job:', err);
+      }
+    }
+
+    // Abort polling and fetch
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       setIsLoading(false);
       abortControllerRef.current = null;
     }
+
+    // Clear polling interval
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;
     }
+
     setJobStatus(null);
-  }, []);
+  }, [jobStatus?.jobId]);
 
   // 히스토리 항목 클릭 - 검색 입력 필드에만 값 설정
   const handleHistoryClick = useCallback((keyword: string) => {
