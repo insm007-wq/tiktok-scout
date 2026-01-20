@@ -1,12 +1,17 @@
 import dotenv from 'dotenv'
 
-// 환경 변수 로드
-dotenv.config({ path: '.env.local' })
+// 개발 환경에서만 .env.local 로드 (Railway/프로덕션에서는 자동 주입)
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config({ path: '.env.local' })
+}
 
 // Use Redis connection URL
 // BullMQ will handle the Redis client automatically
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379'
+
+console.log(`[Redis] URL: ${redisUrl ? '✅ Configured' : '⚠️ Using default'}`)
+console.log(`[Redis] NODE_ENV: ${process.env.NODE_ENV || 'development'}`)
 
 // Lazy loading - 런타임에만 초기화되도록
 let cachedConnection: any = null

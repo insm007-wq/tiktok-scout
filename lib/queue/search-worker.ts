@@ -11,6 +11,12 @@ const RAILWAY_URL = process.env.RAILWAY_SERVER_URL
 const RAILWAY_SECRET = process.env.RAILWAY_API_SECRET
 const APIFY_KEY = process.env.APIFY_API_KEY
 
+console.log('[Worker] Configuration:', {
+  CONCURRENCY,
+  RAILWAY_URL: RAILWAY_URL ? '✅ Set' : '❌ Not set',
+  APIFY_KEY: APIFY_KEY ? '✅ Set' : '❌ Not set'
+})
+
 /**
  * Railway 서버를 통해 스크래핑 (프로덕션)
  * Fallback: 로컬 scraper 사용 (개발/테스트)
