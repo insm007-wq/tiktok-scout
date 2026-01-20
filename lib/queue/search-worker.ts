@@ -77,15 +77,23 @@ const worker = new Worker<SearchJobData>(
           throw new Error('Apify API key not configured')
         }
 
+        console.log(`[Worker] Fallback to local scraper for: ${query} (${platform})`)
+
         switch (platform) {
           case 'tiktok':
+            console.log(`[Worker] Calling searchTikTokVideos...`)
             videos = await searchTikTokVideos(query, 100, APIFY_KEY, dateRange)
+            console.log(`[Worker] searchTikTokVideos returned ${videos.length} videos`)
             break
           case 'douyin':
+            console.log(`[Worker] Calling searchDouyinVideosParallel...`)
             videos = await searchDouyinVideosParallel(query, 100, APIFY_KEY, dateRange)
+            console.log(`[Worker] searchDouyinVideosParallel returned ${videos.length} videos`)
             break
           case 'xiaohongshu':
+            console.log(`[Worker] Calling searchXiaohongshuVideosParallel...`)
             videos = await searchXiaohongshuVideosParallel(query, 100, APIFY_KEY, dateRange)
+            console.log(`[Worker] searchXiaohongshuVideosParallel returned ${videos.length} videos`)
             break
           default:
             throw new Error(`Unknown platform: ${platform}`)
