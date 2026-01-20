@@ -6,8 +6,7 @@ WORKDIR /app
 RUN apk add --no-cache \
     python3 \
     make \
-    g++ \
-    pm2
+    g++
 
 # 패키지 파일 복사
 COPY package*.json ./
