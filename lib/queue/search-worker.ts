@@ -159,4 +159,17 @@ worker.on('active', (job) => {
 console.log('[Worker] 🚀 Worker started and listening for jobs...')
 console.log('[Worker] Waiting for jobs in Redis queue...')
 
+// Handle graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('[Worker] 🛑 SIGTERM received, closing worker...')
+  await worker.close()
+  process.exit(0)
+})
+
+process.on('SIGINT', async () => {
+  console.log('[Worker] 🛑 SIGINT received, closing worker...')
+  await worker.close()
+  process.exit(0)
+})
+
 export default worker
