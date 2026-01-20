@@ -1,27 +1,71 @@
-import dotenv from 'dotenv'
+/**
+ * Redis connection configuration for BullMQ
+ * Environment variables should be loaded at application entry point
+ */
 
-// 환경 변수 로드
-dotenv.config({ path: '.env.local' })
+import { DEFAULT_REDIS_URL } from './constants'
 
-// Use Redis connection URL
-// BullMQ will handle the Redis client automatically
+/**
+ * Redis connection options interface
+ */
+interface RedisConnectionOptions {
+  url: string
+  maxRetriesPerRequest: null
+  enableReadyCheck: boolean
+  keepAlive: number
+  tls: Record<string, unknown>
+}
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379'
+/**
+ * Validates Redis URL format
+ * @param url - The Redis URL to validate
+ * @returns true if URL is valid, false otherwise
+ */
+function validateRedisUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'redis:' || parsed.protocol === 'rediss:'
+  } catch {
+    return false
+  }
+}
 
-// Lazy loading - 런타임에만 초기화되도록
-let cachedConnection: any = null
+const redisUrl = process.env.REDIS_URL || DEFAULT_REDIS_URL
+
+// Validate Redis URL format
+if (!validateRedisUrl(redisUrl)) {
+  throw new Error(`[Redis] Invalid REDIS_URL format: ${redisUrl}`)
+}
+
+// Production environment warning
+if (process.env.NODE_ENV === 'production' && !process.env.REDIS_URL) {
+  console.warn('[Redis] WARNING: REDIS_URL environment variable not explicitly set in production')
+}
+
+// Log connection info in development
+if (process.env.NODE_ENV === 'development') {
+  const displayUrl = redisUrl.replace(/:[^:/@]+@/, ':****@') // Mask password
+  console.log(`[Redis] Connecting to: ${displayUrl}`)
+}
+
+// Lazy loading - Connection is initialized at runtime
+let cachedConnection: RedisConnectionOptions | null = null
 
 export const redisConnection = {
-  get connection() {
+  /**
+   * Get or create Redis connection options for BullMQ
+   * Uses lazy loading to defer initialization until first use
+   */
+  get connection(): RedisConnectionOptions {
     if (!cachedConnection) {
       cachedConnection = {
         url: redisUrl,
-        maxRetriesPerRequest: null,
-        enableReadyCheck: false,
-        keepAlive: 30000,
-        tls: {}  // Upstash는 TLS/SSL 필수
+        maxRetriesPerRequest: null, // Required for BullMQ
+        enableReadyCheck: false, // Improved performance
+        keepAlive: 30000, // 30 second keep-alive
+        tls: {}, // Upstash requires TLS/SSL connection
       }
     }
     return cachedConnection
-  }
+  },
 }
