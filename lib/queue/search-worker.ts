@@ -156,6 +156,11 @@ const worker = new Worker<SearchJobData>(
         }
       }
 
+      // If no videos found, treat as error to trigger automatic retry
+      if (!videos || videos.length === 0) {
+        throw new Error('NO_RESULTS: No videos found - will retry automatically')
+      }
+
       return videos
     } catch (error) {
       throw classifyScrapingError(error, platform)
