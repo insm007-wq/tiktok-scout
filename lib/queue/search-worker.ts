@@ -143,6 +143,20 @@ const worker = new Worker<SearchJobData>(
         }
       }
 
+      // Smart retry logic for empty results (Cold Start handling)
+      // 1. Check if videos is empty
+      if (!videos || videos.length === 0) {
+        // 2. If first attempt (attemptsMade === 0), throw error to trigger retry
+        if (job.attemptsMade === 0) {
+          console.warn(`[Worker] Job ${job.id}: No results on first attempt. Retrying for warm-up...`)
+          throw new Error('COLD_START_RETRY: Empty results on first attempt - retrying for warm-up')
+        }
+
+        // 3. If already retried (attemptsMade > 0), return empty array as final result
+        console.log(`[Worker] Job ${job.id}: No results after retry. Returning empty results.`)
+        videos = []
+      }
+
       // Cache write should not block job completion - handle failures gracefully
       setVideoToCache(query, platform, videos, dateRange).catch((err) => {
         console.error('[Worker] Cache write failed (non-critical):', err instanceof Error ? err.message : String(err))
