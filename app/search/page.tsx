@@ -108,7 +108,11 @@ export default function SearchPage() {
       });
 
       if (!response.ok) {
-        throw new Error("검색 요청 처리 중 오류가 발생했습니다.");
+        const errorData = await response.json();
+        const error = new Error(errorData.error || "검색 요청 처리 중 오류가 발생했습니다.");
+        (error as any).status = response.status;
+        (error as any).details = errorData.details;
+        throw error;
       }
 
       const data = await response.json();
@@ -127,8 +131,20 @@ export default function SearchPage() {
         prevProgressRef.current = 0;
         setProgress(0);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "오류가 발생했습니다.");
+    } catch (err: any) {
+      let errorMessage = "오류가 발생했습니다.";
+
+      if (err instanceof Error) {
+        // 할당량 초과 (429 - 사용자 검색 한도)
+        if (err.status === 429 && err.message.includes("일일 검색 한도")) {
+          const details = err.details;
+          errorMessage = `❌ 일일 검색 한도를 초과했습니다!\n사용: ${details?.used}/${details?.limit}회\n내일 자정에 리셋됩니다.`;
+        } else {
+          errorMessage = err.message;
+        }
+      }
+
+      setError(errorMessage);
       setResults([]);
       setLoading(false);
       setJobMessage("");

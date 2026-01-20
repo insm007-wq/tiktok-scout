@@ -400,7 +400,10 @@ export default function Search() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "검색 중 오류가 발생했습니다");
+        const error = new Error(errorData.error || "검색 중 오류가 발생했습니다");
+        (error as any).status = response.status;
+        (error as any).details = errorData.details;
+        throw error;
       }
 
       const data = await response.json();
@@ -500,7 +503,12 @@ export default function Search() {
         let userMessage = "검색 중 오류가 발생했습니다.";
 
         if (error instanceof Error) {
-          if (error.message.includes("Failed to fetch")) {
+          // 할당량 초과 (429 - 사용자 검색 한도)
+          if ((error as any).status === 429 && error.message.includes("일일 검색 한도")) {
+            const details = (error as any).details;
+            userMessage = `일일 검색 한도를 초과했습니다.\n(${details?.used}/${details?.limit} 사용됨)`;
+            addToast("error", `일일 검색 한도를 모두 사용했습니다!\n내일 자정에 리셋됩니다.`, "🔒 한도 초과");
+          } else if (error.message.includes("Failed to fetch")) {
             userMessage = "네트워크 연결이 불안정합니다.\n잠시 후 다시 시도해주세요.";
             addToast("warning", "네트워크 연결을 확인해주세요.", "📡 네트워크 오류");
           } else if (error.message.includes("429")) {
