@@ -12,7 +12,7 @@ RUN apk add --no-cache \
 COPY package*.json ./
 
 # 의존성 설치 (devDependencies 포함)
-RUN npm install
+RUN npm install --verbose
 
 # 소스 코드 복사
 COPY . .
@@ -21,4 +21,4 @@ COPY . .
 RUN mkdir -p logs
 
 # Worker 실행
-CMD ["npm", "run", "worker"]
+ENTRYPOINT ["npm", "run", "worker"]
