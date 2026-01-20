@@ -131,19 +131,32 @@ const worker = new Worker<SearchJobData>(
   }
 )
 
+worker.on('ready', () => {
+  console.log('[Worker] ✅ Worker ready and connected to Redis')
+})
+
+worker.on('error', (err) => {
+  console.error('[Worker] ❌ Worker error:', err.message)
+})
+
 worker.on('completed', (job) => {
-  if (job) console.log(`[Worker] Job ${job.id} completed`)
+  if (job) console.log(`[Worker] ✅ Job ${job.id} completed`)
 })
 
 worker.on('failed', (job, err) => {
-  if (job) console.error(`[Worker] Job ${job.id} failed:`, err.message)
+  if (job) console.error(`[Worker] ❌ Job ${job.id} failed:`, err.message)
 })
 
 worker.on('progress', (job, progress) => {
-  if (job) console.log(`[Worker] Job ${job.id} progress: ${progress}%`)
+  if (job) console.log(`[Worker] 📊 Job ${job.id} progress: ${progress}%`)
+})
+
+worker.on('active', (job) => {
+  if (job) console.log(`[Worker] ▶️ Job ${job.id} started processing`)
 })
 
 // Worker 시작 로그
 console.log('[Worker] 🚀 Worker started and listening for jobs...')
+console.log('[Worker] Waiting for jobs in Redis queue...')
 
 export default worker

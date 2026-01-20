@@ -10,8 +10,11 @@ if (process.env.NODE_ENV !== 'production') {
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379'
 
-console.log(`[Redis] URL: ${redisUrl ? '✅ Configured' : '⚠️ Using default'}`)
-console.log(`[Redis] NODE_ENV: ${process.env.NODE_ENV || 'development'}`)
+console.log('[Redis] Connection Details:', {
+  URL: redisUrl ? '✅ Configured' : '⚠️ Using default',
+  NODE_ENV: process.env.NODE_ENV || 'development',
+  HasRedisUrl: !!process.env.REDIS_URL
+})
 
 // Lazy loading - 런타임에만 초기화되도록
 let cachedConnection: any = null
