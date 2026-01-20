@@ -12,7 +12,8 @@ RUN apk add --no-cache \
 COPY package*.json ./
 
 # 의존성 설치 (devDependencies 포함)
-RUN npm install --verbose
+RUN npm install --verbose && \
+    npm list tsx
 
 # 소스 코드 복사
 COPY . .
