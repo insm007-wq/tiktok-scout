@@ -38,6 +38,10 @@ export async function searchDouyinVideos(
       shouldDownloadCovers: false,
     };
 
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Douyin] Starting search for: "${query}" (${dateRange || 'all'})`)
+    }
+
     const runRes = await fetchPostWithRetry(
       `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
       inputParams,
@@ -47,6 +51,10 @@ export async function searchDouyinVideos(
 
     const runData = await runRes.json();
     if (!runRes.ok) {
+      const errorMsg = `[Douyin] Run creation failed: ${runRes.status} ${JSON.stringify(runData)}`
+      if (process.env.NODE_ENV === 'development') {
+        console.error(errorMsg)
+      }
       return [];
     }
 
