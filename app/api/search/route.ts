@@ -82,7 +82,6 @@ export async function POST(request: NextRequest) {
       query: query.trim(),
       platform,
       dateRange,
-      userId: session.user.id
     })
 
     // 큐 길이 기반 예상 대기시간 계산

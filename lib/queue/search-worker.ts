@@ -1,33 +1,43 @@
-import { Worker, Job } from 'bullmq'
+import { Worker } from 'bullmq'
 import { SearchJobData } from './search-queue'
 import { redisConnection } from './redis'
 import { searchTikTokVideos } from '@/lib/scrapers/tiktok'
 import { searchDouyinVideosParallel } from '@/lib/scrapers/douyin'
 import { searchXiaohongshuVideosParallel } from '@/lib/scrapers/xiaohongshu'
-import { setVideoToMongoDB, setVideoToCache } from '@/lib/cache'
+import { setVideoToCache } from '@/lib/cache'
+import {
+  DEFAULT_WORKER_CONCURRENCY,
+  LOCK_DURATION,
+  LOCK_RENEW_TIME,
+  STALLED_INTERVAL,
+  MAX_STALLED_COUNT,
+  MAX_VIDEOS_PER_SEARCH,
+  RATE_LIMITER_MAX,
+  RATE_LIMITER_DURATION,
+  QUEUE_NAME,
+  RAILWAY_TIMEOUT,
+} from './constants'
 
-const CONCURRENCY = process.env.WORKER_CONCURRENCY ? parseInt(process.env.WORKER_CONCURRENCY) : 50
+const CONCURRENCY = process.env.WORKER_CONCURRENCY ? parseInt(process.env.WORKER_CONCURRENCY) : DEFAULT_WORKER_CONCURRENCY
 const RAILWAY_URL = process.env.RAILWAY_SERVER_URL
 const RAILWAY_SECRET = process.env.RAILWAY_API_SECRET
 const APIFY_KEY = process.env.APIFY_API_KEY
 
-console.log('[Worker] Configuration:', {
-  CONCURRENCY,
-  RAILWAY_URL: RAILWAY_URL ? '✅ Set' : '❌ Not set',
-  APIFY_KEY: APIFY_KEY ? '✅ Set' : '❌ Not set'
-})
-
 /**
- * Railway 서버를 통해 스크래핑 (프로덕션)
- * Fallback: 로컬 scraper 사용 (개발/테스트)
+ * Scrape videos via Railway server (production environment)
+ * Falls back to local scraper if Railway is not available or fails
+ * @param query - Search query
+ * @param platform - Video platform (tiktok, douyin, or xiaohongshu)
+ * @param dateRange - Optional date range for filtering results
+ * @returns Array of videos or null if scraping fails
  */
 async function scrapeViaRailway(
   query: string,
   platform: 'tiktok' | 'douyin' | 'xiaohongshu',
   dateRange?: string
-) {
+): Promise<any[] | null> {
   if (!RAILWAY_URL || !RAILWAY_SECRET) {
-    return null // Fallback to local scraper
+    return null
   }
 
   try {
@@ -40,10 +50,10 @@ async function scrapeViaRailway(
       body: JSON.stringify({
         query,
         platform,
-        limit: 100,
+        limit: MAX_VIDEOS_PER_SEARCH,
         dateRange,
       }),
-      signal: AbortSignal.timeout(120000), // 2분 타임아웃
+      signal: AbortSignal.timeout(RAILWAY_TIMEOUT), // 2 minute timeout
     })
 
     const data = await response.json()
@@ -53,131 +63,139 @@ async function scrapeViaRailway(
     }
     return null
   } catch (error) {
-    console.error('[Worker] Railway scraping failed:', error)
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[Worker] Railway scraping failed:', error instanceof Error ? error.message : String(error))
+    }
     return null
   }
 }
 
+/**
+ * Classifies scraping errors into specific error types for better debugging
+ * @param error - The error to classify
+ * @param platform - The platform where scraping failed
+ * @returns Classified error with descriptive message
+ */
+function classifyScrapingError(error: unknown, platform: string): Error {
+  const errorMessage = error instanceof Error ? error.message : String(error)
+
+  if (errorMessage.includes('429')) {
+    return new Error('429_RATE_LIMIT: API rate limit exceeded')
+  }
+  if (errorMessage.includes('timeout') || errorMessage.includes('ECONNREFUSED')) {
+    return new Error('NETWORK_ERROR: Connection timeout or refused')
+  }
+  if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+    return new Error('AUTH_ERROR: Invalid API key or authorization')
+  }
+  if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('DNS')) {
+    return new Error('DNS_ERROR: Cannot resolve host')
+  }
+  return new Error(`SCRAPING_ERROR: Failed to scrape ${platform}: ${errorMessage}`)
+}
+
 const worker = new Worker<SearchJobData>(
-  'video-search',
+  QUEUE_NAME,
   async (job) => {
     const { query, platform, dateRange } = job.data
 
-    await job.updateProgress(10)
+    try {
+      await job.updateProgress(10)
+    } catch (err) {
+      // Progress update failure is non-critical, continue processing
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Worker] Failed to update progress:', err instanceof Error ? err.message : String(err))
+      }
+    }
 
     let videos
 
     try {
-      // 1️⃣ Railway 서버를 통해 스크래핑 시도 (프로덕션)
+      // Try scraping via Railway server first (production)
       videos = await scrapeViaRailway(query, platform, dateRange)
 
-      // 2️⃣ Fallback: 로컬 scraper 사용 (Railway 실패 시 또는 개발 환경)
+      // Fallback to local scrapers if Railway unavailable or failed
       if (!videos || videos.length === 0) {
         if (!APIFY_KEY) {
-          throw new Error('Apify API key not configured')
+          throw new Error('APIFY_KEY environment variable not configured')
         }
-
-        console.log(`[Worker] Fallback to local scraper for: ${query} (${platform})`)
 
         switch (platform) {
           case 'tiktok':
-            console.log(`[Worker] Calling searchTikTokVideos...`)
-            videos = await searchTikTokVideos(query, 100, APIFY_KEY, dateRange)
-            console.log(`[Worker] searchTikTokVideos returned ${videos.length} videos`)
+            videos = await searchTikTokVideos(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
             break
           case 'douyin':
-            console.log(`[Worker] Calling searchDouyinVideosParallel...`)
-            videos = await searchDouyinVideosParallel(query, 100, APIFY_KEY, dateRange)
-            console.log(`[Worker] searchDouyinVideosParallel returned ${videos.length} videos`)
+            videos = await searchDouyinVideosParallel(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
             break
           case 'xiaohongshu':
-            console.log(`[Worker] Calling searchXiaohongshuVideosParallel...`)
-            videos = await searchXiaohongshuVideosParallel(query, 100, APIFY_KEY, dateRange)
-            console.log(`[Worker] searchXiaohongshuVideosParallel returned ${videos.length} videos`)
+            videos = await searchXiaohongshuVideosParallel(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
             break
           default:
             throw new Error(`Unknown platform: ${platform}`)
         }
       }
 
-      await job.updateProgress(80)
+      try {
+        await job.updateProgress(80)
+      } catch (err) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[Worker] Failed to update progress to 80:', err instanceof Error ? err.message : String(err))
+        }
+      }
 
-      await setVideoToCache(query, platform, videos, dateRange)
+      // Cache write should not block job completion - handle failures gracefully
+      setVideoToCache(query, platform, videos, dateRange).catch((err) => {
+        console.error('[Worker] Cache write failed (non-critical):', err instanceof Error ? err.message : String(err))
+      })
 
-      await job.updateProgress(100)
+      try {
+        await job.updateProgress(100)
+      } catch (err) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[Worker] Failed to update progress to 100:', err instanceof Error ? err.message : String(err))
+        }
+      }
 
       return videos
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-
-      // 에러 메시지에 구체적인 정보 포함 (예: 429, timeout, 등)
-      if (errorMessage.includes('429')) {
-        throw new Error(`429_RATE_LIMIT: Apify API rate limit exceeded`)
-      } else if (errorMessage.includes('timeout') || errorMessage.includes('ECONNREFUSED')) {
-        throw new Error(`NETWORK_ERROR: Connection timeout or refused`)
-      } else if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
-        throw new Error(`AUTH_ERROR: Invalid API key or authorization`)
-      } else if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('DNS')) {
-        throw new Error(`DNS_ERROR: Cannot resolve host`)
-      } else {
-        throw new Error(`APIFY_ERROR: Scraping failed for ${platform}: ${errorMessage}`)
-      }
+      throw classifyScrapingError(error, platform)
     }
   },
   {
-    connection: redisConnection.connection as any,
+    connection: redisConnection.connection,
     concurrency: CONCURRENCY,
     limiter: {
-      max: 100,
-      duration: 1000
+      max: RATE_LIMITER_MAX,
+      duration: RATE_LIMITER_DURATION,
     },
-    // Job 처리 중 락 유지 설정
-    lockDuration: 300000,      // 5분 (300초) - Job 처리 최대 시간
-    lockRenewTime: 150000,     // 2.5분 (150초) - 락 갱신 주기
-    maxStalledCount: 2,        // 최대 stalled 재시도 횟수
-    stalledInterval: 5000,     // 5초마다 stalled 상태 체크
+    // Job processing lock settings
+    lockDuration: LOCK_DURATION, // 5 minutes - maximum job processing time
+    lockRenewTime: LOCK_RENEW_TIME, // 100 seconds - renew lock every ~1.67 minutes
+    maxStalledCount: MAX_STALLED_COUNT, // Maximum number of times a job can be stalled
+    stalledInterval: STALLED_INTERVAL, // Check for stalled jobs every 30 seconds
   }
 )
 
-worker.on('ready', () => {
-  console.log('[Worker] ✅ Worker ready and connected to Redis')
-})
-
-worker.on('error', (err) => {
-  console.error('[Worker] ❌ Worker error:', err.message)
-})
-
-worker.on('completed', (job) => {
-  if (job) console.log(`[Worker] ✅ Job ${job.id} completed`)
-})
-
+// Only log critical events (failures and development info)
 worker.on('failed', (job, err) => {
-  if (job) console.error(`[Worker] ❌ Job ${job.id} failed:`, err.message)
+  if (job) {
+    console.error(`[Worker] Job ${job.id} failed after ${job.attemptsMade} attempt(s):`, err.message)
+  }
 })
 
-worker.on('progress', (job, progress) => {
-  if (job) console.log(`[Worker] 📊 Job ${job.id} progress: ${progress}%`)
-})
+// Development-only logging for debugging
+if (process.env.NODE_ENV === 'development') {
+  worker.on('completed', (job) => {
+    if (job) console.log(`[Worker] Job ${job.id} completed`)
+  })
 
-worker.on('active', (job) => {
-  if (job) console.log(`[Worker] ▶️ Job ${job.id} started processing`)
-})
+  worker.on('progress', (job, progress) => {
+    if (job) console.log(`[Worker] Job ${job.id} progress: ${progress}%`)
+  })
 
-// Worker 시작 로그
-console.log('[Worker] 🚀 Worker started and listening for jobs...')
-console.log('[Worker] Waiting for jobs in Redis queue...')
-
-// Handle graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('[Worker] 🛑 SIGTERM received, closing worker...')
-  await worker.close()
-  process.exit(0)
-})
-
-process.on('SIGINT', async () => {
-  console.log('[Worker] 🛑 SIGINT received, closing worker...')
-  await worker.close()
-  process.exit(0)
-})
+  console.log('[Worker] Worker started and listening for jobs...')
+} else {
+  console.log('[Worker] Worker started (production mode)')
+}
 
 export default worker
