@@ -31,7 +31,6 @@ export async function searchTikTokVideos(
       return mapping[uploadPeriod || 'all'] || 'DEFAULT';
     };
 
-    console.log(`[TikTok] Starting search for: "${query}" (${dateRange || 'all'})`)
 
     // 1️⃣ Run 시작 (429 에러 시 자동 재시도)
     const runRes = await fetchPostWithRetry(
@@ -52,12 +51,10 @@ export async function searchTikTokVideos(
     const runData = await runRes.json();
     if (!runRes.ok) {
       const errorMsg = `[TikTok] Run creation failed: ${runRes.status} ${JSON.stringify(runData)}`
-      console.error(errorMsg)
       return [];
     }
 
     const runId = runData.data.id;
-    console.log(`[TikTok] Run created: ${runId}`)
 
     // 2️⃣ 완료 대기 (Polling with retry)
     let status = 'RUNNING';
@@ -77,15 +74,11 @@ export async function searchTikTokVideos(
       status = statusData.data.status;
       attempt++;
 
-      if (attempt % 10 === 0) {
-        console.log(`[TikTok] Status check ${attempt}: ${status}`)
-      }
 
       if (status === 'SUCCEEDED') break;
       if (status === 'FAILED' || status === 'ABORTED') {
         const failureMsg = statusData.data.failureMessage || 'Unknown failure'
         const errorMsg = `[TikTok] Run failed: ${status} - ${failureMsg}`
-        console.error(errorMsg)
         return [];
       }
 
@@ -97,11 +90,9 @@ export async function searchTikTokVideos(
 
     if (status !== 'SUCCEEDED') {
       const timeoutMsg = `[TikTok] Run timeout or failed: ${status} after ${attempt} attempts`
-      console.error(timeoutMsg)
       return [];
     }
 
-    console.log(`[TikTok] Run succeeded after ${attempt} attempts`)
 
     // 3️⃣ 결과 조회 (429 에러 시 자동 재시도)
     const datasetRes = await fetchGetWithRetry(
@@ -112,24 +103,20 @@ export async function searchTikTokVideos(
 
     if (!datasetRes.ok) {
       const errorMsg = `[TikTok] Dataset fetch failed: ${datasetRes.status}`
-      console.error(errorMsg)
       return [];
     }
 
     const dataset = await datasetRes.json();
     if (!Array.isArray(dataset)) {
       const errorMsg = `[TikTok] Invalid dataset response: ${typeof dataset}`
-      console.error(errorMsg, dataset)
       return [];
     }
 
     if (dataset.length === 0) {
       const warnMsg = `[TikTok] No results found for query: "${query}"`
-      console.warn(warnMsg)
       return [];
     }
 
-    console.log(`[TikTok] Retrieved ${dataset.length} results`)
 
     // 결과 변환
     const results = dataset.slice(0, Math.min(limit, 50)).map((item: any, index: number) => {
@@ -173,13 +160,8 @@ export async function searchTikTokVideos(
       };
     });
 
-    const duration = Date.now() - startTime;
-    console.log(`[TikTok] Completed in ${duration}ms: ${results.length} videos`)
-
     return results;
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error)
-    console.error(`[TikTok] Exception during scraping:`, errorMsg)
     return [];
   }
 }

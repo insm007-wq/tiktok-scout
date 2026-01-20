@@ -103,9 +103,6 @@ const worker = new Worker<SearchJobData>(
       await job.updateProgress(10)
     } catch (err) {
       // Progress update failure is non-critical, continue processing
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[Worker] Failed to update progress:', err instanceof Error ? err.message : String(err))
-      }
     }
 
     let videos
@@ -138,41 +135,28 @@ const worker = new Worker<SearchJobData>(
       try {
         await job.updateProgress(80)
       } catch (err) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[Worker] Failed to update progress to 80:', err instanceof Error ? err.message : String(err))
-        }
+        // Progress update failure is non-critical
       }
 
       // Smart retry logic for empty results (Cold Start handling)
-      // 1. Check if videos is empty
       if (!videos || videos.length === 0) {
-        // 2. If first attempt (attemptsMade === 0), throw error to trigger retry
+        // If first attempt, throw error to trigger automatic retry
         if (job.attemptsMade === 0) {
-          console.warn(`[Worker] Job ${job.id}: No results on first attempt. Retrying for warm-up...`)
-          throw new Error('COLD_START_RETRY: Empty results on first attempt - retrying for warm-up')
+          throw new Error('COLD_START_RETRY: Empty results on first attempt')
         }
-
-        // 3. If already retried (attemptsMade > 0), return empty array as final result
-        console.log(`[Worker] Job ${job.id}: No results after retry. Returning empty results.`)
+        // After retry, return empty array as final result
         videos = []
       }
 
-      // Cache write should not block job completion - handle failures gracefully
-      setVideoToCache(query, platform, videos, dateRange).catch((err) => {
-        console.error('[Worker] Cache write failed (non-critical):', err instanceof Error ? err.message : String(err))
+      // Cache write should not block job completion
+      setVideoToCache(query, platform, videos, dateRange).catch(() => {
+        // Silently ignore cache write failures
       })
 
       try {
         await job.updateProgress(100)
       } catch (err) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[Worker] Failed to update progress to 100:', err instanceof Error ? err.message : String(err))
-        }
-      }
-
-      // If no videos found, treat as error to trigger automatic retry
-      if (!videos || videos.length === 0) {
-        throw new Error('NO_RESULTS: No videos found - will retry automatically')
+        // Progress update failure is non-critical
       }
 
       return videos
@@ -194,27 +178,5 @@ const worker = new Worker<SearchJobData>(
     stalledInterval: STALLED_INTERVAL, // Check for stalled jobs every 30 seconds
   }
 )
-
-// Only log critical events (failures and development info)
-worker.on('failed', (job, err) => {
-  if (job) {
-    console.error(`[Worker] Job ${job.id} failed after ${job.attemptsMade} attempt(s):`, err.message)
-  }
-})
-
-// Development-only logging for debugging
-if (process.env.NODE_ENV === 'development') {
-  worker.on('completed', (job) => {
-    if (job) console.log(`[Worker] Job ${job.id} completed`)
-  })
-
-  worker.on('progress', (job, progress) => {
-    if (job) console.log(`[Worker] Job ${job.id} progress: ${progress}%`)
-  })
-
-  console.log('[Worker] Worker started and listening for jobs...')
-} else {
-  console.log('[Worker] Worker started (production mode)')
-}
 
 export default worker

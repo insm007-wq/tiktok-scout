@@ -30,50 +30,10 @@ function validateRedisUrl(url: string): boolean {
   }
 }
 
-// Get Redis URL from environment or use default
-// In production, REDIS_URL must be explicitly set via environment variables
-const redisUrl = (() => {
-  // Try multiple environment variable names
-  const url = process.env.REDIS_URL ||
-              process.env.UPSTASH_REDIS_REST_URL ||
-              process.env.REDIS_CONNECTION_STRING ||
-              process.env.RAILWAY_REDIS_URL
+const redisUrl = process.env.REDIS_URL || DEFAULT_REDIS_URL
 
-  console.log('[Redis] Debug - Available env vars:', {
-    REDIS_URL: !!process.env.REDIS_URL,
-    UPSTASH_REDIS_REST_URL: !!process.env.UPSTASH_REDIS_REST_URL,
-    REDIS_CONNECTION_STRING: !!process.env.REDIS_CONNECTION_STRING,
-    RAILWAY_REDIS_URL: !!process.env.RAILWAY_REDIS_URL,
-    NODE_ENV: process.env.NODE_ENV,
-  })
-
-  if (!url) {
-    const isProduction = process.env.NODE_ENV === 'production'
-    if (isProduction) {
-      throw new Error('[Redis] FATAL: REDIS_URL environment variable is required in production')
-    }
-    console.log('[Redis] Using default localhost URL for development')
-    return DEFAULT_REDIS_URL
-  }
-
-  console.log('[Redis] Found Redis URL from environment')
-  return url
-})()
-
-// Validate Redis URL format
 if (!validateRedisUrl(redisUrl)) {
-  throw new Error(`[Redis] Invalid REDIS_URL format: ${redisUrl}`)
-}
-
-// Production environment warning
-if (process.env.NODE_ENV === 'production' && !process.env.REDIS_URL) {
-  console.warn('[Redis] WARNING: REDIS_URL environment variable not explicitly set in production')
-}
-
-// Log connection info in development
-if (process.env.NODE_ENV === 'development') {
-  const displayUrl = redisUrl.replace(/:[^:/@]+@/, ':****@') // Mask password
-  console.log(`[Redis] Connecting to: ${displayUrl}`)
+  throw new Error(`Invalid Redis URL format: ${redisUrl}`)
 }
 
 // Lazy loading - Connection is initialized at runtime
