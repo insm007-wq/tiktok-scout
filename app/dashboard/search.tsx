@@ -73,6 +73,7 @@ export default function Search() {
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
   const [showTranslationPanel, setShowTranslationPanel] = useState(true);
   const [jobStatus, setJobStatus] = useState<{
+    jobId: string;
     status: "waiting" | "active" | "delayed" | "paused";
     progress: number;
     queuePosition: number;
@@ -409,11 +410,17 @@ export default function Search() {
       const data = await response.json();
 
       // 캐시 히트 시 즉시 결과 표시
-      if (data.status === "completed" && data.data) {
-        setVideos(data.data);
+      if (data.status === "completed") {
         setError("");
-        addToast("success", "검색 완료!", "결과를 찾았습니다");
         setIsLoading(false);
+
+        if (data.data && data.data.length > 0) {
+          setVideos(data.data);
+          addToast("success", "검색 완료!", `${data.data.length}개의 결과를 찾았습니다`);
+        } else {
+          setVideos([]);
+          addToast("info", "결과 없음", "다른 키워드나 필터로 다시 시도해보세요");
+        }
       } else if (data.status === "queued") {
         // 큐에 추가됨 - jobId로 진행 상황 추적 가능
         setVideos([]);
@@ -436,6 +443,7 @@ export default function Search() {
             // 실시간 상태 업데이트
             if (statusData.status && statusData.queuePosition !== undefined) {
               setJobStatus({
+                jobId: data.jobId,
                 status: statusData.status as "waiting" | "active" | "delayed" | "paused",
                 progress: statusData.progress || 0,
                 queuePosition: statusData.queuePosition,
@@ -445,13 +453,19 @@ export default function Search() {
               });
             }
 
-            if (statusData.status === "completed" && statusData.data) {
-              setVideos(statusData.data);
+            if (statusData.status === "completed") {
               setIsLoading(false);
               setError("");
               setJobStatus(null);
-              addToast("success", "검색 완료!", "검색 결과를 표시합니다");
               clearInterval(pollInterval);
+
+              if (statusData.data && statusData.data.length > 0) {
+                setVideos(statusData.data);
+                addToast("success", "검색 완료!", `${statusData.data.length}개의 결과를 찾았습니다`);
+              } else {
+                setVideos([]);
+                addToast("info", "결과 없음", "다른 키워드나 필터로 다시 시도해보세요");
+              }
             } else if (statusData.status === "failed") {
               // 에러 타입에 따라 다른 처리
               const errorMessage = statusData.error || "검색 중 오류가 발생했습니다";
@@ -544,18 +558,43 @@ export default function Search() {
     }
   };
 
-  const handleCancelSearch = useCallback(() => {
+  const handleCancelSearch = useCallback(async () => {
+    // 1. HTTP 요청 중단
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       setIsLoading(false);
       abortControllerRef.current = null;
     }
+
+    // 2. 폴링 중단
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;
     }
+
+    // 3. 백엔드 취소 API 호출 (job 제거 + 캐시 삭제)
+    if (jobStatus?.jobId) {
+      try {
+        await fetch('/api/search/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jobId: jobStatus.jobId,
+            query: searchInput,
+            platform,
+            dateRange: filters.uploadPeriod
+          })
+        });
+        console.log('[Search] Cancel API 호출 완료');
+      } catch (error) {
+        console.error('[Search] Cancel API 실패:', error);
+        // 실패해도 프론트엔드 상태는 이미 정리되었으므로 계속 진행
+      }
+    }
+
+    // 4. 상태 초기화
     setJobStatus(null);
-  }, []);
+  }, [jobStatus?.jobId, searchInput, platform, filters.uploadPeriod]);
 
   // 히스토리 항목 클릭 - 검색 입력 필드에만 값 설정
   const handleHistoryClick = useCallback((keyword: string) => {

@@ -298,3 +298,34 @@ export async function setVideoToCache(
   // L2: MongoDB 캐시 (90일)
   await setVideoToMongoDB(query, platform, videos, dateRange, 90);
 }
+
+/**
+ * 특정 검색의 캐시 삭제 (L1 + L2)
+ * 취소 시 사용되어 잘못된 캐시가 남지 않도록 함
+ */
+export async function clearSearchCache(
+  query: string,
+  platform: Platform,
+  dateRange?: string
+): Promise<void> {
+  try {
+    // L1 메모리 캐시 삭제 (getVideoFromCache와 동일한 키 형식 사용)
+    const memoryKey = `video:${platform}:${query}:${dateRange || 'all'}`;
+    cache.delete(memoryKey);
+    console.log(`[Cache] L1 cache cleared: ${memoryKey}`);
+
+    // L2 MongoDB 캐시 삭제 (generateCacheKey 사용)
+    const db = await getDb();
+    const cacheKey = generateCacheKey(platform, query, dateRange);
+    const result = await db.collection('video_cache').deleteOne({ cacheKey });
+
+    if (result.deletedCount > 0) {
+      console.log(`[Cache] L2 cache cleared: ${cacheKey}`);
+    } else {
+      console.log(`[Cache] No L2 cache found: ${cacheKey}`);
+    }
+  } catch (error) {
+    console.error('[Cache] Error clearing search cache:', error);
+    // 에러를 throw하지 않음 (취소 작업은 계속 진행되어야 함)
+  }
+}
