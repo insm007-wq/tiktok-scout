@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 export default function TermsPage() {
   return (
@@ -14,7 +14,7 @@ export default function TermsPage() {
         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 md:p-12 text-white space-y-8">
           <div>
             <h1 className="text-4xl font-bold gradient-text mb-4">서비스 이용약관</h1>
-            <p className="text-white/70">최근 수정일: {new Date().toLocaleDateString('ko-KR')}</p>
+            <p className="text-white/70">최근 수정일: {new Date().toLocaleDateString("ko-KR")}</p>
           </div>
 
           {/* 1. 총칙 */}
@@ -24,24 +24,39 @@ export default function TermsPage() {
               <div>
                 <p className="font-semibold text-white mb-1">1-1 회사 정보</p>
                 <div className="text-white/80 leading-relaxed ml-4 space-y-1 text-sm">
-                  <p><strong>상호:</strong> 씨너지나노 (SYNERGY NANO)</p>
-                  <p><strong>사업자등록번호:</strong> 299-86-03770</p>
-                  <p><strong>대표자:</strong> 권오룡</p>
-                  <p><strong>주소:</strong> 세종특별자치시 갈매로 363, 405호</p>
+                  <p>
+                    <strong>상호:</strong> 씨너지나노 (SYNERGY NANO)
+                  </p>
+                  <p>
+                    <strong>사업자등록번호:</strong> 299-86-03770
+                  </p>
+                  <p>
+                    <strong>대표자:</strong> 권오룡
+                  </p>
+                  <p>
+                    <strong>주소:</strong> 세종특별자치시 갈매로 363, 405호
+                  </p>
                 </div>
               </div>
               <div>
                 <p className="font-semibold text-white mb-1">1-2 목적</p>
                 <p className="text-white/80 leading-relaxed ml-4">
-                  본 약관은 씨너지나노(이하 "회사")의 TikTalk Killa 서비스(이하 "서비스")의 이용에 관하여 필요한 사항을 규정하는 것을 목적으로 합니다.
+                  본 약관은 씨너지나노(이하 "회사")의 틱톡킬라 서비스(이하 "서비스")의 이용에 관하여 필요한 사항을 규정하는 것을 목적으로
+                  합니다.
                 </p>
               </div>
               <div>
                 <p className="font-semibold text-white mb-1">1-3 정의</p>
                 <div className="text-white/80 ml-4 space-y-1">
-                  <p><strong>"서비스":</strong> TikTok, Douyin, 샤오홍슈 등 동영상 플랫폼의 영상 검색 및 분석 기능</p>
-                  <p><strong>"이용자":</strong> 본 약관에 동의하고 서비스를 이용하는 개인</p>
-                  <p><strong>"계정":</strong> 이용자 식별을 위한 이메일, 비밀번호 등의 정보</p>
+                  <p>
+                    <strong>"서비스":</strong> TikTok, Douyin, 샤오홍슈 등 동영상 플랫폼의 영상 검색 및 분석 기능
+                  </p>
+                  <p>
+                    <strong>"이용자":</strong> 본 약관에 동의하고 서비스를 이용하는 개인
+                  </p>
+                  <p>
+                    <strong>"계정":</strong> 이용자 식별을 위한 이메일, 비밀번호 등의 정보
+                  </p>
                 </div>
               </div>
             </div>
@@ -154,9 +169,7 @@ export default function TermsPage() {
           <section className="space-y-3">
             <h2 className="text-2xl font-bold text-pink-400">6. 면책 조항</h2>
             <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
-              <p className="text-white/80 leading-relaxed">
-                회사는 다음의 경우 책임을 지지 않습니다:
-              </p>
+              <p className="text-white/80 leading-relaxed">회사는 다음의 경우 책임을 지지 않습니다:</p>
               <ul className="space-y-2 text-white/80 ml-4">
                 <li className="flex gap-3">
                   <span className="text-pink-400">•</span>
@@ -183,7 +196,8 @@ export default function TermsPage() {
             <h2 className="text-2xl font-bold text-pink-400">7. 지적재산권</h2>
             <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
               <p className="text-white/80 leading-relaxed">
-                서비스를 통해 검색한 영상 콘텐츠는 원저작권자의 소유입니다. 회사는 메타데이터 수집만 제공하며, 영상 저작권에 대한 책임을 지지 않습니다.
+                서비스를 통해 검색한 영상 콘텐츠는 원저작권자의 소유입니다. 회사는 메타데이터 수집만 제공하며, 영상 저작권에 대한 책임을
+                지지 않습니다.
               </p>
               <p className="text-white/80 leading-relaxed">
                 이용자는 검색 결과를 개인 학습 목적으로만 사용할 수 있으며, 상업적 용도로 사용할 수 없습니다.
@@ -195,9 +209,7 @@ export default function TermsPage() {
           <section className="space-y-3">
             <h2 className="text-2xl font-bold text-pink-400">8. 이용 제한 및 계정 정지</h2>
             <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
-              <p className="text-white/80 leading-relaxed">
-                회사는 다음의 경우 계정 사용을 제한하거나 탈퇴 조치할 수 있습니다:
-              </p>
+              <p className="text-white/80 leading-relaxed">회사는 다음의 경우 계정 사용을 제한하거나 탈퇴 조치할 수 있습니다:</p>
               <ul className="space-y-2 text-white/80 ml-4">
                 <li className="flex gap-3">
                   <span className="text-pink-400">•</span>
@@ -224,11 +236,10 @@ export default function TermsPage() {
             <h2 className="text-2xl font-bold text-pink-400">9. 회원 탈퇴</h2>
             <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
               <p className="text-white/80 leading-relaxed">
-                이용자는 언제든지 계정 설정에서 회원 탈퇴를 신청할 수 있습니다. 탈퇴 후 14일 동안 개인정보는 보관되며 이후 완전히 삭제됩니다.
+                이용자는 언제든지 계정 설정에서 회원 탈퇴를 신청할 수 있습니다. 탈퇴 후 14일 동안 개인정보는 보관되며 이후 완전히
+                삭제됩니다.
               </p>
-              <p className="text-white/80 leading-relaxed">
-                탈퇴 후 14일이 경과하기 전에는 같은 이메일로 재가입할 수 없습니다.
-              </p>
+              <p className="text-white/80 leading-relaxed">탈퇴 후 14일이 경과하기 전에는 같은 이메일로 재가입할 수 없습니다.</p>
             </div>
           </section>
 
@@ -237,7 +248,8 @@ export default function TermsPage() {
             <h2 className="text-2xl font-bold text-pink-400">10. 분쟁 해결</h2>
             <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
               <p className="text-white/80 leading-relaxed">
-                본 약관과 관련된 분쟁이 발생하는 경우 회사와 이용자 간의 협의를 통해 해결하며, 합의가 이루어지지 않을 경우 관할 법원에 제소할 수 있습니다.
+                본 약관과 관련된 분쟁이 발생하는 경우 회사와 이용자 간의 협의를 통해 해결하며, 합의가 이루어지지 않을 경우 관할 법원에
+                제소할 수 있습니다.
               </p>
             </div>
           </section>
@@ -264,9 +276,7 @@ export default function TermsPage() {
 
           {/* 동의 섹션 */}
           <div className="bg-cyan-500/20 border border-cyan-500/50 rounded-lg p-4 mt-8">
-            <p className="text-white text-center">
-              본 서비스 이용약관에 동의하시고 서비스를 이용하시게 됩니다.
-            </p>
+            <p className="text-white text-center">본 서비스 이용약관에 동의하시고 서비스를 이용하시게 됩니다.</p>
           </div>
 
           {/* 동의하고 창 닫기 버튼 */}
@@ -281,5 +291,5 @@ export default function TermsPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -531,6 +531,10 @@ export async function createUser(userData: {
     updatedAt: now,
     isAdmin: false,
     isApproved: userData.isApproved ?? false,
+    // 마케팅 동의 저장
+    marketingConsent: userData.marketingConsent ?? false,
+    // 교재 배송 희망 저장
+    wantsTextbook: userData.wantsTextbook ?? false,
   }
 
   // password는 선택적으로 추가
@@ -541,16 +545,6 @@ export async function createUser(userData: {
   // address는 선택적으로 추가
   if (userData.address) {
     (user as any).address = userData.address
-  }
-
-  // marketingConsent는 선택적으로 추가
-  if (userData.marketingConsent !== undefined) {
-    (user as any).marketingConsent = userData.marketingConsent
-  }
-
-  // wantsTextbook는 선택적으로 추가
-  if (userData.wantsTextbook !== undefined) {
-    (user as any).wantsTextbook = userData.wantsTextbook
   }
 
   const result = await collection.insertOne(user)
