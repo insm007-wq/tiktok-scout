@@ -758,10 +758,10 @@ export default function Search() {
     document.body.removeChild(link);
   };
 
-  // TikTok 앱/웹사이트로 이동
-  const handleOpenTikTok = (video: Video) => {
-    if (video.creatorUrl) {
-      window.open(video.creatorUrl, "_blank");
+  // 영상 페이지로 이동
+  const handleOpenVideo = (video: Video) => {
+    if (video.webVideoUrl) {
+      window.open(video.webVideoUrl, "_blank");
     }
   };
 
@@ -1738,7 +1738,7 @@ export default function Search() {
               </button>
               <button
                 onClick={() => {
-                  handleOpenTikTok(selectedVideo);
+                  handleOpenVideo(selectedVideo);
                 }}
                 style={{
                   flex: 1,
