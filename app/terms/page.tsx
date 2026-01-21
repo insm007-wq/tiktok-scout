@@ -1,8 +1,5 @@
 'use client'
 
-import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
-
 export default function TermsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-gray-950 to-black">
@@ -13,17 +10,6 @@ export default function TermsPage() {
       </div>
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-12">
-        {/* Header */}
-        <div className="mb-8 flex items-center gap-4">
-          <Link
-            href="/auth/signup"
-            className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors"
-          >
-            <ArrowLeft size={20} />
-            뒤로가기
-          </Link>
-        </div>
-
         {/* Main content */}
         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 md:p-12 text-white space-y-8">
           <div>
