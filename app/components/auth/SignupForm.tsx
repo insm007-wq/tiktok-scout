@@ -2,12 +2,13 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { signupSchema, infoSchema, type SignupFormData } from '@/lib/validations/auth'
 import PasswordStrengthMeter from './PasswordStrengthMeter'
 import AddressInput from './AddressInput'
-import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { AlertCircle, Eye, EyeOff, Loader2, ExternalLink } from 'lucide-react'
 
-type FormStep = 'info' | 'address' | 'consent' | 'loading'
+type FormStep = 'info' | 'textbook' | 'consent' | 'loading'
 
 interface SignupFormProps {
   onSuccess?: () => void
@@ -27,6 +28,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
     password: '',
     passwordConfirm: '',
     invitationCode: '',
+    wantsTextbook: false,
     address: {
       zipCode: '',
       address: '',
@@ -34,6 +36,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
     },
     marketingConsent: false,
     termsConsent: false,
+    privacyConsent: false,
   })
 
   const [showPassword, setShowPassword] = useState(false)
@@ -61,20 +64,22 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
         return
       }
 
-      setStep('address')
-    } else if (step === 'address') {
-      // 주소 검증
-      if (!formData.address?.zipCode) {
-        setFieldErrors({ address: ['우편번호를 입력해주세요'] })
-        return
-      }
-      if (!formData.address?.address) {
-        setFieldErrors({ address: ['주소를 입력해주세요'] })
-        return
-      }
-      if (!formData.address?.detailAddress) {
-        setFieldErrors({ address: ['상세주소를 입력해주세요'] })
-        return
+      setStep('textbook')
+    } else if (step === 'textbook') {
+      // 교재 수령 선택 검증
+      if (formData.wantsTextbook) {
+        if (!formData.address?.zipCode) {
+          setFieldErrors({ address: ['우편번호를 입력해주세요'] })
+          return
+        }
+        if (!formData.address?.address) {
+          setFieldErrors({ address: ['주소를 입력해주세요'] })
+          return
+        }
+        if (!formData.address?.detailAddress) {
+          setFieldErrors({ address: ['상세주소를 입력해주세요'] })
+          return
+        }
       }
 
       setStep('consent')
@@ -83,8 +88,8 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
 
   // 이전 단계로 이동
   const goToPreviousStep = () => {
-    if (step === 'address') setStep('info')
-    else if (step === 'consent') setStep('address')
+    if (step === 'textbook') setStep('info')
+    else if (step === 'consent') setStep('textbook')
   }
 
   // 회원가입 제출
@@ -118,8 +123,8 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
         throw new Error(data.error || '회원가입 실패')
       }
 
-      // 로그인 페이지로 이동
-      router.push('/auth/login')
+      // 회원가입 성공 페이지로 이동
+      router.push('/auth/signup-success')
     } catch (err) {
       setError(err instanceof Error ? err.message : '요청 처리 중 오류가 발생했습니다')
       setStep('consent')
@@ -290,6 +295,8 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
           <div>2단계</div>
           <div className="text-white/30">▸</div>
           <div>3단계</div>
+          <div className="text-white/30">▸</div>
+          <div>4단계</div>
         </div>
 
         <button
@@ -303,15 +310,37 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
     )
   }
 
-  // Step 2: 주소 입력
-  if (step === 'address') {
+  // Step 2: 교재 수령 선택
+  if (step === 'textbook') {
     return (
       <form onSubmit={(e) => { e.preventDefault(); }} className="space-y-4">
-        <AddressInput
-          value={formData.address || { zipCode: '', address: '', detailAddress: '' }}
-          onChange={(address) => setFormData({ ...formData, address })}
-          error={fieldErrors.address?.[0]}
-        />
+        {/* 교재 수령 여부 */}
+        <div className="space-y-3">
+          <label className="flex items-start gap-3 p-4 border border-white/20 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
+            <input
+              type="checkbox"
+              checked={formData.wantsTextbook || false}
+              onChange={(e) => setFormData({ ...formData, wantsTextbook: e.target.checked })}
+              className="w-5 h-5 bg-white/10 border border-white/30 rounded accent-pink-500 mt-0.5 cursor-pointer"
+            />
+            <div>
+              <p className="font-medium text-white">무료 교재를 우편으로 받고 싶습니다 <span className="text-white/50 text-sm font-normal">(선택)</span></p>
+              <p className="text-sm text-white/70">선택하면 교재 배송을 위한 주소 정보를 입력하게 됩니다</p>
+            </div>
+          </label>
+        </div>
+
+        {/* 교재 수령 선택 시 주소 입력 표시 */}
+        {formData.wantsTextbook && (
+          <div className="space-y-4 p-4 border border-pink-500/30 bg-pink-500/10 rounded-lg">
+            <p className="text-white font-medium">교재 배송 주소</p>
+            <AddressInput
+              value={formData.address || { zipCode: '', address: '', detailAddress: '' }}
+              onChange={(address) => setFormData({ ...formData, address })}
+              error={fieldErrors.address?.[0]}
+            />
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 flex gap-2">
@@ -327,6 +356,8 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
           <div className="text-pink-400 font-semibold">2단계</div>
           <div className="text-white/30">▸</div>
           <div>3단계</div>
+          <div className="text-white/30">▸</div>
+          <div>4단계</div>
         </div>
 
         <div className="flex gap-3 mt-6">
@@ -349,42 +380,81 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
     )
   }
 
-  // Step 3: 동의사항
+  // Step 4: 동의사항
   if (step === 'consent') {
     return (
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* 약관 동의 */}
-        <div className="space-y-3">
+        {/* 필수 동의사항 */}
+        <div className="space-y-3 mb-4">
+          <p className="text-sm font-semibold text-white/70 uppercase tracking-wider">필수 동의사항</p>
+
+          {/* 서비스 약관 동의 */}
           <label className="flex items-start gap-3 p-4 border border-white/20 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
             <input
               type="checkbox"
               checked={formData.termsConsent || false}
               onChange={(e) => setFormData({ ...formData, termsConsent: e.target.checked })}
-              className="w-5 h-5 bg-white/10 border border-white/30 rounded accent-pink-500 mt-0.5 cursor-pointer"
+              className="w-5 h-5 bg-white/10 border border-white/30 rounded accent-pink-500 mt-0.5 cursor-pointer flex-shrink-0"
             />
-            <div>
-              <p className="font-medium text-white">서비스 약관 동의 <span className="text-red-400">*</span></p>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-white">서비스 이용약관 동의 <span className="text-red-400">*</span></p>
+                <Link
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-pink-400 hover:text-pink-300 transition-colors"
+                >
+                  <ExternalLink size={14} />
+                  <span className="text-sm">전문 보기</span>
+                </Link>
+              </div>
               <p className="text-sm text-white/70">틱톡 킬라 서비스 이용약관에 동의합니다</p>
             </div>
           </label>
 
-          {/* 마케팅 동의 - 필수 */}
-          <label className="flex items-start gap-3 p-4 border-2 border-pink-500/50 bg-pink-500/10 rounded-lg hover:bg-pink-500/20 cursor-pointer transition-colors">
+          {/* 개인정보 처리방침 동의 */}
+          <label className="flex items-start gap-3 p-4 border border-white/20 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
+            <input
+              type="checkbox"
+              checked={formData.privacyConsent || false}
+              onChange={(e) => setFormData({ ...formData, privacyConsent: e.target.checked })}
+              className="w-5 h-5 bg-white/10 border border-white/30 rounded accent-pink-500 mt-0.5 cursor-pointer flex-shrink-0"
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-white">개인정보 처리방침 동의 <span className="text-red-400">*</span></p>
+                <Link
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-pink-400 hover:text-pink-300 transition-colors"
+                >
+                  <ExternalLink size={14} />
+                  <span className="text-sm">전문 보기</span>
+                </Link>
+              </div>
+              <p className="text-sm text-white/70">개인정보 수집 및 이용에 동의합니다</p>
+            </div>
+          </label>
+        </div>
+
+        {/* 선택 동의사항 */}
+        <div className="space-y-3 pt-4 border-t border-white/10">
+          <p className="text-sm font-semibold text-white/70 uppercase tracking-wider">선택 동의사항</p>
+
+          {/* 마케팅 동의 - 선택 */}
+          <label className="flex items-start gap-3 p-4 border border-white/20 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
             <input
               type="checkbox"
               checked={formData.marketingConsent || false}
               onChange={(e) => setFormData({ ...formData, marketingConsent: e.target.checked })}
-              className="w-5 h-5 bg-white/10 border border-pink-500/50 rounded accent-pink-500 mt-0.5 cursor-pointer"
+              className="w-5 h-5 bg-white/10 border border-white/30 rounded accent-cyan-400 mt-0.5 cursor-pointer flex-shrink-0"
             />
             <div>
-              <p className="font-semibold text-white">
-                마케팅 활용 동의 <span className="text-pink-400">필수</span>
-              </p>
-              <p className="text-sm text-white/80">
-                이름, 연락처, 이메일, 교재 받을 주소 등의 정보를 마케팅 활용 목적으로 수집합니다
-              </p>
-              <p className="text-xs text-pink-400 font-semibold mt-2">
-                ⚠️ 필수 항목 - 동의하셔야 회원가입이 가능합니다
+              <p className="font-medium text-white">마케팅 정보 수신 동의 <span className="text-white/50 text-sm font-normal">(선택)</span></p>
+              <p className="text-sm text-white/70">
+                이벤트, 프로모션 등 마케팅 정보 수신에 동의합니다
               </p>
             </div>
           </label>
@@ -394,8 +464,8 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
         {fieldErrors.termsConsent && (
           <div className="text-red-400 text-sm">{fieldErrors.termsConsent[0]}</div>
         )}
-        {fieldErrors.marketingConsent && (
-          <div className="text-red-400 text-sm">{fieldErrors.marketingConsent[0]}</div>
+        {fieldErrors.privacyConsent && (
+          <div className="text-red-400 text-sm">{fieldErrors.privacyConsent[0]}</div>
         )}
 
         {error && (
@@ -411,7 +481,9 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
           <div className="text-white/30">▸</div>
           <div className="text-cyan-400 font-semibold">2단계</div>
           <div className="text-white/30">▸</div>
-          <div className="text-pink-400 font-semibold">3단계</div>
+          <div className="text-cyan-400 font-semibold">3단계</div>
+          <div className="text-white/30">▸</div>
+          <div className="text-pink-400 font-semibold">4단계</div>
         </div>
 
         <div className="flex gap-3 mt-6">

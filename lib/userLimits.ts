@@ -11,6 +11,9 @@ interface User {
   image?: string
   phone?: string
   password?: string
+  address?: string
+  marketingConsent?: boolean
+  wantsTextbook?: boolean
   provider: string
   providerId?: string
   dailyLimit: number
@@ -500,6 +503,7 @@ export async function createUser(userData: {
   password?: string
   address?: string
   marketingConsent?: boolean
+  wantsTextbook?: boolean
   provider?: string
   providerId?: string
   isApproved?: boolean
@@ -542,6 +546,11 @@ export async function createUser(userData: {
   // marketingConsent는 선택적으로 추가
   if (userData.marketingConsent !== undefined) {
     (user as any).marketingConsent = userData.marketingConsent
+  }
+
+  // wantsTextbook는 선택적으로 추가
+  if (userData.wantsTextbook !== undefined) {
+    (user as any).wantsTextbook = userData.wantsTextbook
   }
 
   const result = await collection.insertOne(user)
@@ -663,5 +672,42 @@ export async function checkWithdrawnStatus(
   } catch (error) {
     console.error('❌ checkWithdrawnStatus 실패:', error)
     return 'active'
+  }
+}
+
+/**
+ * 사용자 정보 업데이트
+ * 이름, 전화번호, 비밀번호, 마케팅 동의 등 수정 가능
+ */
+export async function updateUserProfile(
+  email: string,
+  updates: {
+    name?: string
+    phone?: string
+    password?: string
+    address?: string
+    marketingConsent?: boolean
+    wantsTextbook?: boolean
+  }
+): Promise<User | null> {
+  try {
+    const { db } = await connectToDatabase()
+    const collection = getUsersCollection(db)
+
+    const updateData: any = {
+      ...updates,
+      updatedAt: new Date(),
+    }
+
+    const result = await collection.findOneAndUpdate(
+      { email },
+      { $set: updateData },
+      { returnDocument: 'after' }
+    )
+
+    return result || null
+  } catch (error) {
+    console.error('❌ updateUserProfile 실패:', error)
+    return null
   }
 }

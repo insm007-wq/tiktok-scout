@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     const validCode = INVITATION_CODE.trim().toUpperCase()
 
     if (submittedCode !== validCode) {
-      console.warn(`[Signup API] Invalid invitation code: ${submittedCode}`)
+      console.warn('[Signup API] Invalid invitation code')
       return NextResponse.json(
         { error: '유효하지 않은 초대 코드입니다' },
         { status: 403 }
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
         const { db } = await connectToDatabase()
         const collection = db.collection('users')
         await collection.deleteOne({ email: data.email })
-        console.log(`✅ [Signup] 만료된 탈퇴 계정 삭제: ${data.email}`)
+        console.log('✅ [Signup] 만료된 탈퇴 계정 삭제됨')
       } else {
         // 탈퇴하지 않은 활성 계정
         return NextResponse.json({ error: '이미 사용 중인 이메일입니다' }, { status: 409 })
@@ -97,14 +97,20 @@ export async function POST(req: NextRequest) {
     // 비밀번호 해싱
     const hashedPassword = await hashPassword(data.password)
 
+    // 주소 문자열 구성 (교재 수령 선택 시에만)
+    const addressString = data.address
+      ? `${data.address.zipCode} ${data.address.address} ${data.address.detailAddress}`
+      : undefined
+
     // 사용자 생성 (유효한 초대 코드 입력 시 자동 승인)
     const newUser = await createUser({
       email: data.email,
       name: data.name,
       phone: data.phone.replace(/-/g, ''), // 하이픈 제거
       password: hashedPassword,
-      address: `${data.address.zipCode} ${data.address.address} ${data.address.detailAddress}`,
+      address: addressString,
       marketingConsent: data.marketingConsent,
+      wantsTextbook: data.wantsTextbook,
       isApproved: true,
     })
 

@@ -44,20 +44,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const user = await getUserById(email)
 
           if (!user) {
-            console.warn(`[Auth] 사용자를 찾을 수 없음: ${email}`)
+            console.warn('[Auth] 사용자를 찾을 수 없음')
             return null
           }
 
           // 비밀번호 검증
           if (!user.password) {
-            console.warn(`[Auth] 비밀번호 설정되지 않음: ${email}`)
+            console.warn('[Auth] 비밀번호 설정되지 않음')
             return null
           }
 
           const isPasswordValid = await verifyPassword(password, user.password)
 
           if (!isPasswordValid) {
-            console.warn(`[Auth] 비밀번호 불일치: ${email}`)
+            console.warn('[Auth] 비밀번호 불일치')
             return null
           }
 
@@ -68,29 +68,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
           // 관리자 승인 확인
           if (!user.isApproved) {
-            console.warn(`[Auth] 승인 대기 중: ${email}`)
+            console.warn('[Auth] 승인 대기 중')
             throw new Error('PENDING_APPROVAL')
           }
 
           // 계정 차단 확인
           if (user.isBanned) {
-            console.warn(`[Auth] 차단된 계정: ${email}`)
+            console.warn('[Auth] 차단된 계정')
             return null
           }
 
           // 계정 비활성화 확인
           if (!user.isActive) {
-            console.warn(`[Auth] 비활성화된 계정: ${email}`)
+            console.warn('[Auth] 비활성화된 계정')
             return null
           }
 
           // 탈퇴한 계정 확인
           if (user.isWithdrawn) {
-            console.warn(`[Auth] 탈퇴한 계정: ${email}`)
+            console.warn('[Auth] 탈퇴한 계정')
             return null
           }
 
-          console.log(`[Auth] 로그인 성공: ${email}`)
+          console.log('[Auth] 로그인 성공')
 
           return {
             id: user._id?.toString() || email,
@@ -204,7 +204,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
   events: {
     async signIn({ user, account, profile, isNewUser }) {
-      console.log(`[Auth Event] 사용자 로그인: ${user.email}`)
+      console.log('[Auth Event] 사용자 로그인')
     },
   },
 })

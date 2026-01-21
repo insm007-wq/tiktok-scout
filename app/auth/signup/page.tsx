@@ -71,7 +71,7 @@ export default function SignupPage() {
         <div className="text-center mt-6 text-sm text-white/50">
           <p>
             문제가 있으신가요?{" "}
-            <a href="mailto:support@tiktokscout.com" className="text-cyan-400 hover:text-cyan-300 transition-colors">
+            <a href="mailto:aiyumisejong@gmail.com" className="text-cyan-400 hover:text-cyan-300 transition-colors">
               고객 지원
             </a>
           </p>

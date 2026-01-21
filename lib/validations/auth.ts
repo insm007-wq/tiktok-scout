@@ -52,20 +52,29 @@ export const addressSchema = z.object({
 export type AddressFormData = z.infer<typeof addressSchema>
 
 /**
+ * 교재 수령 검증 스키마
+ */
+export const textbookSchema = z.object({
+  wantsTextbook: z.boolean(),
+  address: addressSchema.optional(),
+})
+
+/**
  * Step 3: 동의 검증 스키마
  */
 export const consentSchema = z
   .object({
     termsConsent: z.boolean(),
+    privacyConsent: z.boolean(),
     marketingConsent: z.boolean(),
   })
   .refine((data) => data.termsConsent === true, {
     message: '약관 동의는 필수입니다',
     path: ['termsConsent'],
   })
-  .refine((data) => data.marketingConsent === true, {
-    message: '마케팅 활용 동의는 필수입니다',
-    path: ['marketingConsent'],
+  .refine((data) => data.privacyConsent === true, {
+    message: '개인정보 처리방침 동의는 필수입니다',
+    path: ['privacyConsent'],
   })
 
 export type ConsentFormData = z.infer<typeof consentSchema>
@@ -103,11 +112,19 @@ export const signupSchema = z
       .regex(/^[A-Za-z0-9-]+$/, '초대 코드는 영문, 숫자, 하이픈만 사용 가능합니다')
       .transform(val => val.trim().toUpperCase()),
 
-    address: addressSchema,
+    wantsTextbook: z.boolean(),
 
-    marketingConsent: z.boolean(),
+    address: z.object({
+      zipCode: z.string(),
+      address: z.string(),
+      detailAddress: z.string(),
+    }).optional(),
+
+    marketingConsent: z.boolean().optional().default(false),
 
     termsConsent: z.boolean(),
+
+    privacyConsent: z.boolean(),
   })
   .refine((data) => data.password === data.passwordConfirm, {
     message: '비밀번호가 일치하지 않습니다',
@@ -117,9 +134,19 @@ export const signupSchema = z
     message: '약관 동의는 필수입니다',
     path: ['termsConsent'],
   })
-  .refine((data) => data.marketingConsent === true, {
-    message: '마케팅 활용 동의는 필수입니다',
-    path: ['marketingConsent'],
+  .refine((data) => data.privacyConsent === true, {
+    message: '개인정보 처리방침 동의는 필수입니다',
+    path: ['privacyConsent'],
+  })
+  .refine((data) => {
+    // If wantsTextbook is true, address is required
+    if (data.wantsTextbook) {
+      return data.address?.zipCode && data.address?.address && data.address?.detailAddress
+    }
+    return true
+  }, {
+    message: '교재를 받으시려면 주소를 입력해주세요',
+    path: ['address'],
   })
 
 export type SignupFormData = z.infer<typeof signupSchema>

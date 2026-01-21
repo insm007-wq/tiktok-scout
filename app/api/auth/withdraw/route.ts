@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     const isPasswordValid = await verifyPassword(password, user.password)
 
     if (!isPasswordValid) {
-      console.warn(`[Withdraw API] 잘못된 비밀번호: ${email}`)
+      console.warn('[Withdraw API] 잘못된 비밀번호')
       return NextResponse.json(
         { error: '비밀번호가 일치하지 않습니다' },
         { status: 403 }
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    console.log(`✅ [Withdraw API] 회원 탈퇴 성공: ${email}`)
+    console.log('✅ [Withdraw API] 회원 탈퇴 성공')
 
     return NextResponse.json(
       {
