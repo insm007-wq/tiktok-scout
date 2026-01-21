@@ -29,6 +29,9 @@ interface User {
   isAdmin?: boolean  // 관리자 여부
   isApproved?: boolean  // 가입 승인 여부
   isVerified?: boolean  // SMS 인증 여부
+  isWithdrawn?: boolean  // 회원 탈퇴 여부
+  withdrawnAt?: Date  // 탈퇴 일시
+  withdrawalExpiresAt?: Date  // 재가입 허용 일시 (탈퇴 + 14일)
 }
 
 function getUsersCollection(db: Db): Collection<User> {
@@ -587,5 +590,78 @@ export async function markUserAsVerified(email: string): Promise<boolean> {
   } catch (error) {
     console.error('❌ markUserAsVerified 실패:', error)
     return false
+  }
+}
+
+/**
+ * 사용자 회원 탈퇴 처리
+ * Soft Delete 방식으로 데이터 보존, 14일간 재가입 불가
+ */
+export async function withdrawUser(email: string): Promise<boolean> {
+  try {
+    const { db } = await connectToDatabase()
+    const collection = getUsersCollection(db)
+
+    const now = new Date()
+    // 14일 후 재가입 허용
+    const expiresAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+
+    const result = await collection.findOneAndUpdate(
+      { email },
+      {
+        $set: {
+          isWithdrawn: true,
+          withdrawnAt: now,
+          withdrawalExpiresAt: expiresAt,
+          isActive: false,
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: 'after' }
+    )
+
+    if (result) {
+      console.log(`✅ [withdrawUser] ${email} 사용자가 탈퇴했습니다. 재가입 허용: ${expiresAt.toISOString().split('T')[0]}`)
+    }
+    return result !== null
+  } catch (error) {
+    console.error('❌ withdrawUser 실패:', error)
+    return false
+  }
+}
+
+/**
+ * 사용자의 탈퇴 상태 확인
+ * - 'active': 정상 회원 (탈퇴하지 않음)
+ * - 'withdrawn': 탈퇴 후 2주 미경과 (재가입 불가)
+ * - 'expired': 탈퇴 후 2주 경과 (재가입 가능, 기존 계정 삭제 필요)
+ */
+export async function checkWithdrawnStatus(
+  email: string
+): Promise<'active' | 'withdrawn' | 'expired'> {
+  try {
+    const { db } = await connectToDatabase()
+    const collection = getUsersCollection(db)
+
+    const user = await collection.findOne({ email })
+
+    // 사용자가 없거나 탈퇴하지 않은 경우
+    if (!user || !user.isWithdrawn) {
+      return 'active'
+    }
+
+    const now = new Date()
+    const expiresAt = user.withdrawalExpiresAt
+
+    // 재가입 허용 일시가 지났는지 확인
+    if (expiresAt && now >= expiresAt) {
+      return 'expired'
+    }
+
+    // 탈퇴 후 2주 미경과
+    return 'withdrawn'
+  } catch (error) {
+    console.error('❌ checkWithdrawnStatus 실패:', error)
+    return 'active'
   }
 }

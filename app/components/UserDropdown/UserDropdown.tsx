@@ -3,11 +3,16 @@
 import { useState, useRef, useEffect } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { User, LogOut, ChevronDown } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import WithdrawModal from './WithdrawModal'
 import './UserDropdown.css'
 
 export default function UserDropdown() {
   const { data: session } = useSession()
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false)
+  const [isWithdrawing, setIsWithdrawing] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   // 외부 클릭 감지
@@ -26,6 +31,40 @@ export default function UserDropdown() {
       redirect: true,
       callbackUrl: '/auth/login'
     })
+  }
+
+  const handleWithdraw = async (password: string) => {
+    setIsWithdrawing(true)
+
+    try {
+      const response = await fetch('/api/auth/withdraw', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || '회원 탈퇴 처리 중 오류가 발생했습니다')
+      }
+
+      // 탈퇴 성공 - 모달 닫고 로그아웃
+      setShowWithdrawModal(false)
+      setIsOpen(false)
+
+      // 로그아웃
+      await signOut({
+        redirect: true,
+        callbackUrl: '/auth/login'
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '오류가 발생했습니다'
+      throw error
+    } finally {
+      setIsWithdrawing(false)
+    }
   }
 
   if (!session) return null
@@ -65,14 +104,29 @@ export default function UserDropdown() {
           <div className="menu-divider" />
 
           <button
+            className="withdraw-btn"
+            onClick={() => setShowWithdrawModal(true)}
+            disabled={isWithdrawing}
+          >
+            회원 탈퇴
+          </button>
+
+          <button
             className="logout-btn"
             onClick={handleLogout}
+            disabled={isWithdrawing}
           >
             <LogOut size={16} />
             로그아웃
           </button>
         </div>
       )}
+
+      <WithdrawModal
+        isOpen={showWithdrawModal}
+        onClose={() => setShowWithdrawModal(false)}
+        onConfirm={handleWithdraw}
+      />
     </div>
   )
 }

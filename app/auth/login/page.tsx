@@ -44,7 +44,7 @@ export default async function LoginPage() {
         {/* 헤더 */}
         <div className="text-center mb-8 animate-fade-in-up">
           <h1 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-pink-400 to-cyan-400 mb-2 drop-shadow-[0_0_10px_rgba(254,44,85,0.5)]">
-            tiktalk killa
+            틱톡킬라
           </h1>
           <p className="text-white/70 text-lg">계정에 로그인하세요</p>
         </div>

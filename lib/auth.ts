@@ -84,6 +84,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return null
           }
 
+          // 탈퇴한 계정 확인
+          if (user.isWithdrawn) {
+            console.warn(`[Auth] 탈퇴한 계정: ${email}`)
+            return null
+          }
+
           console.log(`[Auth] 로그인 성공: ${email}`)
 
           return {
