@@ -86,6 +86,22 @@ export default function Search() {
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  /**
+   * 검색 타임아웃 타이머 정리 (early definition for use in cleanup effect)
+   */
+  const clearSearchTimeout = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    if (warningTimeoutRef.current) {
+      clearTimeout(warningTimeoutRef.current);
+      warningTimeoutRef.current = null;
+    }
+  }, []);
 
   // Toast 추가 함수
   const addToast = useCallback((type: "success" | "error" | "warning" | "info", message: string, title?: string, duration = 3000) => {
@@ -155,11 +171,19 @@ export default function Search() {
   // 컴포넌트 언마운트 시 타이머 정리
   useEffect(() => {
     return () => {
+      clearSearchTimeout();    // 추가
+
       if (hoverTimeoutRef.current) {
         clearTimeout(hoverTimeoutRef.current);
       }
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
-  }, []);
+  }, [clearSearchTimeout]);
 
   // 저장된 너비 복원
   useEffect(() => {
@@ -319,11 +343,82 @@ export default function Search() {
     return sortVideos(filtered, sortBy);
   }, [videos, filters, sortBy]);
 
+  const handleCancelSearch = useCallback(async () => {
+    // 타임아웃 타이머 정리 (추가)
+    clearSearchTimeout();
+
+    // 1. HTTP 요청 중단
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+
+    // 2. 폴링 중단
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+
+    // 3. 백엔드 취소 API 호출 (job 제거 + 캐시 삭제)
+    if (jobStatus?.jobId) {
+      try {
+        await fetch('/api/search/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jobId: jobStatus.jobId,
+            query: searchInput,
+            platform,
+            dateRange: filters.uploadPeriod
+          })
+        });
+        console.log('[Search] Cancel API 호출 완료');
+      } catch (error) {
+        console.error('[Search] Cancel API 실패:', error);
+        // 실패해도 프론트엔드 상태는 이미 정리되었으므로 계속 진행
+      }
+    }
+
+    // 4. 상태 초기화
+    setJobStatus(null);
+  }, [
+    clearSearchTimeout,
+    jobStatus?.jobId,
+    searchInput,
+    platform,
+    filters.uploadPeriod
+  ]);
+
+  /**
+   * 자동 타임아웃 처리 (3분 초과)
+   */
+  const handleAutoTimeout = useCallback(async () => {
+    console.log('[Search] Auto timeout after 3 minutes');
+
+    // 기존 취소 로직 재사용 (백엔드 취소 API + 캐시 삭제)
+    await handleCancelSearch();
+
+    // 사용자 안내 토스트
+    addToast(
+      'warning',
+      '검색 시간이 초과되었습니다.\n잠시 후 다시 시도해주세요.',
+      '⏱️ 타임아웃',
+      5000
+    );
+
+    // 에러 메시지 표시
+    setError('검색 시간이 초과되었습니다. 서버 상태를 확인하거나 잠시 후 다시 시도해주세요.');
+  }, [handleCancelSearch, addToast]);
+
   const handleSearch = useCallback(async () => {
     if (!searchInput.trim()) {
       setError("검색어를 입력해주세요");
       return;
     }
+
+    // 이전 검색의 타이머 정리 (추가)
+    clearSearchTimeout();
 
     let searchQuery = searchInput;
     setTranslatedQuery("");
@@ -410,11 +505,17 @@ export default function Search() {
       const data = await response.json();
 
       // 캐시 히트 시 즉시 결과 표시
-      if (data.status === "completed" && data.data) {
-        setVideos(data.data);
+      if (data.status === "completed") {
         setError("");
-        addToast("success", "검색 완료!", "결과를 찾았습니다");
         setIsLoading(false);
+
+        if (data.data && data.data.length > 0) {
+          setVideos(data.data);
+          addToast("success", "검색 완료!", `${data.data.length}개의 결과를 찾았습니다`);
+        } else {
+          setVideos([]);
+          addToast("info", "결과 없음", "다른 키워드나 필터로 다시 시도해보세요");
+        }
       } else if (data.status === "queued") {
         // 큐에 추가됨 - jobId로 진행 상황 추적 가능
         setVideos([]);
@@ -422,6 +523,27 @@ export default function Search() {
 
         // 초기 큐 크기 저장
         const initialQueueSize = data.totalQueueSize || data.queueSize;
+
+        // ========== 타임아웃 타이머 시작 (추가) ==========
+
+        // 1) 2분 30초 경고
+        warningTimeoutRef.current = setTimeout(() => {
+          if (isLoading) {
+            addToast(
+              'info',
+              '검색이 오래 걸리고 있습니다.\n30초 후 자동으로 취소됩니다.',
+              '⏳ 잠시만요',
+              5000
+            );
+          }
+        }, 150000); // 2분 30초 = 150000ms
+
+        // 2) 3분 타임아웃
+        timeoutRef.current = setTimeout(() => {
+          handleAutoTimeout();
+        }, 180000); // 3분 = 180000ms
+
+        // ================================================
 
         // 폴링 시작: 2초마다 상태 확인
         const pollInterval = setInterval(async () => {
@@ -447,14 +569,22 @@ export default function Search() {
               });
             }
 
-            if (statusData.status === "completed" && statusData.data) {
-              setVideos(statusData.data);
+            if (statusData.status === "completed") {
+              clearSearchTimeout(); // 추가
               setIsLoading(false);
               setError("");
               setJobStatus(null);
-              addToast("success", "검색 완료!", "검색 결과를 표시합니다");
               clearInterval(pollInterval);
+
+              if (statusData.data && statusData.data.length > 0) {
+                setVideos(statusData.data);
+                addToast("success", "검색 완료!", `${statusData.data.length}개의 결과를 찾았습니다`);
+              } else {
+                setVideos([]);
+                addToast("info", "결과 없음", "다른 키워드나 필터로 다시 시도해보세요");
+              }
             } else if (statusData.status === "failed") {
+              clearSearchTimeout(); // 추가
               // 에러 타입에 따라 다른 처리
               const errorMessage = statusData.error || "검색 중 오류가 발생했습니다";
               const errorType = statusData.errorType || "UNKNOWN_ERROR";
@@ -526,7 +656,16 @@ export default function Search() {
       }
       setIsLoading(false);
     }
-  }, [searchInput, platform, targetLanguage, searchHistory, filters.uploadPeriod, addToast]);
+  }, [
+    searchInput,
+    platform,
+    targetLanguage,
+    searchHistory,
+    filters.uploadPeriod,
+    addToast,
+    clearSearchTimeout,
+    handleAutoTimeout
+  ]);
 
   // 디바운싱된 검색 함수
   const debouncedSearch = useCallback(() => {
@@ -545,32 +684,6 @@ export default function Search() {
       debouncedSearch();
     }
   };
-
-  const handleCancelSearch = useCallback(async () => {
-    // Call cancel API to remove job from queue
-    if (jobStatus?.jobId) {
-      try {
-        await fetch(`/api/search/${jobStatus.jobId}/cancel`, { method: 'POST' });
-      } catch (err) {
-        console.error('[Cancel] Failed to cancel job:', err);
-      }
-    }
-
-    // Abort polling and fetch
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      setIsLoading(false);
-      abortControllerRef.current = null;
-    }
-
-    // Clear polling interval
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
-
-    setJobStatus(null);
-  }, [jobStatus?.jobId]);
 
   // 히스토리 항목 클릭 - 검색 입력 필드에만 값 설정
   const handleHistoryClick = useCallback((keyword: string) => {
@@ -969,19 +1082,20 @@ export default function Search() {
                   <span className="platform-name">Douyin</span>
                 </label>
                 <label
-                  className={`platform-option ${platform === "xiaohongshu" ? "active" : ""}`}
-                  onClick={() => setPlatform("xiaohongshu")}
+                  className="platform-option"
+                  style={{ opacity: 0.5, cursor: "not-allowed", pointerEvents: "none" }}
+                  title="현재 사용 불가"
                 >
                   <input
                     type="radio"
                     name="platform"
                     value="xiaohongshu"
-                    checked={platform === "xiaohongshu"}
-                    onChange={() => setPlatform("xiaohongshu")}
+                    disabled
                     style={{ display: "none" }}
                   />
                   <span className="platform-icon">❤️</span>
                   <span className="platform-name">Xiaohongshu</span>
+                  <span style={{ fontSize: "10px", marginLeft: "4px", color: "#999" }}>(준비중)</span>
                 </label>
               </div>
             </div>
