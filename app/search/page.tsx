@@ -136,8 +136,8 @@ export default function SearchPage() {
 
       if (err instanceof Error) {
         // 할당량 초과 (429 - 사용자 검색 한도)
-        if (err.status === 429 && err.message.includes("일일 검색 한도")) {
-          const details = err.details;
+        if ((err as any).status === 429 && err.message.includes("일일 검색 한도")) {
+          const details = (err as any).details;
           errorMessage = `❌ 일일 검색 한도를 초과했습니다!\n사용: ${details?.used}/${details?.limit}회\n내일 자정에 리셋됩니다.`;
         } else {
           errorMessage = err.message;
