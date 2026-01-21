@@ -1752,7 +1752,7 @@ export default function Search() {
                   boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
                 }}
               >
-                🔗 TikTok에서 열기
+                🔗 {platform === "douyin" ? "도우인" : platform === "xiaohongshu" ? "샤오홍슈" : "TikTok"}에서 열기
               </button>
               <button
                 onClick={() => {
