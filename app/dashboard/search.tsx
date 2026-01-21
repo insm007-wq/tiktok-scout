@@ -12,6 +12,7 @@ import { formatDateWithTime, getRelativeDateString } from "@/lib/dateUtils";
 import { formatNumber, formatVideoDuration } from "@/lib/formatters";
 import UserDropdown from "@/app/components/UserDropdown/UserDropdown";
 import { SearchProgress } from "@/components/SearchProgress";
+import { validateKeyword } from "@/lib/utils/validateKeyword";
 import "./search.css";
 
 type Platform = "tiktok" | "douyin" | "xiaohongshu";
@@ -123,19 +124,20 @@ export default function Search() {
     }, 600);
   };
 
-  // 비디오 카드 마우스 오버 핸들러 (모든 플랫폼: 즉시 재생)
+  // 비디오 카드 마우스 오버 핸들러 (TikTok만 즉시 재생, Douyin/Xiaohongshu는 프리뷰 미제공)
   const handleVideoCardMouseEnter = useCallback((video: Video) => {
     setHoveredVideoId(video.id);
 
-    // 0.2초 후 즉시 재생 (videoUrl이 있으면 재생)
+    // 0.2초 후 즉시 재생 (TikTok만 프리뷰 제공)
     const delay = 200;
 
     hoverTimeoutRef.current = setTimeout(() => {
-      if (video.videoUrl) {
+      // Douyin/Xiaohongshu는 프리뷰 미제공 (썸네일만 표시)
+      if (video.videoUrl && platform !== 'douyin' && platform !== 'xiaohongshu') {
         setPlayingVideoId(video.id);
       }
     }, delay);
-  }, []);
+  }, [platform]);
 
   // 비디오 카드 마우스 아웃 핸들러
   const handleVideoCardMouseLeave = useCallback(() => {
@@ -412,15 +414,25 @@ export default function Search() {
   }, [handleCancelSearch, addToast]);
 
   const handleSearch = useCallback(async () => {
-    if (!searchInput.trim()) {
-      setError("검색어를 입력해주세요");
+    // 키워드 검증
+    const validation = validateKeyword(searchInput);
+    if (!validation.isValid) {
+      setError(validation.error || "잘못된 검색어입니다");
+
+      // 🔔 토스트 알람 추가!
+      addToast(
+        "warning",
+        validation.error || "잘못된 검색어입니다",
+        "⚠️ 입력 오류",
+        4000
+      );
       return;
     }
 
     // 이전 검색의 타이머 정리 (추가)
     clearSearchTimeout();
 
-    let searchQuery = searchInput;
+    let searchQuery = validation.sanitized!;
     setTranslatedQuery("");
 
     // 1. 입력 언어 감지
@@ -1426,8 +1438,8 @@ export default function Search() {
                               <div className="card-thumbnail-fallback">🎬</div>
                             )}
 
-                            {/* 비디오 미리보기 */}
-                            {video.videoUrl && playingVideoId === video.id && (
+                            {/* 비디오 미리보기 (TikTok만 제공, Douyin/Xiaohongshu는 썸네일만 표시) */}
+                            {video.videoUrl && playingVideoId === video.id && platform !== 'douyin' && platform !== 'xiaohongshu' && (
                               <video className="card-video-preview" src={video.videoUrl} autoPlay muted loop playsInline preload="auto" />
                             )}
 
@@ -1456,7 +1468,7 @@ export default function Search() {
                               <div className="card-overlay-stats">
                                 <div className="card-overlay-stat-item">
                                   <Play className="card-overlay-stat-icon" />
-                                  <span>{formatNumber(video.playCount)}</span>
+                                  <span>{video.playCount ? formatNumber(video.playCount) : "제공 안 함"}</span>
                                 </div>
                                 <div className="card-overlay-stat-item">
                                   <Heart className="card-overlay-stat-icon" />
@@ -1561,7 +1573,7 @@ export default function Search() {
                                 {formatDateWithTime(video.createTime)}
                               </td>
                               {platform !== "xiaohongshu" && <td className="table-number">{formatVideoDuration(video.videoDuration)}</td>}
-                              <td className="table-number">{formatNumber(video.playCount)}</td>
+                              <td className="table-number">{video.playCount ? formatNumber(video.playCount) : "제공 안 함"}</td>
                               <td className="table-number">{formatNumber(video.likeCount)}</td>
                               <td className="table-number">{formatNumber(video.commentCount)}</td>
                               <td className="table-number">{formatNumber(video.shareCount)}</td>
@@ -1641,7 +1653,7 @@ export default function Search() {
                   }}
                 >
                   <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px", color: "#6b6b6b" }}>조회수</div>
-                  <div style={{ fontSize: "20px", fontWeight: "700" }}>{(selectedVideo.playCount / 1000000).toFixed(1)}M</div>
+                  <div style={{ fontSize: "20px", fontWeight: "700" }}>{selectedVideo.playCount ? formatNumber(selectedVideo.playCount) : "제공 안 함"}</div>
                 </div>
                 <div
                   style={{
@@ -1654,7 +1666,7 @@ export default function Search() {
                   }}
                 >
                   <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px", color: "#6b6b6b" }}>좋아요</div>
-                  <div style={{ fontSize: "20px", fontWeight: "700" }}>{(selectedVideo.likeCount / 1000).toFixed(1)}K</div>
+                  <div style={{ fontSize: "20px", fontWeight: "700" }}>{formatNumber(selectedVideo.likeCount)}</div>
                 </div>
                 <div
                   style={{
@@ -1667,7 +1679,7 @@ export default function Search() {
                   }}
                 >
                   <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px", color: "#6b6b6b" }}>댓글</div>
-                  <div style={{ fontSize: "20px", fontWeight: "700" }}>{(selectedVideo.commentCount / 1000).toFixed(1)}K</div>
+                  <div style={{ fontSize: "20px", fontWeight: "700" }}>{formatNumber(selectedVideo.commentCount)}</div>
                 </div>
                 <div
                   style={{
@@ -1680,7 +1692,7 @@ export default function Search() {
                   }}
                 >
                   <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px", color: "#6b6b6b" }}>공유</div>
-                  <div style={{ fontSize: "20px", fontWeight: "700" }}>{(selectedVideo.shareCount / 1000).toFixed(1)}K</div>
+                  <div style={{ fontSize: "20px", fontWeight: "700" }}>{formatNumber(selectedVideo.shareCount)}</div>
                 </div>
               </div>
 
