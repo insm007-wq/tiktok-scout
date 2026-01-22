@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     canonical: 'https://www.tiktalk-killa.com',
   },
   verification: {
-    google: 'google-site-verification-code-here',
+    google: 'e6xNUqN6c5DznLILdEpjiY4w7N5QHsy_4DavSWBk2Pc',
   },
 }
 
@@ -79,7 +79,7 @@ export default function RootLayout({
         />
 
         {/* Google Site Verification */}
-        <meta name="google-site-verification" content="your-verification-code" />
+        <meta name="google-site-verification" content="e6xNUqN6c5DznLILdEpjiY4w7N5QHsy_4DavSWBk2Pc" />
 
         {/* Naver Site Verification */}
         <meta name="naver-site-verification" content="your-naver-verification-code" />
