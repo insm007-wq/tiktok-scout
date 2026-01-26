@@ -16,6 +16,7 @@
     "test:load": "npm run build && npm run worker:pm2 & npm run dev"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.645.0",
     "@bull-board/api": "^6.16.2",
     "@bull-board/ui": "^6.16.2",
     "@hookform/resolvers": "^5.2.2",
