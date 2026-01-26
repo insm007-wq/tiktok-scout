@@ -1,4 +1,4 @@
-# Titok Killa
+# TikTalk Killa
 
 TikTok, Douyin, Xiaohongshu 비디오 검색 및 분석 도구입니다.
 
@@ -74,7 +74,7 @@ npm run dev
 
 ## 🎯 현재 상태
 
-✅ UI 구조 완성 (YouTube Scout에서 복사)
+✅ UI 구조 완성
 ⏳ TikTok API 통합 (진행 중)
 
 ## 📝 다음 단계

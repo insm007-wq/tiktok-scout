@@ -1,6 +1,7 @@
 import { VideoResult } from '@/types/video';
 import { parseXiaohongshuTime } from '@/lib/utils/xiaohongshuTimeParser';
 import { fetchPostWithRetry, fetchGetWithRetry } from '@/lib/utils/fetch-with-retry';
+import { uploadMediaToR2 } from '@/lib/storage/r2';
 
 /**
  * Xiaohongshu(小红书) 영상 검색 (easyapi Search Scraper)
@@ -86,7 +87,7 @@ export async function searchXiaohongshuVideos(
     }
 
     // 결과 변환 - 비디오만 필터링
-    const results = dataset
+    const filteredItems = dataset
       .filter((item: any) => {
         // 비디오 포스트만 포함
         return (
@@ -95,8 +96,11 @@ export async function searchXiaohongshuVideos(
           !!item.item?.video?.media
         );
       })
-      .slice(0, limit)
-      .map((item: any, index: number) => {
+      .slice(0, limit);
+
+    // 결과 변환 (R2 업로드)
+    const results = await Promise.all(
+      filteredItems.map(async (item: any, index: number) => {
         const title =
           item.item?.note_card?.display_title ||
           item.item?.title ||
@@ -145,6 +149,9 @@ export async function searchXiaohongshuVideos(
           item.item?.video?.media?.cover ||
           item.item?.note_card?.cover?.url_default;
 
+        // R2에 업로드 (원본 CDN URL 영구 보존용)
+        const r2Media = await uploadMediaToR2(thumbnail, undefined);
+
         return {
           id: item.item?.id || item.id || `xiaohongshu-${index}`,
           title: title,
@@ -162,11 +169,12 @@ export async function searchXiaohongshuVideos(
             item.item?.note_card?.video?.media?.duration ||
             0,
           hashtags: [],
-          thumbnail: thumbnail,
+          thumbnail: r2Media.thumbnail || thumbnail,
           videoUrl: undefined,
           webVideoUrl: item.link || item.postUrl || item.url || undefined,
         };
-      });
+      })
+    );
 
     const duration = Date.now() - startTime;
 
@@ -297,78 +305,83 @@ export async function searchXiaohongshuVideosParallel(
     }
 
     // 5️⃣ 결과 변환 (API에서 noteType: 'video'로 이미 필터링됨)
-    // ✅ 50개 이상의 결과도 모두 반환
-    const results = videoOnlyDataset.map((item: any, index: number) => {
-      const title =
-        item.item?.note_card?.display_title ||
-        item.item?.title ||
-        item.title ||
-        item.desc ||
-        item.description ||
-        `포스트 ${index + 1}`;
+    // ✅ 50개 이상의 결과도 모두 반환 (R2 업로드)
+    const results = await Promise.all(
+      videoOnlyDataset.map(async (item: any, index: number) => {
+        const title =
+          item.item?.note_card?.display_title ||
+          item.item?.title ||
+          item.title ||
+          item.desc ||
+          item.description ||
+          `포스트 ${index + 1}`;
 
-      const creator =
-        item.item?.note_card?.user?.nickname ||
-        item.item?.note_card?.user?.nick_name ||
-        item.author ||
-        item.creator ||
-        'Unknown';
+        const creator =
+          item.item?.note_card?.user?.nickname ||
+          item.item?.note_card?.user?.nick_name ||
+          item.author ||
+          item.creator ||
+          'Unknown';
 
-      const likeCount = parseInt(
-        item.item?.note_card?.interact_info?.liked_count ||
-        item.likes ||
-        item.like_count ||
-        0
-      );
+        const likeCount = parseInt(
+          item.item?.note_card?.interact_info?.liked_count ||
+          item.likes ||
+          item.like_count ||
+          0
+        );
 
-      const playCount = parseInt(
-        item.item?.note_card?.interact_info?.play_count ||
-        item.views ||
-        item.view_count ||
-        likeCount ||
-        0
-      );
+        const playCount = parseInt(
+          item.item?.note_card?.interact_info?.play_count ||
+          item.views ||
+          item.view_count ||
+          likeCount ||
+          0
+        );
 
-      const commentCount = parseInt(
-        item.item?.note_card?.interact_info?.comment_count ||
-        item.comments ||
-        item.comment_count ||
-        0
-      );
+        const commentCount = parseInt(
+          item.item?.note_card?.interact_info?.comment_count ||
+          item.comments ||
+          item.comment_count ||
+          0
+        );
 
-      const shareCount = parseInt(
-        item.item?.note_card?.interact_info?.shared_count ||
-        item.shares ||
-        item.share_count ||
-        0
-      );
+        const shareCount = parseInt(
+          item.item?.note_card?.interact_info?.shared_count ||
+          item.shares ||
+          item.share_count ||
+          0
+        );
 
-      const thumbnail =
-        item.item?.video?.media?.cover ||
-        item.item?.note_card?.cover?.url_default;
+        const thumbnail =
+          item.item?.video?.media?.cover ||
+          item.item?.note_card?.cover?.url_default;
 
-      return {
-        id: item.item?.id || item.id || `xiaohongshu-${index}`,
-        title: title,
-        description: title,
-        creator: creator,
-        creatorUrl: item.item?.note_card?.user?.avatar || undefined,
-        followerCount: undefined,
-        playCount: playCount,
-        likeCount: likeCount,
-        commentCount: commentCount,
-        shareCount: shareCount,
-        createTime: parseXiaohongshuTime(item.item?.note_card?.corner_tag_info),
-        videoDuration:
-          item.item?.video?.media?.duration ||
-          item.item?.note_card?.video?.media?.duration ||
-          0,
-        hashtags: [],
-        thumbnail: thumbnail,
-        videoUrl: undefined,
-        webVideoUrl: item.link || item.postUrl || item.url || undefined,
-      };
-    });
+        // R2에 업로드 (원본 CDN URL 영구 보존용)
+        const r2Media = await uploadMediaToR2(thumbnail, undefined);
+
+        return {
+          id: item.item?.id || item.id || `xiaohongshu-${index}`,
+          title: title,
+          description: title,
+          creator: creator,
+          creatorUrl: item.item?.note_card?.user?.avatar || undefined,
+          followerCount: undefined,
+          playCount: playCount,
+          likeCount: likeCount,
+          commentCount: commentCount,
+          shareCount: shareCount,
+          createTime: parseXiaohongshuTime(item.item?.note_card?.corner_tag_info),
+          videoDuration:
+            item.item?.video?.media?.duration ||
+            item.item?.note_card?.video?.media?.duration ||
+            0,
+          hashtags: [],
+          thumbnail: r2Media.thumbnail || thumbnail,
+          videoUrl: undefined,
+          webVideoUrl: item.link || item.postUrl || item.url || undefined,
+        };
+      })
+    );
 
     // 6️⃣ 중복 제거 (ID 기준)
     const uniqueResults = Array.from(

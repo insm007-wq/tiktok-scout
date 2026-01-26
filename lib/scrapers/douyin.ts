@@ -1,5 +1,6 @@
 import { VideoResult } from '@/types/video';
 import { fetchPostWithRetry, fetchGetWithRetry } from '@/lib/utils/fetch-with-retry';
+import { uploadMediaToR2 } from '@/lib/storage/r2';
 
 /**
  * Douyin 영상 검색 (natanielsantos Douyin Scraper)
@@ -103,30 +104,38 @@ export async function searchDouyinVideos(
       return [];
     }
 
-    // 결과 변환
-    const results = dataset.slice(0, limit).map((item: any, index: number) => {
-      const hashtags = item.hashtags?.map((h: any) => typeof h === 'string' ? h : h.name) || [];
+    // 결과 변환 (R2 업로드)
+    const results = await Promise.all(
+      dataset.slice(0, limit).map(async (item: any, index: number) => {
+        const hashtags = item.hashtags?.map((h: any) => typeof h === 'string' ? h : h.name) || [];
 
+        // 썸네일 URL 추출
+        const douyinThumbnail = item.videoMeta?.cover || item.videoMeta?.originCover || item.thumb || undefined;
+        const douyinVideoUrl = item.videoMeta?.playUrl || item.video?.url || item.downloadUrl || item.playUrl || undefined;
 
-      return {
-        id: item.id || `douyin-video-${index}`,
-        title: item.text || item.desc || item.description || `영상 ${index + 1}`,
-        description: item.text || item.desc || '',
-        creator: item.authorMeta?.name || item.authorName || 'Unknown',
-        creatorUrl: item.authorMeta?.avatarLarge || item.authorUrl || undefined,
-        followerCount: item.authorMeta?.followersCount ? parseInt(item.authorMeta.followersCount) : undefined,
-        playCount: parseInt(item.statistics?.playCount || item.playCount || item.video?.playCount || item.videoMeta?.playCount || 0),
-        likeCount: parseInt(item.statistics?.diggCount || 0),
-        commentCount: parseInt(item.statistics?.commentCount || 0),
-        shareCount: parseInt(item.statistics?.shareCount || 0),
-        createTime: item.createTime ? parseInt(item.createTime) * 1000 : Date.now(),
-        videoDuration: parseInt(item.videoMeta?.duration || item.duration || 0),
-        hashtags: hashtags,
-        thumbnail: item.videoMeta?.cover || item.videoMeta?.originCover || item.thumb || undefined,
-        videoUrl: item.videoMeta?.playUrl || item.video?.url || item.downloadUrl || item.playUrl || undefined,
-        webVideoUrl: item.url || undefined,
-      };
-    });
+        // R2에 업로드 (원본 CDN URL 영구 보존용)
+        const r2Media = await uploadMediaToR2(douyinThumbnail, douyinVideoUrl);
+
+        return {
+          id: item.id || `douyin-video-${index}`,
+          title: item.text || item.desc || item.description || `영상 ${index + 1}`,
+          description: item.text || item.desc || '',
+          creator: item.authorMeta?.name || item.authorName || 'Unknown',
+          creatorUrl: item.authorMeta?.avatarLarge || item.authorUrl || undefined,
+          followerCount: item.authorMeta?.followersCount ? parseInt(item.authorMeta.followersCount) : undefined,
+          playCount: parseInt(item.statistics?.playCount || item.playCount || item.video?.playCount || item.videoMeta?.playCount || 0),
+          likeCount: parseInt(item.statistics?.diggCount || 0),
+          commentCount: parseInt(item.statistics?.commentCount || 0),
+          shareCount: parseInt(item.statistics?.shareCount || 0),
+          createTime: item.createTime ? parseInt(item.createTime) * 1000 : Date.now(),
+          videoDuration: parseInt(item.videoMeta?.duration || item.duration || 0),
+          hashtags: hashtags,
+          thumbnail: r2Media.thumbnail || douyinThumbnail,
+          videoUrl: r2Media.video || douyinVideoUrl,
+          webVideoUrl: item.url || undefined,
+        };
+      })
+    );
 
     const endTime = Date.now();
     const duration = endTime - startTime;
@@ -258,29 +267,38 @@ export async function searchDouyinVideosParallel(
       return [];
     }
 
-    // 4️⃣ VideoResult로 변환 (기존 변환 로직 재사용)
-    const results = uniqueItems.slice(0, limit).map((item: any, index: number) => {
-      const hashtags = item.hashtags?.map((h: any) => typeof h === 'string' ? h : h.name) || [];
+    // 4️⃣ VideoResult로 변환 (R2 업로드)
+    const results = await Promise.all(
+      uniqueItems.slice(0, limit).map(async (item: any, index: number) => {
+        const hashtags = item.hashtags?.map((h: any) => typeof h === 'string' ? h : h.name) || [];
 
-      return {
-        id: item.id || `douyin-video-${index}`,
-        title: item.text || item.desc || item.description || `영상 ${index + 1}`,
-        description: item.text || item.desc || '',
-        creator: item.authorMeta?.name || item.authorName || 'Unknown',
-        creatorUrl: item.authorMeta?.avatarLarge || item.authorUrl || undefined,
-        followerCount: item.authorMeta?.followersCount ? parseInt(item.authorMeta.followersCount) : undefined,
-        playCount: parseInt(item.statistics?.playCount || item.playCount || item.video?.playCount || item.videoMeta?.playCount || 0),
-        likeCount: parseInt(item.statistics?.diggCount || 0),
-        commentCount: parseInt(item.statistics?.commentCount || 0),
-        shareCount: parseInt(item.statistics?.shareCount || 0),
-        createTime: item.createTime ? parseInt(item.createTime) * 1000 : Date.now(),
-        videoDuration: parseInt(item.videoMeta?.duration || item.duration || 0),
-        hashtags: hashtags,
-        thumbnail: item.videoMeta?.cover || item.videoMeta?.originCover || item.thumb || undefined,
-        videoUrl: item.videoMeta?.playUrl || item.video?.url || item.downloadUrl || item.playUrl || undefined,
-        webVideoUrl: item.url || undefined,
-      };
-    });
+        // 썸네일 URL 추출
+        const douyinThumbnail = item.videoMeta?.cover || item.videoMeta?.originCover || item.thumb || undefined;
+        const douyinVideoUrl = item.videoMeta?.playUrl || item.video?.url || item.downloadUrl || item.playUrl || undefined;
+
+        // R2에 업로드 (원본 CDN URL 영구 보존용)
+        const r2Media = await uploadMediaToR2(douyinThumbnail, douyinVideoUrl);
+
+        return {
+          id: item.id || `douyin-video-${index}`,
+          title: item.text || item.desc || item.description || `영상 ${index + 1}`,
+          description: item.text || item.desc || '',
+          creator: item.authorMeta?.name || item.authorName || 'Unknown',
+          creatorUrl: item.authorMeta?.avatarLarge || item.authorUrl || undefined,
+          followerCount: item.authorMeta?.followersCount ? parseInt(item.authorMeta.followersCount) : undefined,
+          playCount: parseInt(item.statistics?.playCount || item.playCount || item.video?.playCount || item.videoMeta?.playCount || 0),
+          likeCount: parseInt(item.statistics?.diggCount || 0),
+          commentCount: parseInt(item.statistics?.commentCount || 0),
+          shareCount: parseInt(item.statistics?.shareCount || 0),
+          createTime: item.createTime ? parseInt(item.createTime) * 1000 : Date.now(),
+          videoDuration: parseInt(item.videoMeta?.duration || item.duration || 0),
+          hashtags: hashtags,
+          thumbnail: r2Media.thumbnail || douyinThumbnail,
+          videoUrl: r2Media.video || douyinVideoUrl,
+          webVideoUrl: item.url || undefined,
+        };
+      })
+    );
 
     const endTime = Date.now();
     const duration = endTime - startTime;
