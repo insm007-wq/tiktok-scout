@@ -1,5 +1,6 @@
 import { VideoResult } from '@/types/video';
 import { fetchWithRetry, fetchPostWithRetry, fetchGetWithRetry } from '@/lib/utils/fetch-with-retry';
+import { uploadMediaToR2 } from '@/lib/storage/r2';
 
 /**
  * TikTok 영상 검색 (Api Dojo TikTok Scraper)
@@ -118,47 +119,52 @@ export async function searchTikTokVideos(
     }
 
 
-    // 결과 변환
-    const results = dataset.slice(0, Math.min(limit, 50)).map((item: any, index: number) => {
-      const hashtags = Array.isArray(item.hashtags)
-        ? item.hashtags
-            .filter((h: any) => h !== null && h !== undefined)
-            .map((h: any) => typeof h === 'string' ? h : (h && h.name ? h.name : h))
-        : [];
+    // 결과 변환 (R2 업로드)
+    const results = await Promise.all(
+      dataset.slice(0, Math.min(limit, 50)).map(async (item: any, index: number) => {
+        const hashtags = Array.isArray(item.hashtags)
+          ? item.hashtags
+              .filter((h: any) => h !== null && h !== undefined)
+              .map((h: any) => typeof h === 'string' ? h : (h && h.name ? h.name : h))
+          : [];
 
-      const videoUrl = item.video?.url || item.downloadUrl || item.videoUrl || undefined;
-      const webVideoUrl = item.postPage ||
-                         (item.channel?.url && item.id ? `${item.channel.url}/video/${item.id}` : undefined) ||
+        const videoUrl = item.video?.url || item.downloadUrl || item.videoUrl || undefined;
+        const webVideoUrl = item.postPage ||
+                           (item.channel?.url && item.id ? `${item.channel.url}/video/${item.id}` : undefined) ||
+                           undefined;
+
+        // 썸네일 필드 여러 경로 시도
+        const tiktokThumbnail = item.video?.thumbnail ||
+                         item.video?.cover ||
+                         item.thumbnail ||
+                         item.image ||
+                         item.coverImage ||
+                         item.videoCover ||
                          undefined;
 
-      // 썸네일 필드 여러 경로 시도
-      const thumbnail = item.video?.thumbnail ||
-                       item.video?.cover ||
-                       item.thumbnail ||
-                       item.image ||
-                       item.coverImage ||
-                       item.videoCover ||
-                       undefined;
+        // R2에 업로드 (원본 CDN URL 영구 보존용)
+        const r2Media = await uploadMediaToR2(tiktokThumbnail, videoUrl);
 
-      return {
-        id: item.id || `video-${index}`,
-        title: item.title || `영상 ${index + 1}`,
-        description: item.title || '',
-        creator: item.channel?.name || item.channel?.username || 'Unknown',
-        creatorUrl: item.channel?.url || undefined,
-        followerCount: item.channel?.followers ? parseInt(String(item.channel.followers)) : undefined,
-        playCount: parseInt(String(item.views || 0)),
-        likeCount: parseInt(String(item.likes || 0)),
-        commentCount: parseInt(String(item.comments || 0)),
-        shareCount: parseInt(String(item.shares || 0)),
-        createTime: item.uploadedAt ? parseInt(String(item.uploadedAt)) * 1000 : Date.now(),
-        videoDuration: item.video?.duration ? parseInt(String(item.video.duration)) : 0,
-        hashtags: hashtags,
-        thumbnail: thumbnail,
-        videoUrl: videoUrl,
-        webVideoUrl: webVideoUrl,
-      };
-    });
+        return {
+          id: item.id || `video-${index}`,
+          title: item.title || `영상 ${index + 1}`,
+          description: item.title || '',
+          creator: item.channel?.name || item.channel?.username || 'Unknown',
+          creatorUrl: item.channel?.url || undefined,
+          followerCount: item.channel?.followers ? parseInt(String(item.channel.followers)) : undefined,
+          playCount: parseInt(String(item.views || 0)),
+          likeCount: parseInt(String(item.likes || 0)),
+          commentCount: parseInt(String(item.comments || 0)),
+          shareCount: parseInt(String(item.shares || 0)),
+          createTime: item.uploadedAt ? parseInt(String(item.uploadedAt)) * 1000 : Date.now(),
+          videoDuration: item.video?.duration ? parseInt(String(item.video.duration)) : 0,
+          hashtags: hashtags,
+          thumbnail: r2Media.thumbnail || tiktokThumbnail,
+          videoUrl: r2Media.video || videoUrl,
+          webVideoUrl: webVideoUrl,
+        };
+      })
+    );
 
     return results;
   } catch (error) {
