@@ -87,11 +87,40 @@ export async function POST(request: NextRequest) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
 
-    const response = await fetch(url, { headers, signal: controller.signal });
+    let response = await fetch(url, { headers, signal: controller.signal });
     clearTimeout(timeout);
 
+    // CDN URL은 시간 제한 파라미터로 인해 만료될 수 있음 → 재시도 (파라미터 제거)
+    if (!response.ok && url.includes('?')) {
+      const isCDN = url.includes('tiktokcdn') || url.includes('douyinpic') || url.includes('xhscdn');
+
+      if (isCDN) {
+        console.warn(`[R2] ⚠️ CDN download failed (${response.status}), retrying without query params...`);
+
+        // URL에서 query string 제거 후 재시도
+        const baseUrl = url.split('?')[0];
+        const retryController = new AbortController();
+        const retryTimeout = setTimeout(() => retryController.abort(), 30000);
+
+        try {
+          response = await fetch(baseUrl, { headers, signal: retryController.signal });
+          clearTimeout(retryTimeout);
+
+          if (response.ok) {
+            console.log(`[R2] ✅ Retry successful with base URL`);
+          } else {
+            console.warn(`[R2] ⚠️ Retry also failed: ${response.status}`);
+          }
+        } catch (retryError) {
+          console.error(`[R2] ⚠️ Retry also failed:`, retryError instanceof Error ? retryError.message : retryError);
+          clearTimeout(retryTimeout);
+        }
+      }
+    }
+
     if (!response.ok) {
-      console.error(`[R2] Failed to download: ${response.status}`);
+      console.error(`[R2] ❌ Failed to download from CDN: ${response.status}`);
+      console.error(`[R2] URL: ${url.substring(0, 100)}...`);
       return NextResponse.json(
         { error: `Failed to download from CDN: ${response.status}` },
         { status: 400 }
@@ -106,8 +135,11 @@ export async function POST(request: NextRequest) {
     // R2에 업로드 (재시도 로직)
     console.log(`[R2] Uploading to R2: ${key}...`);
     let uploadSuccess = false;
+    let lastError: Error | null = null;
+
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
+        console.log(`[R2] R2 upload attempt ${attempt + 1}/3...`);
         await r2Client.send(
           new PutObjectCommand({
             Bucket: BUCKET_NAME,
@@ -118,17 +150,28 @@ export async function POST(request: NextRequest) {
           })
         );
         uploadSuccess = true;
+        console.log(`[R2] ✅ R2 upload successful on attempt ${attempt + 1}`);
         break;
       } catch (error: any) {
-        if (attempt === 2) throw error;
+        lastError = error;
+        console.warn(`[R2] ⚠️ R2 upload attempt ${attempt + 1} failed:`, error instanceof Error ? error.message : String(error));
+
+        if (attempt === 2) {
+          console.error(`[R2] ❌ All 3 R2 upload attempts failed for ${key}`);
+          throw error;
+        }
+
         // 지수 백오프 대기
-        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 500));
+        const waitTime = Math.pow(2, attempt) * 500;
+        console.log(`[R2] Waiting ${waitTime}ms before retry...`);
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
       }
     }
 
     if (!uploadSuccess) {
+      console.error(`[R2] ❌ Upload failed after 3 attempts`);
       return NextResponse.json(
-        { error: 'Failed to upload to R2' },
+        { error: 'Failed to upload to R2', details: lastError?.message },
         { status: 500 }
       );
     }
