@@ -142,8 +142,26 @@ export async function searchTikTokVideos(
                          item.videoCover ||
                          undefined;
 
+        // ✅ NEW: CDN URL 수신 로깅
+        console.log(`[Scraper:TikTok] 🖼️ CDN URL received`, {
+          videoId: item.id || `video-${index}`,
+          hasThumbnail: !!tiktokThumbnail,
+          thumbnailPreview: tiktokThumbnail ? tiktokThumbnail.substring(0, 60) : 'N/A',
+          hasVideo: !!videoUrl,
+        });
+
         // R2에 업로드 (원본 CDN URL 영구 보존용)
         const r2Media = await uploadMediaToR2(tiktokThumbnail, videoUrl);
+
+        // ✅ NEW: R2 업로드 결과 로깅
+        const finalThumbnail = r2Media.thumbnail || tiktokThumbnail;
+        const thumbnailType = r2Media.thumbnail ? 'R2' : (tiktokThumbnail ? 'CDN' : 'NONE');
+        console.log(`[Scraper:TikTok] 📦 R2 upload result`, {
+          videoId: item.id || `video-${index}`,
+          thumbnailType,
+          r2Success: !!r2Media.thumbnail,
+          finalUrl: finalThumbnail ? finalThumbnail.substring(0, 60) : 'N/A',
+        });
 
         return {
           id: item.id || `video-${index}`,
@@ -159,7 +177,7 @@ export async function searchTikTokVideos(
           createTime: item.uploadedAt ? parseInt(String(item.uploadedAt)) * 1000 : Date.now(),
           videoDuration: item.video?.duration ? parseInt(String(item.video.duration)) : 0,
           hashtags: hashtags,
-          thumbnail: r2Media.thumbnail || tiktokThumbnail,
+          thumbnail: finalThumbnail,
           videoUrl: r2Media.video || videoUrl,
           webVideoUrl: webVideoUrl,
         };

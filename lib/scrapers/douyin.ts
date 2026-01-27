@@ -113,8 +113,26 @@ export async function searchDouyinVideos(
         const douyinThumbnail = item.videoMeta?.cover || item.videoMeta?.originCover || item.thumb || undefined;
         const douyinVideoUrl = item.videoMeta?.playUrl || item.video?.url || item.downloadUrl || item.playUrl || undefined;
 
+        // ✅ NEW: CDN URL 수신 로깅
+        console.log(`[Scraper:Douyin] 🖼️ CDN URL received`, {
+          videoId: item.id || `douyin-video-${index}`,
+          hasThumbnail: !!douyinThumbnail,
+          thumbnailPreview: douyinThumbnail ? douyinThumbnail.substring(0, 60) : 'N/A',
+          hasVideo: !!douyinVideoUrl,
+        });
+
         // R2에 업로드 (원본 CDN URL 영구 보존용)
         const r2Media = await uploadMediaToR2(douyinThumbnail, douyinVideoUrl);
+
+        // ✅ NEW: R2 업로드 결과 로깅
+        const finalThumbnail = r2Media.thumbnail || douyinThumbnail;
+        const thumbnailType = r2Media.thumbnail ? 'R2' : (douyinThumbnail ? 'CDN' : 'NONE');
+        console.log(`[Scraper:Douyin] 📦 R2 upload result`, {
+          videoId: item.id || `douyin-video-${index}`,
+          thumbnailType,
+          r2Success: !!r2Media.thumbnail,
+          finalUrl: finalThumbnail ? finalThumbnail.substring(0, 60) : 'N/A',
+        });
 
         return {
           id: item.id || `douyin-video-${index}`,
@@ -130,7 +148,7 @@ export async function searchDouyinVideos(
           createTime: item.createTime ? parseInt(item.createTime) * 1000 : Date.now(),
           videoDuration: parseInt(item.videoMeta?.duration || item.duration || 0),
           hashtags: hashtags,
-          thumbnail: r2Media.thumbnail || douyinThumbnail,
+          thumbnail: finalThumbnail,
           videoUrl: r2Media.video || douyinVideoUrl,
           webVideoUrl: item.url || undefined,
         };
@@ -276,8 +294,26 @@ export async function searchDouyinVideosParallel(
         const douyinThumbnail = item.videoMeta?.cover || item.videoMeta?.originCover || item.thumb || undefined;
         const douyinVideoUrl = item.videoMeta?.playUrl || item.video?.url || item.downloadUrl || item.playUrl || undefined;
 
+        // ✅ NEW: CDN URL 수신 로깅
+        console.log(`[Scraper:Douyin] 🖼️ CDN URL received`, {
+          videoId: item.id || `douyin-video-${index}`,
+          hasThumbnail: !!douyinThumbnail,
+          thumbnailPreview: douyinThumbnail ? douyinThumbnail.substring(0, 60) : 'N/A',
+          hasVideo: !!douyinVideoUrl,
+        });
+
         // R2에 업로드 (원본 CDN URL 영구 보존용)
         const r2Media = await uploadMediaToR2(douyinThumbnail, douyinVideoUrl);
+
+        // ✅ NEW: R2 업로드 결과 로깅
+        const finalThumbnail = r2Media.thumbnail || douyinThumbnail;
+        const thumbnailType = r2Media.thumbnail ? 'R2' : (douyinThumbnail ? 'CDN' : 'NONE');
+        console.log(`[Scraper:Douyin] 📦 R2 upload result`, {
+          videoId: item.id || `douyin-video-${index}`,
+          thumbnailType,
+          r2Success: !!r2Media.thumbnail,
+          finalUrl: finalThumbnail ? finalThumbnail.substring(0, 60) : 'N/A',
+        });
 
         return {
           id: item.id || `douyin-video-${index}`,
@@ -293,7 +329,7 @@ export async function searchDouyinVideosParallel(
           createTime: item.createTime ? parseInt(item.createTime) * 1000 : Date.now(),
           videoDuration: parseInt(item.videoMeta?.duration || item.duration || 0),
           hashtags: hashtags,
-          thumbnail: r2Media.thumbnail || douyinThumbnail,
+          thumbnail: finalThumbnail,
           videoUrl: r2Media.video || douyinVideoUrl,
           webVideoUrl: item.url || undefined,
         };
