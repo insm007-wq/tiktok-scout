@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     };
 
     // 비디오 URL에서 파일 fetch
-    const videoResponse = await fetch(finalVideoUrl, {
+    let videoResponse = await fetch(finalVideoUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Referer': refererMap[platform] || 'https://www.tiktok.com/',
@@ -56,10 +56,38 @@ export async function POST(req: NextRequest) {
 
     if (!videoResponse.ok) {
       console.error('[Download] 비디오 fetch 실패:', videoResponse.status);
-      return NextResponse.json(
-        { error: '비디오를 불러올 수 없습니다.' },
-        { status: videoResponse.status }
-      );
+
+      // ✅ NEW: CDN URL 재시도 (query parameter 제거)
+      if (finalVideoUrl.includes('?')) {
+        const isCDN = finalVideoUrl.includes('tiktokcdn') ||
+                      finalVideoUrl.includes('douyinpic') ||
+                      finalVideoUrl.includes('xhscdn');
+
+        if (isCDN) {
+          console.warn('[Download] ⚠️ Retrying without query parameters...');
+          const baseUrl = finalVideoUrl.split('?')[0];
+
+          const retryResponse = await fetch(baseUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Referer': refererMap[platform] || 'https://www.tiktok.com/',
+            },
+          });
+
+          if (retryResponse.ok) {
+            console.log('[Download] ✅ Retry successful');
+            videoResponse = retryResponse;
+          }
+        }
+      }
+
+      // If still not OK, return error
+      if (!videoResponse.ok) {
+        return NextResponse.json(
+          { error: '비디오를 불러올 수 없습니다.' },
+          { status: videoResponse.status }
+        );
+      }
     }
 
     // Validate Content-Type

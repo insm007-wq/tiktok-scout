@@ -14,22 +14,35 @@ export async function uploadMediaToR2(
   thumbnailUrl?: string,
   videoUrl?: string
 ): Promise<{ thumbnail?: string; video?: string }> {
+  const startTime = Date.now();
+
   const [thumbnail, video] = await Promise.all([
     thumbnailUrl ? uploadToR2(thumbnailUrl, 'thumbnail') : Promise.resolve(undefined),
     videoUrl ? uploadToR2(videoUrl, 'video') : Promise.resolve(undefined),
   ]);
 
+  const duration = Date.now() - startTime;
+
   // 업로드 결과 로깅
   const hasThumb = !!thumbnail;
   const hasVideo = !!video;
+  const hasCdnThumb = !thumbnail && !!thumbnailUrl;
+  const hasCdnVideo = !video && !!videoUrl;
 
-  console.log(`[R2] 📊 Upload results: Thumbnail=${hasThumb ? '✅' : '❌'}, Video=${hasVideo ? '✅' : '❌'}`);
+  console.log(`[R2] 📊 Upload results (${duration}ms): Thumbnail=${hasThumb ? '✅' : '❌'}, Video=${hasVideo ? '✅' : '❌'}`);
 
-  if (!thumbnail && thumbnailUrl) {
-    console.warn(`[R2] ⚠️ Thumbnail upload failed, will fallback to CDN URL`);
+  if (hasCdnThumb) {
+    console.warn(`[R2] ⚠️ FALLBACK: Thumbnail upload failed, using CDN URL (will expire in 24h)`);
   }
-  if (!video && videoUrl) {
-    console.warn(`[R2] ⚠️ Video upload failed, will fallback to original URL`);
+  if (hasCdnVideo) {
+    console.warn(`[R2] ⚠️ FALLBACK: Video upload failed, using CDN URL (will expire in 24h)`);
+  }
+
+  // ✅ NEW: Metrics for monitoring
+  if (hasCdnThumb || hasCdnVideo) {
+    // TODO: Send to monitoring service (e.g., Sentry, DataDog)
+    // For now, log to console for manual monitoring
+    console.error(`[R2] ❌ R2_UPLOAD_FALLBACK_USED: thumb=${hasCdnThumb}, video=${hasCdnVideo}, duration=${duration}ms`);
   }
 
   return { thumbnail, video };

@@ -5,6 +5,7 @@ import { searchTikTokVideos } from '@/lib/scrapers/tiktok';
 import { searchDouyinVideos, searchDouyinVideosParallel } from '@/lib/scrapers/douyin';
 import { searchXiaohongshuVideos, searchXiaohongshuVideosParallel } from '@/lib/scrapers/xiaohongshu';
 import { VideoResult, Platform } from '@/types/video';
+import { isR2Url, isCdnUrl } from '@/lib/utils/validateMediaUrl';
 
 interface SearchRequest {
   query: string;
@@ -106,6 +107,17 @@ export async function POST(req: NextRequest) {
     // 캐시 확인 (L1 메모리 + L2 MongoDB)
     const cached = await getVideoFromCache(query, platform, dateRange);
     if (cached) {
+      // ✅ NEW: 캐시 히트 로깅
+      console.log(`[SearchAPI] ✅ Cache hit`, {
+        platform,
+        query: query.substring(0, 30),
+        videoCount: cached.videos.length,
+        urlTypesSample: cached.videos.slice(0, 3).map(v => ({
+          id: v.id,
+          thumbnailType: isR2Url(v.thumbnail) ? 'R2' : (isCdnUrl(v.thumbnail) ? 'CDN' : 'Unknown'),
+        })),
+      });
+
       return NextResponse.json({
         success: true,
         query,
@@ -141,6 +153,23 @@ export async function POST(req: NextRequest) {
       const uniqueVideos = Array.from(
         new Map(videoResults.map((video) => [video.id, video])).values()
       );
+
+      // ✅ NEW: 스크래핑 결과 요약
+      const urlStats = uniqueVideos.reduce((acc, video) => {
+        if (isR2Url(video.thumbnail)) acc.r2++;
+        else if (isCdnUrl(video.thumbnail)) acc.cdn++;
+        else acc.unknown++;
+        return acc;
+      }, { r2: 0, cdn: 0, unknown: 0 });
+
+      console.log(`[SearchAPI] ✅ Scraping completed`, {
+        platform,
+        query: query.substring(0, 30),
+        totalVideos: videoResults.length,
+        uniqueVideos: uniqueVideos.length,
+        duplicates: videoResults.length - uniqueVideos.length,
+        urlStats,
+      });
 
       // 캐시 저장 (L1 메모리 + L2 MongoDB)
       await setVideoToCache(query, platform, uniqueVideos, dateRange);

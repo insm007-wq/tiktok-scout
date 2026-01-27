@@ -149,8 +149,26 @@ export async function searchXiaohongshuVideos(
           item.item?.video?.media?.cover ||
           item.item?.note_card?.cover?.url_default;
 
+        // ✅ NEW: CDN URL 수신 로깅
+        console.log(`[Scraper:Xiaohongshu] 🖼️ CDN URL received`, {
+          videoId: item.item?.id || item.id || `xiaohongshu-${index}`,
+          hasThumbnail: !!thumbnail,
+          thumbnailPreview: thumbnail ? thumbnail.substring(0, 60) : 'N/A',
+          hasVideo: false,
+        });
+
         // R2에 업로드 (원본 CDN URL 영구 보존용)
         const r2Media = await uploadMediaToR2(thumbnail, undefined);
+
+        // ✅ NEW: R2 업로드 결과 로깅
+        const finalThumbnail = r2Media.thumbnail || thumbnail;
+        const thumbnailType = r2Media.thumbnail ? 'R2' : (thumbnail ? 'CDN' : 'NONE');
+        console.log(`[Scraper:Xiaohongshu] 📦 R2 upload result`, {
+          videoId: item.item?.id || item.id || `xiaohongshu-${index}`,
+          thumbnailType,
+          r2Success: !!r2Media.thumbnail,
+          finalUrl: finalThumbnail ? finalThumbnail.substring(0, 60) : 'N/A',
+        });
 
         return {
           id: item.item?.id || item.id || `xiaohongshu-${index}`,
@@ -169,7 +187,7 @@ export async function searchXiaohongshuVideos(
             item.item?.note_card?.video?.media?.duration ||
             0,
           hashtags: [],
-          thumbnail: r2Media.thumbnail || thumbnail,
+          thumbnail: finalThumbnail,
           videoUrl: undefined,
           webVideoUrl: item.link || item.postUrl || item.url || undefined,
         };
@@ -298,6 +316,7 @@ export async function searchXiaohongshuVideosParallel(
     // 필터링 통계 로그
     if (combinedDataset.length > videoOnlyDataset.length) {
       const filtered = combinedDataset.length - videoOnlyDataset.length;
+      console.log(`[Scraper:Xiaohongshu] 🔍 Filtered ${filtered} non-video items`);
     }
 
     if (videoOnlyDataset.length === 0) {
@@ -356,8 +375,26 @@ export async function searchXiaohongshuVideosParallel(
           item.item?.video?.media?.cover ||
           item.item?.note_card?.cover?.url_default;
 
+        // ✅ NEW: CDN URL 수신 로깅
+        console.log(`[Scraper:Xiaohongshu] 🖼️ CDN URL received`, {
+          videoId: item.item?.id || item.id || `xiaohongshu-${index}`,
+          hasThumbnail: !!thumbnail,
+          thumbnailPreview: thumbnail ? thumbnail.substring(0, 60) : 'N/A',
+          hasVideo: false,
+        });
+
         // R2에 업로드 (원본 CDN URL 영구 보존용)
         const r2Media = await uploadMediaToR2(thumbnail, undefined);
+
+        // ✅ NEW: R2 업로드 결과 로깅
+        const finalThumbnail = r2Media.thumbnail || thumbnail;
+        const thumbnailType = r2Media.thumbnail ? 'R2' : (thumbnail ? 'CDN' : 'NONE');
+        console.log(`[Scraper:Xiaohongshu] 📦 R2 upload result`, {
+          videoId: item.item?.id || item.id || `xiaohongshu-${index}`,
+          thumbnailType,
+          r2Success: !!r2Media.thumbnail,
+          finalUrl: finalThumbnail ? finalThumbnail.substring(0, 60) : 'N/A',
+        });
 
         return {
           id: item.item?.id || item.id || `xiaohongshu-${index}`,
@@ -376,7 +413,7 @@ export async function searchXiaohongshuVideosParallel(
             item.item?.note_card?.video?.media?.duration ||
             0,
           hashtags: [],
-          thumbnail: r2Media.thumbnail || thumbnail,
+          thumbnail: finalThumbnail,
           videoUrl: undefined,
           webVideoUrl: item.link || item.postUrl || item.url || undefined,
         };

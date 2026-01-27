@@ -72,6 +72,7 @@ export default function Search() {
   const [toasts, setToasts] = useState<ToastType[]>([]);
   const [hoveredVideoId, setHoveredVideoId] = useState<string | null>(null);
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+  const [failedThumbnails, setFailedThumbnails] = useState<Set<string>>(new Set());
   const [showTranslationPanel, setShowTranslationPanel] = useState(true);
   const [jobStatus, setJobStatus] = useState<{
     jobId: string;
@@ -115,6 +116,36 @@ export default function Search() {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, duration);
   }, []);
+
+  // 썸네일 로드 실패 처리
+  const handleThumbnailError = useCallback((video: Video, e: React.SyntheticEvent<HTMLImageElement>) => {
+    // ✅ ENHANCED: 상세 로깅
+    const thumbnailUrl = video.thumbnail;
+    const urlType = thumbnailUrl?.includes('.r2.dev') ? 'R2' :
+                    (thumbnailUrl?.includes('tiktokcdn') ||
+                     thumbnailUrl?.includes('douyinpic') ||
+                     thumbnailUrl?.includes('xhscdn') ? 'CDN' : 'Unknown');
+
+    console.error(`[Frontend] ❌ Thumbnail load failed`, {
+      videoId: video.id,
+      urlType,
+      thumbnailPreview: thumbnailUrl?.substring(0, 60),
+      platform,
+      creator: video.creator,
+    });
+
+    // 실패한 썸네일 마크
+    setFailedThumbnails(prev => new Set(prev).add(video.id));
+
+    // 폴백 플레이스홀더 표시
+    e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect fill="%23f0f0f0" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" font-size="50" fill="%23999"%3E🎬%3C/text%3E%3C/svg%3E';
+    e.currentTarget.alt = '썸네일을 불러올 수 없습니다';
+
+    // 토스트 알림 표시 (처음 실패할 때만)
+    if (failedThumbnails.size === 0) {
+      addToast('warning', '일부 썸네일을 불러올 수 없습니다. 다시 검색해주세요.', '썸네일 로드 실패', 3000);
+    }
+  }, [failedThumbnails.size, addToast, platform]);
 
   const handleTitleClick = () => {
     setIsTitleRefreshing(true);
@@ -522,6 +553,25 @@ export default function Search() {
         setIsLoading(false);
 
         if (data.data && data.data.length > 0) {
+          // ✅ NEW: 수신한 데이터 URL 타입 검증
+          const urlStats = data.data.reduce((acc: any, video: Video) => {
+            const thumbnailUrl = video.thumbnail;
+            if (thumbnailUrl?.includes('.r2.dev')) acc.r2++;
+            else if (thumbnailUrl?.includes('tiktokcdn') ||
+                     thumbnailUrl?.includes('douyinpic') ||
+                     thumbnailUrl?.includes('xhscdn')) acc.cdn++;
+            else acc.unknown++;
+            return acc;
+          }, { r2: 0, cdn: 0, unknown: 0 });
+
+          console.log(`[Frontend] 📥 Search results received`, {
+            platform,
+            query: searchQuery.substring(0, 30),
+            videoCount: data.data.length,
+            fromCache: data.fromCache,
+            urlStats,
+          });
+
           setVideos(data.data);
           addToast("success", "검색 완료!", `${data.data.length}개의 결과를 찾았습니다`);
         } else {
@@ -589,6 +639,24 @@ export default function Search() {
               clearInterval(pollInterval);
 
               if (statusData.data && statusData.data.length > 0) {
+                // ✅ NEW: 폴링으로 수신한 데이터 URL 타입 검증
+                const urlStats = statusData.data.reduce((acc: any, video: Video) => {
+                  const thumbnailUrl = video.thumbnail;
+                  if (thumbnailUrl?.includes('.r2.dev')) acc.r2++;
+                  else if (thumbnailUrl?.includes('tiktokcdn') ||
+                           thumbnailUrl?.includes('douyinpic') ||
+                           thumbnailUrl?.includes('xhscdn')) acc.cdn++;
+                  else acc.unknown++;
+                  return acc;
+                }, { r2: 0, cdn: 0, unknown: 0 });
+
+                console.log(`[Frontend] 📥 Search results received (via polling)`, {
+                  platform,
+                  query: searchQuery.substring(0, 30),
+                  videoCount: statusData.data.length,
+                  urlStats,
+                });
+
                 setVideos(statusData.data);
                 addToast("success", "검색 완료!", `${statusData.data.length}개의 결과를 찾았습니다`);
               } else {
@@ -1432,6 +1500,7 @@ export default function Search() {
                                 src={video.thumbnail}
                                 alt={video.title}
                                 className={`card-thumbnail ${playingVideoId === video.id ? "card-thumbnail-hidden" : ""}`}
+                                onError={(e) => handleThumbnailError(video, e)}
                                 loading="lazy"
                               />
                             ) : (
@@ -1556,6 +1625,7 @@ export default function Search() {
                                     src={video.thumbnail}
                                     alt={video.title}
                                     className="table-thumbnail"
+                                    onError={(e) => handleThumbnailError(video, e)}
                                     style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "2px" }}
                                   />
                                 ) : (
@@ -1607,6 +1677,7 @@ export default function Search() {
                 <img
                   src={selectedVideo.thumbnail}
                   alt={selectedVideo.title}
+                  onError={(e) => handleThumbnailError(selectedVideo, e)}
                   style={{
                     width: "100%",
                     height: "240px",
