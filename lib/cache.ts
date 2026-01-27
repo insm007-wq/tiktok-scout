@@ -8,6 +8,7 @@ import { VideoResult, Platform } from '@/types/video';
 import { getDb } from './mongodb';
 import { VideoCacheDocument, generateCacheKey } from './models/VideoCache';
 import { LRUCache } from 'lru-cache';
+import { isR2Url, isCdnUrl } from './utils/validateMediaUrl';
 
 interface CacheEntry<T> {
   data: T;
@@ -264,13 +265,38 @@ export async function getVideoFromCache(
   // L2: MongoDB 캐시 확인
   const mongoCache = await getVideoFromMongoDB(query, platform, dateRange);
   if (mongoCache) {
+    // ✅ NEW: CDN URL 필터링 (R2 URL만 반환)
+    const validVideos = mongoCache.videos.filter((video) => {
+      const hasCdnThumbnail = isCdnUrl(video.thumbnail);
+      const hasCdnVideo = isCdnUrl(video.videoUrl);
+
+      // CDN URL만 있는 경우 필터링 (만료되었을 가능성 높음)
+      if (hasCdnThumbnail && !isR2Url(video.thumbnail)) {
+        console.warn(`[Cache] Filtering video with CDN thumbnail: ${video.id}`);
+        return false;
+      }
+
+      return true;
+    });
+
+    // 유효한 비디오가 50% 미만이면 캐시 무효화 (재스크래핑 필요)
+    const validRatio = validVideos.length / mongoCache.videos.length;
+    if (validRatio < 0.5) {
+      console.warn(`[Cache] Cache quality too low (${Math.round(validRatio * 100)}%), invalidating...`);
+      await clearSearchCache(query, platform, dateRange);
+      return null;
+    }
+
+    const filteredCache = { videos: validVideos };
+
     // L1 캐시 웜업 (메모리에도 저장, 24시간 TTL)
-    const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24시간
+    const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
     cache.set(memoryKey, {
-      data: mongoCache,
+      data: filteredCache,
       expiresAt,
     });
-    return mongoCache;
+
+    return filteredCache;
   }
 
   return null;

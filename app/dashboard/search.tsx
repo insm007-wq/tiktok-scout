@@ -72,6 +72,7 @@ export default function Search() {
   const [toasts, setToasts] = useState<ToastType[]>([]);
   const [hoveredVideoId, setHoveredVideoId] = useState<string | null>(null);
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+  const [failedThumbnails, setFailedThumbnails] = useState<Set<string>>(new Set());
   const [showTranslationPanel, setShowTranslationPanel] = useState(true);
   const [jobStatus, setJobStatus] = useState<{
     jobId: string;
@@ -115,6 +116,23 @@ export default function Search() {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, duration);
   }, []);
+
+  // 썸네일 로드 실패 처리
+  const handleThumbnailError = useCallback((video: Video, e: React.SyntheticEvent<HTMLImageElement>) => {
+    console.error(`[Thumbnail] Load failed for video ${video.id}:`, video.thumbnail);
+
+    // 실패한 썸네일 마크
+    setFailedThumbnails(prev => new Set(prev).add(video.id));
+
+    // 폴백 플레이스홀더 표시
+    e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect fill="%23f0f0f0" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" font-size="50" fill="%23999"%3E🎬%3C/text%3E%3C/svg%3E';
+    e.currentTarget.alt = '썸네일을 불러올 수 없습니다';
+
+    // 토스트 알림 표시 (처음 실패할 때만)
+    if (failedThumbnails.size === 0) {
+      addToast('warning', '일부 썸네일을 불러올 수 없습니다. 다시 검색해주세요.', '썸네일 로드 실패', 3000);
+    }
+  }, [failedThumbnails.size, addToast]);
 
   const handleTitleClick = () => {
     setIsTitleRefreshing(true);
@@ -1432,6 +1450,7 @@ export default function Search() {
                                 src={video.thumbnail}
                                 alt={video.title}
                                 className={`card-thumbnail ${playingVideoId === video.id ? "card-thumbnail-hidden" : ""}`}
+                                onError={(e) => handleThumbnailError(video, e)}
                                 loading="lazy"
                               />
                             ) : (
@@ -1556,6 +1575,7 @@ export default function Search() {
                                     src={video.thumbnail}
                                     alt={video.title}
                                     className="table-thumbnail"
+                                    onError={(e) => handleThumbnailError(video, e)}
                                     style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "2px" }}
                                   />
                                 ) : (
@@ -1607,6 +1627,7 @@ export default function Search() {
                 <img
                   src={selectedVideo.thumbnail}
                   alt={selectedVideo.title}
+                  onError={(e) => handleThumbnailError(selectedVideo, e)}
                   style={{
                     width: "100%",
                     height: "240px",
