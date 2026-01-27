@@ -43,11 +43,11 @@ export default function EngagementRatioFilter({
       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
         {[
           { value: 'all', label: '전체' },
-          { value: '1', label: '1단계 - 낮음 (<5%)' },
-          { value: '2', label: '2단계 - 중간 (5~15%)' },
-          { value: '3', label: '3단계 - 좋음 (15~30%)' },
-          { value: '4', label: '4단계 - 매우좋음 (30~50%)' },
-          { value: '5', label: '5단계 - 최고 (≥50%)' },
+          { value: '1', label: '1단계 - 낮음 (<2%)' },
+          { value: '2', label: '2단계 - 중간 (2~4%)' },
+          { value: '3', label: '3단계 - 좋음 (4~6%)' },
+          { value: '4', label: '4단계 - 매우좋음 (6~10%)' },
+          { value: '5', label: '5단계 - 최고 (≥10%)' },
         ].map((option) => (
           <label
             key={option.value}

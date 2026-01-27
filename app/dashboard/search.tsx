@@ -327,13 +327,13 @@ export default function Search() {
         const totalEngagement = video.likeCount + video.commentCount + video.shareCount;
         const engagementRatio = video.playCount > 0 ? totalEngagement / video.playCount : 0;
 
-        // 5단계 구분 (백분율)
+        // 5단계 구분 (TikTok 업계 표준 기준, 2026)
         let level = 1;
-        if (engagementRatio >= 0.5) level = 5; // 50% 이상
-        else if (engagementRatio >= 0.3) level = 4; // 30~50%
-        else if (engagementRatio >= 0.15) level = 3; // 15~30%
-        else if (engagementRatio >= 0.05) level = 2; // 5~15%
-        // else level = 1; // 5% 미만
+        if (engagementRatio >= 0.1) level = 5;   // 10% 이상 - 최고
+        else if (engagementRatio >= 0.06) level = 4; // 6~10% - 매우좋음
+        else if (engagementRatio >= 0.04) level = 3; // 4~6% - 좋음
+        else if (engagementRatio >= 0.02) level = 2; // 2~4% - 중간
+        // else level = 1; // 2% 미만 - 낮음
 
         if (!filterState.engagementScore.includes(level.toString())) {
           return false;
