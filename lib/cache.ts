@@ -265,53 +265,23 @@ export async function getVideoFromCache(
   // L2: MongoDB 캐시 확인
   const mongoCache = await getVideoFromMongoDB(query, platform, dateRange);
   if (mongoCache) {
-    // ✅ NEW: 필터링 전 통계
-    const totalVideos = mongoCache.videos.length;
-    let cdnThumbnailCount = 0;
-    let r2ThumbnailCount = 0;
+    // ✅ 모든 URL 허용 (R2 + CDN)
+    const validVideos = mongoCache.videos;
 
-    // ✅ NEW: CDN URL 필터링 (R2 URL만 반환)
-    const validVideos = mongoCache.videos.filter((video) => {
-      const hasCdnThumbnail = isCdnUrl(video.thumbnail);
-      const hasR2Thumbnail = isR2Url(video.thumbnail);
+    // ✅ 통계 로깅만 유지
+    const urlStats = validVideos.reduce((acc, video) => {
+      if (isR2Url(video.thumbnail)) acc.r2++;
+      else if (isCdnUrl(video.thumbnail)) acc.cdn++;
+      else acc.unknown++;
+      return acc;
+    }, { r2: 0, cdn: 0, unknown: 0 });
 
-      if (hasR2Thumbnail) r2ThumbnailCount++;
-      if (hasCdnThumbnail && !hasR2Thumbnail) cdnThumbnailCount++;
-
-      // CDN URL만 있는 경우 필터링 (만료되었을 가능성 높음)
-      if (hasCdnThumbnail && !isR2Url(video.thumbnail)) {
-        console.warn(`[Cache] 🚫 Filtering video with CDN thumbnail`, {
-          videoId: video.id,
-          thumbnailPreview: video.thumbnail?.substring(0, 60),
-        });
-        return false;
-      }
-
-      return true;
-    });
-
-    // ✅ NEW: 필터링 결과 요약
-    const validRatio = validVideos.length / totalVideos;
-    console.log(`[Cache] 📊 Cache quality check`, {
+    console.log(`[Cache] 📊 Cache returned`, {
       platform,
       query: query.substring(0, 30),
-      totalVideos,
-      validVideos: validVideos.length,
-      cdnCount: cdnThumbnailCount,
-      r2Count: r2ThumbnailCount,
-      validRatio: (validRatio * 100).toFixed(1) + '%',
+      totalVideos: validVideos.length,
+      urlStats,
     });
-
-    // 유효한 비디오가 50% 미만이면 캐시 무효화 (재스크래핑 필요)
-    if (validRatio < 0.5) {
-      console.warn(`[Cache] ⚠️ Cache invalidated (quality < 50%)`, {
-        platform,
-        query: query.substring(0, 30),
-        validRatio: (validRatio * 100).toFixed(1) + '%',
-      });
-      await clearSearchCache(query, platform, dateRange);
-      return null;
-    }
 
     const filteredCache = { videos: validVideos };
 
