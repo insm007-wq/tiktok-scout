@@ -913,33 +913,13 @@ export default function Search() {
         );
 
         if (statusData.status === "completed") {
-          console.log("[Recrawl] ✅ Completed, fetching fresh data");
+          console.log("[Recrawl] ✅ Completed");
           addToast("success", "새로운 데이터를 가져왔습니다!", "✅ 완료", 3000);
 
-          // 재크롤링 완료 후 같은 검색어로 다시 검색을 수행
-          // 캐시가 무효화되었으므로 새로운 데이터가 Queue에서 처리됨
-          try {
-            const freshSearch = await fetch("/api/search", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                query,
-                platform,
-                dateRange,
-              }),
-            });
-
-            if (freshSearch.ok) {
-              const freshData = await freshSearch.json();
-              if (freshData.status === "completed" && freshData.data) {
-                setVideos(freshData.data);
-                console.log("[Recrawl] Fresh videos loaded:", freshData.data.length);
-              }
-            }
-          } catch (error) {
-            console.warn("[Recrawl] Failed to fetch fresh data:", error);
-            // Continue even if fresh data fetch fails
-          }
+          // 주의: 비디오 목록을 업데이트하지 않습니다
+          // 왜냐하면 이미 표시된 비디오의 위치가 바뀔 수 있기 때문입니다
+          // 대신 캐시가 무효화되었으므로, 사용자가 다시 다운로드를 시도할 때
+          // 새로운 CDN URL이 자동으로 반환됩니다
 
           return true;
         }
@@ -1022,7 +1002,79 @@ export default function Search() {
           const success = await handleRecrawl(searchInput, platform, filters.uploadPeriod);
 
           if (success) {
-            // 재크롤링 성공: 사용자가 다시 시도하도록 안내
+            // 재크롤링 성공: 새로운 검색을 수행하여 최신 데이터를 가져옵니다
+            // 하지만 비디오 목록은 표시 중인 것을 유지합니다
+            try {
+              const freshSearch = await fetch("/api/search", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  query: searchInput,
+                  platform,
+                  dateRange: filters.uploadPeriod,
+                }),
+              });
+
+              if (freshSearch.ok) {
+                const freshData = await freshSearch.json();
+
+                // "queued" 상태면 job 완료까지 폴링
+                let searchData = freshData;
+                if (freshData.status === "queued" && freshData.jobId) {
+                  console.log("[Download] Polling fresh search job:", freshData.jobId);
+                  const maxAttempts = 30;
+                  let attempt = 0;
+
+                  while (attempt < maxAttempts) {
+                    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+                    const statusRes = await fetch(`/api/search/${freshData.jobId}`);
+                    const statusData = await statusRes.json();
+
+                    if (statusData.status === "completed") {
+                      searchData = statusData;
+                      break;
+                    }
+
+                    if (statusData.status === "failed") {
+                      console.warn("[Download] Fresh search failed:", statusData.error);
+                      throw new Error(statusData.error || "새로운 검색 실패");
+                    }
+
+                    attempt++;
+                  }
+                }
+
+                if (searchData.status === "completed" && searchData.data) {
+                  // 새로운 데이터에서 같은 videoId를 찾습니다
+                  const updatedVideo = searchData.data.find(
+                    (v: Video) => v.id === video.id
+                  );
+
+                  if (updatedVideo) {
+                    // 같은 비디오가 있으면, 새로운 CDN URL로 업데이트합니다
+                    console.log(
+                      "[Download] Updated video with new CDN URL, retrying..."
+                    );
+                    addToast(
+                      "info",
+                      "새로운 영상 URL로 다시 다운로드를 시도합니다...",
+                      "🔄 재시도",
+                      2000
+                    );
+
+                    // 업데이트된 비디오로 다운로드 재시도
+                    setDownloadingVideoId(null);
+                    await new Promise((resolve) => setTimeout(resolve, 500));
+                    return handleDownloadVideo(updatedVideo);
+                  }
+                }
+              }
+            } catch (error) {
+              console.warn("[Download] Failed to fetch fresh data:", error);
+            }
+
+            // 새로운 데이터에서 같은 비디오를 찾을 수 없으면
             addToast(
               "success",
               "새로운 영상 데이터를 가져왔습니다. 다시 다운로드를 시도해주세요.",
@@ -1117,7 +1169,78 @@ export default function Search() {
           const success = await handleRecrawl(searchInput, platform, filters.uploadPeriod);
 
           if (success) {
-            // 재크롤링 성공: 사용자가 다시 시도하도록 안내
+            // 재크롤링 성공: 새로운 검색을 수행하여 최신 데이터를 가져옵니다
+            try {
+              const freshSearch = await fetch("/api/search", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  query: searchInput,
+                  platform,
+                  dateRange: filters.uploadPeriod,
+                }),
+              });
+
+              if (freshSearch.ok) {
+                const freshData = await freshSearch.json();
+
+                // "queued" 상태면 job 완료까지 폴링
+                let searchData = freshData;
+                if (freshData.status === "queued" && freshData.jobId) {
+                  console.log("[ExtractSubtitles] Polling fresh search job:", freshData.jobId);
+                  const maxAttempts = 30;
+                  let attempt = 0;
+
+                  while (attempt < maxAttempts) {
+                    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+                    const statusRes = await fetch(`/api/search/${freshData.jobId}`);
+                    const statusData = await statusRes.json();
+
+                    if (statusData.status === "completed") {
+                      searchData = statusData;
+                      break;
+                    }
+
+                    if (statusData.status === "failed") {
+                      console.warn("[ExtractSubtitles] Fresh search failed:", statusData.error);
+                      throw new Error(statusData.error || "새로운 검색 실패");
+                    }
+
+                    attempt++;
+                  }
+                }
+
+                if (searchData.status === "completed" && searchData.data) {
+                  // 새로운 데이터에서 같은 videoId를 찾습니다
+                  const updatedVideo = searchData.data.find(
+                    (v: Video) => v.id === video.id
+                  );
+
+                  if (updatedVideo) {
+                    // 같은 비디오가 있으면, 새로운 CDN URL로 업데이트합니다
+                    console.log(
+                      "[ExtractSubtitles] Updated video with new CDN URL, retrying..."
+                    );
+                    addToast(
+                      "info",
+                      "새로운 영상 URL로 다시 자막 추출을 시도합니다...",
+                      "🔄 재시도",
+                      2000
+                    );
+
+                    // 업데이트된 비디오로 자막 추출 재시도
+                    setExtractingSubtitleId(null);
+                    await new Promise((resolve) => setTimeout(resolve, 500));
+                    return handleExtractSubtitles(updatedVideo);
+                  }
+                }
+              }
+            } catch (error) {
+              console.warn("[ExtractSubtitles] Failed to fetch fresh data:", error);
+            }
+
+            // 새로운 데이터에서 같은 비디오를 찾을 수 없으면
             addToast(
               "success",
               "새로운 영상 데이터를 가져왔습니다. 다시 자막 추출을 시도해주세요.",
