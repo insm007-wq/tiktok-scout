@@ -1003,120 +1003,23 @@ export default function Search() {
           const success = await handleRecrawl(searchInput, platform, filters.uploadPeriod);
 
           if (success) {
-            console.log("[Download] Recrawl completed, fetching fresh data...");
+            console.log("[Download] Recrawl completed, retrying download in 2 seconds...");
 
-            // ✅ 재크롤링 성공 후 약간 대기 (캐시 업데이트 완료 대기)
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            // ✅ 재크롤링 성공: 2초 대기 후 같은 비디오로 재시도
+            // (이번엔 새로운 CDN URL을 받을 것)
+            addToast(
+              "info",
+              "새로운 영상 URL로 다시 다운로드를 시도합니다...",
+              "🔄 재시도",
+              2000
+            );
 
-            try {
-              // 재시도 로직: 최대 3회까지 새 검색 시도
-              let maxRetries = 3;
-              let updatedVideo: Video | undefined;
+            setDownloadingVideoId(null);
+            await new Promise((resolve) => setTimeout(resolve, 2000));
 
-              for (let retryCount = 0; retryCount < maxRetries; retryCount++) {
-                console.log(`[Download] Fetching fresh data (attempt ${retryCount + 1}/${maxRetries})...`);
-
-                const freshSearch = await fetch("/api/search", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    query: searchInput,
-                    platform,
-                    dateRange: filters.uploadPeriod,
-                  }),
-                });
-
-                if (!freshSearch.ok) {
-                  console.warn("[Download] Fresh search failed with status:", freshSearch.status);
-                  await new Promise((resolve) => setTimeout(resolve, 2000));
-                  continue;
-                }
-
-                const freshData = await freshSearch.json();
-                console.log("[Download] Fresh search response:", { status: freshData.status, jobId: freshData.jobId });
-
-                // "queued" 상태면 job 완료까지 폴링
-                let searchData = freshData;
-                if (freshData.status === "queued" && freshData.jobId) {
-                  console.log("[Download] Polling fresh search job:", freshData.jobId);
-                  const pollMaxAttempts = 60;  // 60초까지 폴링
-                  let pollAttempt = 0;
-
-                  while (pollAttempt < pollMaxAttempts) {
-                    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-                    const statusRes = await fetch(`/api/search/${freshData.jobId}`);
-                    if (!statusRes.ok) {
-                      console.warn("[Download] Status check failed:", statusRes.status);
-                      break;
-                    }
-
-                    const statusData = await statusRes.json();
-                    console.log(`[Download] Poll ${pollAttempt + 1}: status=${statusData.status}`);
-
-                    if (statusData.status === "completed") {
-                      searchData = statusData;
-                      break;
-                    }
-
-                    if (statusData.status === "failed") {
-                      console.warn("[Download] Fresh search job failed:", statusData.error);
-                      break;
-                    }
-
-                    pollAttempt++;
-                  }
-                }
-
-                // 완료된 데이터에서 비디오 찾기
-                if (searchData.status === "completed" && searchData.data && Array.isArray(searchData.data)) {
-                  const found = searchData.data.find((v: Video) => v.id === video.id);
-                  if (found) {
-                    updatedVideo = found;
-                    console.log("[Download] ✅ Found updated video with new URL");
-                    break;  // 성공하면 재시도 루프 탈출
-                  }
-                }
-
-                // 이번 시도에 실패했으면 대기 후 재시도
-                if (retryCount < maxRetries - 1) {
-                  console.log("[Download] Video not found in fresh data, retrying...");
-                  await new Promise((resolve) => setTimeout(resolve, 2000));
-                }
-              }
-
-              // 업데이트된 비디오로 재시도
-              if (updatedVideo) {
-                console.log("[Download] Retrying download with updated video URL");
-                addToast(
-                  "info",
-                  "새로운 영상 URL로 다시 다운로드를 시도합니다...",
-                  "🔄 재시도",
-                  2000
-                );
-
-                setDownloadingVideoId(null);
-                await new Promise((resolve) => setTimeout(resolve, 500));
-                return handleDownloadVideo(updatedVideo);
-              }
-
-              // 비디오를 찾지 못한 경우
-              console.warn("[Download] Could not find updated video in fresh data");
-              addToast(
-                "warning",
-                "새로운 데이터에서 영상을 찾을 수 없습니다. 다시 다운로드를 시도해주세요.",
-                "⚠️ 재시도 필요",
-                5000
-              );
-            } catch (error) {
-              console.error("[Download] Error during fresh data fetch:", error);
-              addToast(
-                "error",
-                "새로운 데이터를 가져오는 중 오류가 발생했습니다. 나중에 다시 시도해주세요.",
-                "❌ 오류",
-                5000
-              );
-            }
+            // 동일한 비디오로 다운로드 재시도
+            // 이번엔 캐시가 삭제되었으므로, 스크래이퍼에서 새로운 CDN URL을 받을 것입니다
+            return handleDownloadVideo(video);
           } else {
             // 재크롤링 실패
             console.error("[Download] Recrawl failed");
@@ -1206,120 +1109,23 @@ export default function Search() {
           const success = await handleRecrawl(searchInput, platform, filters.uploadPeriod);
 
           if (success) {
-            console.log("[ExtractSubtitles] Recrawl completed, fetching fresh data...");
+            console.log("[ExtractSubtitles] Recrawl completed, retrying subtitle extraction in 2 seconds...");
 
-            // ✅ 재크롤링 성공 후 약간 대기 (캐시 업데이트 완료 대기)
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            // ✅ 재크롤링 성공: 2초 대기 후 같은 비디오로 재시도
+            // (이번엔 새로운 CDN URL을 받을 것)
+            addToast(
+              "info",
+              "새로운 영상 URL로 다시 자막 추출을 시도합니다...",
+              "🔄 재시도",
+              2000
+            );
 
-            try {
-              // 재시도 로직: 최대 3회까지 새 검색 시도
-              let maxRetries = 3;
-              let updatedVideo: Video | undefined;
+            setExtractingSubtitleId(null);
+            await new Promise((resolve) => setTimeout(resolve, 2000));
 
-              for (let retryCount = 0; retryCount < maxRetries; retryCount++) {
-                console.log(`[ExtractSubtitles] Fetching fresh data (attempt ${retryCount + 1}/${maxRetries})...`);
-
-                const freshSearch = await fetch("/api/search", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    query: searchInput,
-                    platform,
-                    dateRange: filters.uploadPeriod,
-                  }),
-                });
-
-                if (!freshSearch.ok) {
-                  console.warn("[ExtractSubtitles] Fresh search failed with status:", freshSearch.status);
-                  await new Promise((resolve) => setTimeout(resolve, 2000));
-                  continue;
-                }
-
-                const freshData = await freshSearch.json();
-                console.log("[ExtractSubtitles] Fresh search response:", { status: freshData.status, jobId: freshData.jobId });
-
-                // "queued" 상태면 job 완료까지 폴링
-                let searchData = freshData;
-                if (freshData.status === "queued" && freshData.jobId) {
-                  console.log("[ExtractSubtitles] Polling fresh search job:", freshData.jobId);
-                  const pollMaxAttempts = 60;  // 60초까지 폴링
-                  let pollAttempt = 0;
-
-                  while (pollAttempt < pollMaxAttempts) {
-                    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-                    const statusRes = await fetch(`/api/search/${freshData.jobId}`);
-                    if (!statusRes.ok) {
-                      console.warn("[ExtractSubtitles] Status check failed:", statusRes.status);
-                      break;
-                    }
-
-                    const statusData = await statusRes.json();
-                    console.log(`[ExtractSubtitles] Poll ${pollAttempt + 1}: status=${statusData.status}`);
-
-                    if (statusData.status === "completed") {
-                      searchData = statusData;
-                      break;
-                    }
-
-                    if (statusData.status === "failed") {
-                      console.warn("[ExtractSubtitles] Fresh search job failed:", statusData.error);
-                      break;
-                    }
-
-                    pollAttempt++;
-                  }
-                }
-
-                // 완료된 데이터에서 비디오 찾기
-                if (searchData.status === "completed" && searchData.data && Array.isArray(searchData.data)) {
-                  const found = searchData.data.find((v: Video) => v.id === video.id);
-                  if (found) {
-                    updatedVideo = found;
-                    console.log("[ExtractSubtitles] ✅ Found updated video with new URL");
-                    break;  // 성공하면 재시도 루프 탈출
-                  }
-                }
-
-                // 이번 시도에 실패했으면 대기 후 재시도
-                if (retryCount < maxRetries - 1) {
-                  console.log("[ExtractSubtitles] Video not found in fresh data, retrying...");
-                  await new Promise((resolve) => setTimeout(resolve, 2000));
-                }
-              }
-
-              // 업데이트된 비디오로 재시도
-              if (updatedVideo) {
-                console.log("[ExtractSubtitles] Retrying subtitle extraction with updated video URL");
-                addToast(
-                  "info",
-                  "새로운 영상 URL로 다시 자막 추출을 시도합니다...",
-                  "🔄 재시도",
-                  2000
-                );
-
-                setExtractingSubtitleId(null);
-                await new Promise((resolve) => setTimeout(resolve, 500));
-                return handleExtractSubtitles(updatedVideo);
-              }
-
-              // 비디오를 찾지 못한 경우
-              console.warn("[ExtractSubtitles] Could not find updated video in fresh data");
-              addToast(
-                "warning",
-                "새로운 데이터에서 영상을 찾을 수 없습니다. 다시 자막 추출을 시도해주세요.",
-                "⚠️ 재시도 필요",
-                5000
-              );
-            } catch (error) {
-              console.error("[ExtractSubtitles] Error during fresh data fetch:", error);
-              addToast(
-                "error",
-                "새로운 데이터를 가져오는 중 오류가 발생했습니다. 나중에 다시 시도해주세요.",
-                "❌ 오류",
-                5000
-              );
-            }
+            // 동일한 비디오로 자막 추출 재시도
+            // 이번엔 캐시가 삭제되었으므로, 새로운 CDN URL을 받을 것입니다
+            return handleExtractSubtitles(video);
           } else {
             // 재크롤링 실패
             console.error("[ExtractSubtitles] Recrawl failed");
