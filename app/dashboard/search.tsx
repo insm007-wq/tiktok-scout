@@ -995,11 +995,11 @@ export default function Search() {
         if (errorData.needsRecrawl) {
           console.log("[Download] 403 detected, triggering auto-recrawl");
 
-          // ✅ 재크롤링 cooldown 확인 (5분 이내 재크롤링 방지)
+          // ✅ 재크롤링 cooldown 확인 (같은 검색에 대한 중복 재크롤링 방지)
           const cacheKey = `${platform}:${searchInput}:${filters.uploadPeriod}`;
           const lastRecrawlTime = recrawlCooldownRef.current.get(cacheKey);
           const now = Date.now();
-          const COOLDOWN_MS = 5 * 60 * 1000;  // 5분
+          const COOLDOWN_MS = 1 * 60 * 1000;  // 1분 (재크롤링 완료 후 중복 방지용)
 
           if (lastRecrawlTime && (now - lastRecrawlTime) < COOLDOWN_MS) {
             const waitSeconds = Math.ceil((COOLDOWN_MS - (now - lastRecrawlTime)) / 1000);
@@ -1014,9 +1014,6 @@ export default function Search() {
             return;
           }
 
-          // Cooldown 시간 기록
-          recrawlCooldownRef.current.set(cacheKey, now);
-
           addToast(
             "info",
             "영상 URL이 만료되었습니다. 자동으로 새 데이터를 가져옵니다.",
@@ -1030,6 +1027,10 @@ export default function Search() {
 
           if (success) {
             console.log("[Download] Recrawl completed, retrying download in 2 seconds...");
+
+            // ✅ 재크롤링 성공: 짧은 cooldown 설정 (1분 - 같은 검색에 대한 중복 재크롤링 방지)
+            // 이렇게 하면 같은 영상을 다시 다운로드할 때 불필요한 재크롤링을 방지
+            recrawlCooldownRef.current.set(cacheKey, Date.now());
 
             // ✅ 재크롤링 성공: 2초 대기 후 같은 비디오로 재시도
             // (이번엔 새로운 CDN URL을 받을 것)
@@ -1047,7 +1048,9 @@ export default function Search() {
             // 이번엔 캐시가 삭제되었으므로, 스크래이퍼에서 새로운 CDN URL을 받을 것입니다
             return handleDownloadVideo(video);
           } else {
-            // 재크롤링 실패
+            // 재크롤링 실패: cooldown 무효화 (더 빨리 재시도 가능하게)
+            recrawlCooldownRef.current.delete(cacheKey);
+
             console.error("[Download] Recrawl failed");
             addToast(
               "error",
