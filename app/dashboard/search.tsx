@@ -869,6 +869,84 @@ export default function Search() {
     document.body.removeChild(link);
   };
 
+  // 🆕 재크롤링 트리거 및 완료 대기 (CDN URL 만료 시 자동 데이터 갱신)
+  const handleRecrawl = async (
+    query: string,
+    platform: Platform,
+    dateRange: string
+  ): Promise<boolean> => {
+    try {
+      console.log("[Recrawl] Starting recrawl for:", query, platform, dateRange);
+      addToast("info", "새로운 영상 데이터를 가져오는 중...", "⏳ 잠시만 기다려주세요", 5000);
+
+      // 재크롤링 API 호출
+      const response = await fetch("/api/recrawl", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, platform, dateRange }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error("[Recrawl] API error:", error);
+        throw new Error(error.error || "재크롤링 실패");
+      }
+
+      const data = await response.json();
+      const jobId = data.jobId;
+
+      console.log("[Recrawl] Job started:", jobId);
+
+      // Job 상태 폴링 (최대 60초)
+      const maxAttempts = 30;
+      let attempt = 0;
+
+      while (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 2000)); // 2초 대기
+
+        const statusRes = await fetch(`/api/search/${jobId}`);
+        const statusData = await statusRes.json();
+
+        console.log(`[Recrawl] Poll attempt ${attempt + 1}/${maxAttempts}, status:`, statusData.status);
+
+        if (statusData.status === "completed") {
+          console.log("[Recrawl] ✅ Completed");
+          addToast("success", "새로운 데이터를 가져왔습니다!", "✅ 완료", 3000);
+
+          // 검색 결과 새로고침 (캐시에서 새 데이터 로드)
+          if (statusData.data) {
+            setVideos(statusData.data);
+            console.log("[Recrawl] Videos updated:", statusData.data.length);
+          }
+          return true;
+        }
+
+        if (statusData.status === "failed") {
+          console.error("[Recrawl] Failed:", statusData.error);
+          addToast("error", "데이터를 가져오는데 실패했습니다", "❌ 실패", 5000);
+          return false;
+        }
+
+        attempt++;
+      }
+
+      // 타임아웃
+      console.warn("[Recrawl] Timeout after 60 seconds");
+      addToast(
+        "warning",
+        "시간이 오래 걸리고 있습니다. 나중에 다시 시도해주세요.",
+        "⏱️ 타임아웃",
+        5000
+      );
+      return false;
+    } catch (error) {
+      console.error("[Recrawl] Error:", error);
+      const errorMsg = error instanceof Error ? error.message : "알 수 없는 오류";
+      addToast("error", errorMsg, "❌ 오류", 5000);
+      return false;
+    }
+  };
+
   // 영상 페이지로 이동
   const handleOpenVideo = (video: Video) => {
     if (video.webVideoUrl) {
@@ -898,6 +976,34 @@ export default function Search() {
           webVideoUrl: video.webVideoUrl, // Pass webVideoUrl for Xiaohongshu
         }),
       });
+
+      // 🆕 403 에러 시 자동 재크롤링
+      if (response.status === 403) {
+        const errorData = await response.json();
+
+        if (errorData.needsRecrawl) {
+          console.log("[Download] 403 detected, triggering auto-recrawl");
+          addToast(
+            "info",
+            "영상 URL이 만료되었습니다. 자동으로 새 데이터를 가져옵니다.",
+            "🔄 재크롤링",
+            4000
+          );
+
+          // 재크롤링 실행 (현재 검색어와 필터 사용)
+          const success = await handleRecrawl(searchInput, platform, filters.uploadPeriod);
+
+          if (success) {
+            // 재크롤링 성공 시 다운로드 재시도
+            addToast("info", "다시 다운로드를 시도합니다...", "🔄 재시도", 2000);
+            setDownloadingVideoId(null);
+            return handleDownloadVideo(video); // 재귀 호출
+          }
+        } else {
+          throw new Error("영상을 불러올 수 없습니다.");
+        }
+        return;
+      }
 
       if (!response.ok) {
         const error = await response.json();
@@ -955,6 +1061,32 @@ export default function Search() {
           platform,
         }),
       });
+
+      // 🆕 403 에러 시 자동 재크롤링
+      if (response.status === 403) {
+        const errorData = await response.json();
+
+        if (errorData.needsRecrawl) {
+          console.log("[ExtractSubtitles] 403 detected, triggering auto-recrawl");
+          addToast(
+            "info",
+            "영상 URL이 만료되었습니다. 자동으로 새 데이터를 가져옵니다.",
+            "🔄 재크롤링",
+            4000
+          );
+
+          const success = await handleRecrawl(searchInput, platform, filters.uploadPeriod);
+
+          if (success) {
+            addToast("info", "다시 자막 추출을 시도합니다...", "🔄 재시도", 2000);
+            setExtractingSubtitleId(null);
+            return handleExtractSubtitles(video); // 재귀 호출
+          }
+        } else {
+          throw new Error("영상을 불러올 수 없습니다.");
+        }
+        return;
+      }
 
       if (!response.ok) {
         const error = await response.json();

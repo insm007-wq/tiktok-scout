@@ -83,6 +83,19 @@ export async function POST(req: NextRequest) {
 
       // If still not OK, return error
       if (!videoResponse.ok) {
+        // 🆕 403 Forbidden: CDN URL 만료 - 프론트엔드에서 재크롤링 트리거
+        if (videoResponse.status === 403) {
+          console.warn('[Download] 403 Forbidden detected - CDN URL expired, client should trigger recrawl');
+          return NextResponse.json(
+            {
+              error: '영상 URL이 만료되었습니다',
+              needsRecrawl: true,
+              message: '프론트엔드에서 재크롤링을 트리거하세요',
+            },
+            { status: 403 }
+          );
+        }
+
         return NextResponse.json(
           { error: '비디오를 불러올 수 없습니다.' },
           { status: videoResponse.status }
