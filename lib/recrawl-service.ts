@@ -118,14 +118,28 @@ export async function triggerRecrawl(
     // 1단계: 재크롤링 진행 중인지 확인 (중복 방지)
     const existingJobId = await isRecrawlInProgress(cacheKey);
     if (existingJobId) {
-      console.log(
-        `[Recrawl] Already in progress for ${cacheKey}, jobId: ${existingJobId}`
-      );
-      return {
-        jobId: existingJobId,
-        alreadyInProgress: true,
-        estimatedWaitSeconds: 30,
-      };
+      // 기존 job이 진행 중이면, 그 job의 상태를 확인
+      const existingJob = await searchQueue.getJob(existingJobId);
+      if (existingJob) {
+        const existingState = await existingJob.getState();
+        // Job이 여전히 진행 중이면 재사용
+        if (existingState === 'waiting' || existingState === 'active') {
+          console.log(
+            `[Recrawl] Already in progress for ${cacheKey}, jobId: ${existingJobId}, state: ${existingState}`
+          );
+          return {
+            jobId: existingJobId,
+            alreadyInProgress: true,
+            estimatedWaitSeconds: 30,
+          };
+        } else if (existingState === 'failed' || existingState === 'completed') {
+          // Job이 실패했거나 완료되었으면, 기존 lock 제거하고 새로운 job 생성
+          console.log(
+            `[Recrawl] Existing job ${existingJobId} is ${existingState}, creating new job`
+          );
+          await clearRecrawlLock(query, platform, dateRange);
+        }
+      }
     }
 
     // 2단계: Rate Limiting 체크
@@ -139,6 +153,29 @@ export async function triggerRecrawl(
     // 3단계: 캐시 무효화 (L1 + L2)
     console.log(`[Recrawl] Clearing cache for ${cacheKey}`);
     await clearSearchCache(query, platform, dateRange);
+
+    // 3-1단계: 기존 stuck job이 있으면 cancel (optional optimization)
+    // 이는 같은 query에 대한 일반 검색 job이 stuck된 경우 처리
+    try {
+      const waitingJobs = await searchQueue.getJobs(['waiting', 'active']);
+      const stuckJob = waitingJobs.find(
+        (j) =>
+          j.data.query === query &&
+          j.data.platform === platform &&
+          (j.data.dateRange || 'all') === (dateRange || 'all') &&
+          !j.data.isRecrawl
+      );
+
+      if (stuckJob) {
+        console.log(
+          `[Recrawl] Canceling stuck job ${stuckJob.id} for ${cacheKey}`
+        );
+        await stuckJob.remove();
+      }
+    } catch (error) {
+      console.warn('[Recrawl] Could not cancel stuck job:', error);
+      // Continue even if cancellation fails
+    }
 
     // 4단계: Queue에 재크롤링 Job 추가
     const job = await searchQueue.add('recrawl', {

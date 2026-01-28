@@ -897,8 +897,8 @@ export default function Search() {
 
       console.log("[Recrawl] Job started:", jobId);
 
-      // Job 상태 폴링 (최대 60초)
-      const maxAttempts = 30;
+      // Job 상태 폴링 (최대 30초 - Railway 타임아웃 120초 고려)
+      const maxAttempts = 15;  // 2초 × 15 = 30초
       let attempt = 0;
 
       while (attempt < maxAttempts) {
@@ -907,23 +907,51 @@ export default function Search() {
         const statusRes = await fetch(`/api/search/${jobId}`);
         const statusData = await statusRes.json();
 
-        console.log(`[Recrawl] Poll attempt ${attempt + 1}/${maxAttempts}, status:`, statusData.status);
+        console.log(
+          `[Recrawl] Poll attempt ${attempt + 1}/${maxAttempts}, status:`,
+          statusData.status
+        );
 
         if (statusData.status === "completed") {
-          console.log("[Recrawl] ✅ Completed");
+          console.log("[Recrawl] ✅ Completed, fetching fresh data");
           addToast("success", "새로운 데이터를 가져왔습니다!", "✅ 완료", 3000);
 
-          // 검색 결과 새로고침 (캐시에서 새 데이터 로드)
-          if (statusData.data) {
-            setVideos(statusData.data);
-            console.log("[Recrawl] Videos updated:", statusData.data.length);
+          // 재크롤링 완료 후 같은 검색어로 다시 검색을 수행
+          // 캐시가 무효화되었으므로 새로운 데이터가 Queue에서 처리됨
+          try {
+            const freshSearch = await fetch("/api/search", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                query,
+                platform,
+                dateRange,
+              }),
+            });
+
+            if (freshSearch.ok) {
+              const freshData = await freshSearch.json();
+              if (freshData.status === "completed" && freshData.data) {
+                setVideos(freshData.data);
+                console.log("[Recrawl] Fresh videos loaded:", freshData.data.length);
+              }
+            }
+          } catch (error) {
+            console.warn("[Recrawl] Failed to fetch fresh data:", error);
+            // Continue even if fresh data fetch fails
           }
+
           return true;
         }
 
         if (statusData.status === "failed") {
           console.error("[Recrawl] Failed:", statusData.error);
-          addToast("error", "데이터를 가져오는데 실패했습니다", "❌ 실패", 5000);
+          addToast(
+            "error",
+            statusData.error || "데이터를 가져오는데 실패했습니다",
+            "❌ 실패",
+            5000
+          );
           return false;
         }
 
@@ -931,10 +959,10 @@ export default function Search() {
       }
 
       // 타임아웃
-      console.warn("[Recrawl] Timeout after 60 seconds");
+      console.warn("[Recrawl] Timeout after 30 seconds");
       addToast(
         "warning",
-        "시간이 오래 걸리고 있습니다. 나중에 다시 시도해주세요.",
+        "검색 서버가 느리게 응답하고 있습니다. 페이지를 새로고침하고 다시 시도해주세요.",
         "⏱️ 타임아웃",
         5000
       );
@@ -994,10 +1022,21 @@ export default function Search() {
           const success = await handleRecrawl(searchInput, platform, filters.uploadPeriod);
 
           if (success) {
-            // 재크롤링 성공 시 다운로드 재시도
-            addToast("info", "다시 다운로드를 시도합니다...", "🔄 재시도", 2000);
-            setDownloadingVideoId(null);
-            return handleDownloadVideo(video); // 재귀 호출
+            // 재크롤링 성공: 사용자가 다시 시도하도록 안내
+            addToast(
+              "success",
+              "새로운 영상 데이터를 가져왔습니다. 다시 다운로드를 시도해주세요.",
+              "🔄 재시도 가능",
+              4000
+            );
+          } else {
+            // 재크롤링 실패
+            addToast(
+              "error",
+              "데이터를 가져오지 못했습니다. 나중에 다시 시도해주세요.",
+              "❌ 재크롤링 실패",
+              5000
+            );
           }
         } else {
           throw new Error("영상을 불러올 수 없습니다.");
@@ -1078,9 +1117,21 @@ export default function Search() {
           const success = await handleRecrawl(searchInput, platform, filters.uploadPeriod);
 
           if (success) {
-            addToast("info", "다시 자막 추출을 시도합니다...", "🔄 재시도", 2000);
-            setExtractingSubtitleId(null);
-            return handleExtractSubtitles(video); // 재귀 호출
+            // 재크롤링 성공: 사용자가 다시 시도하도록 안내
+            addToast(
+              "success",
+              "새로운 영상 데이터를 가져왔습니다. 다시 자막 추출을 시도해주세요.",
+              "🔄 재시도 가능",
+              4000
+            );
+          } else {
+            // 재크롤링 실패
+            addToast(
+              "error",
+              "데이터를 가져오지 못했습니다. 나중에 다시 시도해주세요.",
+              "❌ 재크롤링 실패",
+              5000
+            );
           }
         } else {
           throw new Error("영상을 불러올 수 없습니다.");
