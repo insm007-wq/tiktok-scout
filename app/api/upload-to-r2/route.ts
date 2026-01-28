@@ -90,21 +90,28 @@ export async function POST(request: NextRequest) {
     let response = await fetch(url, { headers, signal: controller.signal });
     clearTimeout(timeout);
 
+    console.log(`[R2] 📥 CDN response status: ${response.status}`);
+
     // CDN URL은 시간 제한 파라미터로 인해 만료될 수 있음 → 재시도 (파라미터 제거)
     if (!response.ok && url.includes('?')) {
       const isCDN = url.includes('tiktokcdn') || url.includes('douyinpic') || url.includes('xhscdn');
 
       if (isCDN) {
         console.warn(`[R2] ⚠️ CDN download failed (${response.status}), retrying without query params...`);
+        console.log(`[R2] 📍 Original URL: ${url.substring(0, 100)}...`);
 
         // URL에서 query string 제거 후 재시도
         const baseUrl = url.split('?')[0];
+        console.log(`[R2] 🔄 Retrying with base URL: ${baseUrl.substring(0, 100)}...`);
+
         const retryController = new AbortController();
         const retryTimeout = setTimeout(() => retryController.abort(), 30000);
 
         try {
           response = await fetch(baseUrl, { headers, signal: retryController.signal });
           clearTimeout(retryTimeout);
+
+          console.log(`[R2] 📥 Retry CDN response status: ${response.status}`);
 
           if (response.ok) {
             console.log(`[R2] ✅ Retry successful with base URL`);
@@ -120,7 +127,8 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       console.error(`[R2] ❌ Failed to download from CDN: ${response.status}`);
-      console.error(`[R2] URL: ${url.substring(0, 100)}...`);
+      console.error(`[R2] ❌ URL: ${url.substring(0, 150)}...`);
+      console.error(`[R2] ❌ Type: ${type}, Key: ${key}`);
       return NextResponse.json(
         { error: `Failed to download from CDN: ${response.status}` },
         { status: 400 }

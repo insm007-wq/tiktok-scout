@@ -118,7 +118,7 @@ export default function Search() {
   }, []);
 
   // 썸네일 로드 실패 처리
-  const handleThumbnailError = useCallback((video: Video, e: React.SyntheticEvent<HTMLImageElement>) => {
+  const handleThumbnailError = useCallback(async (video: Video, e: React.SyntheticEvent<HTMLImageElement>) => {
     // ✅ ENHANCED: 상세 로깅
     const thumbnailUrl = video.thumbnail;
     const urlType = thumbnailUrl?.includes('.r2.dev') ? 'R2' :
@@ -134,10 +134,45 @@ export default function Search() {
       creator: video.creator,
     });
 
-    // 실패한 썸네일 마크
-    setFailedThumbnails(prev => new Set(prev).add(video.id));
+    // 🆕 CDN URL이면 R2 URL로 재시도
+    if (urlType === 'CDN' && thumbnailUrl) {
+      console.log(`[Frontend] 🔄 Attempting CDN → R2 conversion for ${video.id}`);
 
-    // 폴백 플레이스홀더 표시
+      try {
+        const response = await fetch('/api/cdn-to-r2', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cdnUrl: thumbnailUrl }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const r2Url = data.r2Url;
+
+          console.log(`[Frontend] 🔄 R2 URL obtained, retrying...`);
+
+          // R2 URL로 재시도 (onError 이벤트 발생하지 않도록 처리)
+          const img = new Image();
+          img.onload = () => {
+            console.log(`[Frontend] ✅ R2 URL loaded successfully`);
+            e.currentTarget.src = r2Url;
+          };
+          img.onerror = () => {
+            console.warn(`[Frontend] ⚠️ R2 URL also failed, using fallback`);
+            setFailedThumbnails(prev => new Set(prev).add(video.id));
+            e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect fill="%23f0f0f0" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" font-size="50" fill="%23999"%3E🎬%3C/text%3E%3C/svg%3E';
+            e.currentTarget.alt = '썸네일을 불러올 수 없습니다';
+          };
+          img.src = r2Url;
+          return;
+        }
+      } catch (error) {
+        console.error(`[Frontend] ❌ CDN to R2 conversion failed:`, error);
+      }
+    }
+
+    // 폴백: R2 시도 실패 또는 이미 R2 URL인 경우
+    setFailedThumbnails(prev => new Set(prev).add(video.id));
     e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect fill="%23f0f0f0" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" font-size="50" fill="%23999"%3E🎬%3C/text%3E%3C/svg%3E';
     e.currentTarget.alt = '썸네일을 불러올 수 없습니다';
 
