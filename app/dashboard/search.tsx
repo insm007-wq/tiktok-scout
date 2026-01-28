@@ -92,6 +92,9 @@ export default function Search() {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // 재크롤링 cooldown 관리 (같은 query에 대해 5분 이내 재크롤링 방지)
+  const recrawlCooldownRef = useRef<Map<string, number>>(new Map());
+
   /**
    * 검색 타임아웃 타이머 정리 (early definition for use in cleanup effect)
    */
@@ -991,6 +994,29 @@ export default function Search() {
 
         if (errorData.needsRecrawl) {
           console.log("[Download] 403 detected, triggering auto-recrawl");
+
+          // ✅ 재크롤링 cooldown 확인 (5분 이내 재크롤링 방지)
+          const cacheKey = `${platform}:${searchInput}:${filters.uploadPeriod}`;
+          const lastRecrawlTime = recrawlCooldownRef.current.get(cacheKey);
+          const now = Date.now();
+          const COOLDOWN_MS = 5 * 60 * 1000;  // 5분
+
+          if (lastRecrawlTime && (now - lastRecrawlTime) < COOLDOWN_MS) {
+            const waitSeconds = Math.ceil((COOLDOWN_MS - (now - lastRecrawlTime)) / 1000);
+            console.log(`[Download] Recrawl cooldown active, wait ${waitSeconds}s more`);
+            addToast(
+              "warning",
+              `최근에 재크롤링을 시도했습니다. ${waitSeconds}초 후 다시 시도해주세요.`,
+              "⏳ 재시도 필요",
+              5000
+            );
+            setDownloadingVideoId(null);
+            return;
+          }
+
+          // Cooldown 시간 기록
+          recrawlCooldownRef.current.set(cacheKey, now);
+
           addToast(
             "info",
             "영상 URL이 만료되었습니다. 자동으로 새 데이터를 가져옵니다.",
@@ -1099,6 +1125,29 @@ export default function Search() {
 
         if (errorData.needsRecrawl) {
           console.log("[ExtractSubtitles] 403 detected, triggering auto-recrawl");
+
+          // ✅ 재크롤링 cooldown 확인 (5분 이내 재크롤링 방지)
+          const cacheKey = `${platform}:${searchInput}:${filters.uploadPeriod}`;
+          const lastRecrawlTime = recrawlCooldownRef.current.get(cacheKey);
+          const now = Date.now();
+          const COOLDOWN_MS = 5 * 60 * 1000;  // 5분
+
+          if (lastRecrawlTime && (now - lastRecrawlTime) < COOLDOWN_MS) {
+            const waitSeconds = Math.ceil((COOLDOWN_MS - (now - lastRecrawlTime)) / 1000);
+            console.log(`[ExtractSubtitles] Recrawl cooldown active, wait ${waitSeconds}s more`);
+            addToast(
+              "warning",
+              `최근에 재크롤링을 시도했습니다. ${waitSeconds}초 후 다시 시도해주세요.`,
+              "⏳ 재시도 필요",
+              5000
+            );
+            setExtractingSubtitleId(null);
+            return;
+          }
+
+          // Cooldown 시간 기록
+          recrawlCooldownRef.current.set(cacheKey, now);
+
           addToast(
             "info",
             "영상 URL이 만료되었습니다. 자동으로 새 데이터를 가져옵니다.",
