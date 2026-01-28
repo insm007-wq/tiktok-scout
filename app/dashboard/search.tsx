@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { LayoutGrid, Table2, Download, Play, Heart, MessageCircle, Share2, Info, ExternalLink, Loader } from "lucide-react";
+import { LayoutGrid, Table2, Download, Play, Heart, MessageCircle, Share2, Info, ExternalLink, Loader, Subtitles } from "lucide-react";
 import Toast, { type Toast as ToastType } from "@/app/components/Toast/Toast";
 import Spinner from "@/app/components/ui/Spinner";
 import ViewCountFilter from "@/app/components/Filters/ViewCountFilter/ViewCountFilter";
@@ -58,6 +58,7 @@ export default function Search() {
   const [isResizing, setIsResizing] = useState(false);
   const [error, setError] = useState("");
   const [downloadingVideoId, setDownloadingVideoId] = useState<string | null>(null);
+  const [extractingSubtitleId, setExtractingSubtitleId] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterState>({
     minPlayCount: 0,
     maxPlayCount: null,
@@ -175,12 +176,7 @@ export default function Search() {
     setFailedThumbnails(prev => new Set(prev).add(video.id));
     e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect fill="%23f0f0f0" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" font-size="50" fill="%23999"%3E🎬%3C/text%3E%3C/svg%3E';
     e.currentTarget.alt = '썸네일을 불러올 수 없습니다';
-
-    // 토스트 알림 표시 (처음 실패할 때만)
-    if (failedThumbnails.size === 0) {
-      addToast('warning', '일부 썸네일을 불러올 수 없습니다. 다시 검색해주세요.', '썸네일 로드 실패', 3000);
-    }
-  }, [failedThumbnails.size, addToast, platform]);
+  }, [failedThumbnails.size, platform]);
 
   const handleTitleClick = () => {
     setIsTitleRefreshing(true);
@@ -934,6 +930,58 @@ export default function Search() {
     }
   };
 
+  // 자막 추출 핸들러
+  const handleExtractSubtitles = async (video: Video) => {
+    // TikTok과 Douyin만 지원
+    if (platform !== 'tiktok' && platform !== 'douyin') {
+      addToast("info", "자막 추출은 현재 TikTok과 Douyin만 지원합니다.", "ℹ️ 안내");
+      return;
+    }
+
+    if (!video.videoUrl) {
+      addToast("error", "영상 정보를 불러올 수 없습니다.", "❌ 오류");
+      return;
+    }
+
+    setExtractingSubtitleId(video.id);
+
+    try {
+      const response = await fetch("/api/extract-subtitles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoUrl: video.videoUrl,
+          videoId: video.id,
+          platform,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "자막 추출 실패");
+      }
+
+      // SRT 파일 다운로드 (플랫폼별 파일명)
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const filePrefix = platform === 'douyin' ? 'douyin' : 'tiktok';
+      link.download = `${filePrefix}_${video.id}_subtitles.srt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      addToast("success", "자막 파일이 다운로드 폴더에 저장되었습니다", "✅ 자막 추출 완료", 3000);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "알 수 없는 오류";
+      addToast("error", errorMsg, "❌ 자막 추출 실패", 5000);
+    } finally {
+      setExtractingSubtitleId(null);
+    }
+  };
+
   // 영상 상세 페이지 모달 (간단한 버전)
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
 
@@ -1621,6 +1669,28 @@ export default function Search() {
                                 )}
                                 <span className="card-action-label">{downloadingVideoId === video.id ? "준비중" : "다운"}</span>
                               </button>
+
+                              {/* 자막 버튼 - TikTok, Douyin */}
+                              {(platform === 'tiktok' || platform === 'douyin') && (
+                                <button
+                                  className="card-action-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleExtractSubtitles(video);
+                                  }}
+                                  disabled={extractingSubtitleId === video.id}
+                                  title="자막 추출"
+                                >
+                                  {extractingSubtitleId === video.id ? (
+                                    <Loader className="card-action-icon animate-spin" />
+                                  ) : (
+                                    <Subtitles className="card-action-icon" />
+                                  )}
+                                  <span className="card-action-label">
+                                    {extractingSubtitleId === video.id ? "추출중" : "자막"}
+                                  </span>
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1895,6 +1965,29 @@ export default function Search() {
               >
                 {selectedVideo && downloadingVideoId === selectedVideo.id ? "⏳ 준비 중..." : "⬇️ 다운로드"}
               </button>
+
+              {/* TikTok/Douyin 자막 추출 버튼 */}
+              {(platform === 'tiktok' || platform === 'douyin') && selectedVideo && (
+                <button
+                  onClick={() => handleExtractSubtitles(selectedVideo)}
+                  disabled={extractingSubtitleId === selectedVideo.id}
+                  style={{
+                    flex: 1,
+                    padding: "10px",
+                    background: extractingSubtitleId === selectedVideo.id
+                      ? "linear-gradient(135deg, #9ca3af 0%, #c0c0c0 100%)"
+                      : "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: extractingSubtitleId === selectedVideo.id ? "not-allowed" : "pointer",
+                    fontWeight: "bold",
+                    opacity: extractingSubtitleId === selectedVideo.id ? 0.6 : 1,
+                  }}
+                >
+                  {extractingSubtitleId === selectedVideo.id ? "⏳ 추출 중..." : "📝 자막 추출"}
+                </button>
+              )}
             </div>
           </div>
         </div>
