@@ -877,7 +877,7 @@ export default function Search() {
     query: string,
     platform: Platform,
     dateRange: string
-  ): Promise<boolean> => {
+  ): Promise<{ success: boolean; videos?: Video[] }> => {
     try {
       console.log("[Recrawl] Starting recrawl for:", query, platform, dateRange);
       addToast("info", "새로운 영상 데이터를 가져오는 중...", "⏳ 잠시만 기다려주세요", 5000);
@@ -917,14 +917,14 @@ export default function Search() {
 
         if (statusData.status === "completed") {
           console.log("[Recrawl] ✅ Completed");
+
+          // ✅ 새로운: 최신 비디오 데이터 가져오기
+          const freshVideos = statusData.data || [];
+          console.log("[Recrawl] Fresh videos count:", freshVideos.length);
+
           addToast("success", "새로운 데이터를 가져왔습니다!", "✅ 완료", 3000);
 
-          // 주의: 비디오 목록을 업데이트하지 않습니다
-          // 왜냐하면 이미 표시된 비디오의 위치가 바뀔 수 있기 때문입니다
-          // 대신 캐시가 무효화되었으므로, 사용자가 다시 다운로드를 시도할 때
-          // 새로운 CDN URL이 자동으로 반환됩니다
-
-          return true;
+          return { success: true, videos: freshVideos };
         }
 
         if (statusData.status === "failed") {
@@ -935,7 +935,7 @@ export default function Search() {
             "❌ 실패",
             5000
           );
-          return false;
+          return { success: false };
         }
 
         attempt++;
@@ -949,12 +949,12 @@ export default function Search() {
         "⏱️ 타임아웃",
         5000
       );
-      return false;
+      return { success: false };
     } catch (error) {
       console.error("[Recrawl] Error:", error);
       const errorMsg = error instanceof Error ? error.message : "알 수 없는 오류";
       addToast("error", errorMsg, "❌ 오류", 5000);
-      return false;
+      return { success: false };
     }
   };
 
@@ -1023,30 +1023,39 @@ export default function Search() {
 
           // 재크롤링 실행 (현재 검색어와 필터 사용)
           // ⚠️ 중요: setDownloadingVideoId(null) 하지 않음 (즉시 재시도 가능하게)
-          const success = await handleRecrawl(searchInput, platform, filters.uploadPeriod);
+          const result = await handleRecrawl(searchInput, platform, filters.uploadPeriod);
 
-          if (success) {
-            console.log("[Download] Recrawl completed, retrying download in 2 seconds...");
+          if (result.success && result.videos) {
+            console.log("[Download] Recrawl completed, searching for fresh video data...");
 
-            // ✅ 재크롤링 성공: 짧은 cooldown 설정 (1분 - 같은 검색에 대한 중복 재크롤링 방지)
-            // 이렇게 하면 같은 영상을 다시 다운로드할 때 불필요한 재크롤링을 방지
-            recrawlCooldownRef.current.set(cacheKey, Date.now());
+            // ✅ ID로 새 결과에서 같은 비디오 찾기
+            const freshVideo = result.videos.find(v => v.id === video.id);
 
-            // ✅ 재크롤링 성공: 2초 대기 후 같은 비디오로 재시도
-            // (이번엔 새로운 CDN URL을 받을 것)
-            addToast(
-              "info",
-              "새로운 영상 URL로 다시 다운로드를 시도합니다...",
-              "🔄 재시도",
-              2000
-            );
+            if (freshVideo) {
+              console.log("[Download] Fresh video found, retrying with new URL");
+              recrawlCooldownRef.current.set(cacheKey, Date.now());
 
-            setDownloadingVideoId(null);
-            await new Promise((resolve) => setTimeout(resolve, 2000));
+              addToast(
+                "info",
+                "새로운 영상 URL로 다시 다운로드를 시도합니다...",
+                "🔄 재시도",
+                2000
+              );
 
-            // 동일한 비디오로 다운로드 재시도
-            // 이번엔 캐시가 삭제되었으므로, 스크래이퍼에서 새로운 CDN URL을 받을 것입니다
-            return handleDownloadVideo(video);
+              setDownloadingVideoId(null);
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+
+              // ✅ 최신 video 객체로 재시도
+              return handleDownloadVideo(freshVideo);
+            } else {
+              console.warn("[Download] Video not found in fresh results");
+              addToast(
+                "warning",
+                "재크롤링 후 해당 영상을 찾을 수 없습니다.",
+                "⚠️ 경고",
+                5000
+              );
+            }
           } else {
             // 재크롤링 실패: cooldown 무효화 (더 빨리 재시도 가능하게)
             recrawlCooldownRef.current.delete(cacheKey);
@@ -1158,26 +1167,38 @@ export default function Search() {
             4000
           );
 
-          const success = await handleRecrawl(searchInput, platform, filters.uploadPeriod);
+          const result = await handleRecrawl(searchInput, platform, filters.uploadPeriod);
 
-          if (success) {
-            console.log("[ExtractSubtitles] Recrawl completed, retrying subtitle extraction in 2 seconds...");
+          if (result.success && result.videos) {
+            console.log("[ExtractSubtitles] Recrawl completed, searching for fresh video data...");
 
-            // ✅ 재크롤링 성공: 2초 대기 후 같은 비디오로 재시도
-            // (이번엔 새로운 CDN URL을 받을 것)
-            addToast(
-              "info",
-              "새로운 영상 URL로 다시 자막 추출을 시도합니다...",
-              "🔄 재시도",
-              2000
-            );
+            // ✅ ID로 새 결과에서 같은 비디오 찾기
+            const freshVideo = result.videos.find(v => v.id === video.id);
 
-            setExtractingSubtitleId(null);
-            await new Promise((resolve) => setTimeout(resolve, 2000));
+            if (freshVideo) {
+              console.log("[ExtractSubtitles] Fresh video found, retrying with new URL");
 
-            // 동일한 비디오로 자막 추출 재시도
-            // 이번엔 캐시가 삭제되었으므로, 새로운 CDN URL을 받을 것입니다
-            return handleExtractSubtitles(video);
+              addToast(
+                "info",
+                "새로운 영상 URL로 다시 자막 추출을 시도합니다...",
+                "🔄 재시도",
+                2000
+              );
+
+              setExtractingSubtitleId(null);
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+
+              // ✅ 최신 video 객체로 재시도
+              return handleExtractSubtitles(freshVideo);
+            } else {
+              console.warn("[ExtractSubtitles] Video not found in fresh results");
+              addToast(
+                "warning",
+                "재크롤링 후 해당 영상을 찾을 수 없습니다.",
+                "⚠️ 경고",
+                5000
+              );
+            }
           } else {
             // 재크롤링 실패
             console.error("[ExtractSubtitles] Recrawl failed");
