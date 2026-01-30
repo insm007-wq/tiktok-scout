@@ -209,14 +209,14 @@ export async function getVideoFromMongoDB(
 
 /**
  * MongoDB에 영상 캐시 저장 (L2 캐시)
- * @param ttlDays - 캐시 유지 기간 (기본값: 1일 - 24시간 TTL)
+ * @param ttlDays - 캐시 유지 기간 (기본값: 0.5일 - 12시간 TTL)
  */
 export async function setVideoToMongoDB(
   query: string,
   platform: Platform,
   videos: VideoResult[],
   dateRange?: string,
-  ttlDays: number = 1  // ✅ Changed: 24시간 TTL (1일)
+  ttlDays: number = 0.5  // ✅ Changed: 12시간 TTL (0.5일)
 ): Promise<void> {
   try {
     const db = await getDb();
@@ -348,8 +348,10 @@ export async function setVideoToCache(
     expiresAt,
   });
 
-  // L2: MongoDB 캐시 (90일)
-  await setVideoToMongoDB(query, platform, videos, dateRange, 90);
+  // L2: MongoDB 캐시 (12시간 TTL for on-demand scraping)
+  // Note: With Vercel Cron removed, cache expires after 12 hours
+  // Users will trigger re-scrape on cache miss
+  await setVideoToMongoDB(query, platform, videos, dateRange, 0.5);
 }
 
 /**

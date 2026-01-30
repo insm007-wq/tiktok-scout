@@ -3,8 +3,15 @@ import { getPopularQueries } from '@/lib/cache';
 import { searchQueue } from '@/lib/queue/search-queue';
 
 /**
+ * ⚠️ DEPRECATED: Automatic Vercel Cron disabled (2026-01-30)
+ *
  * GET /api/cron/refresh-popular
- * 인기 검색어 자동 갱신 (12시간마다)
+ * Manual refresh endpoint for popular search queries (no longer auto-scheduled)
+ *
+ * 비용 최적화 전략 (On-Demand Scraping):
+ * - 자동 갱신 크론 제거 → -300K Apify 크레딧/월
+ * - 12시간 TTL → 캐시 만료 시 사용자가 재검색하면 자동 갱신
+ * - 실제 사용량 기반 스크래핑으로 비용 75% 절감
  *
  * 작동:
  * 1. MongoDB에서 검색 횟수 5회 이상의 인기 검색어 조회
@@ -12,13 +19,11 @@ import { searchQueue } from '@/lib/queue/search-queue';
  * 3. Railway Worker가 비동기로 처리
  * 4. 새로운 CDN URL로 캐시 갱신
  *
- * Vercel Cron 설정 (vercel.json):
- * {
- *   "crons": [{
- *     "path": "/api/cron/refresh-popular",
- *     "schedule": "0 */12 * * *"  // 0시, 12시마다 실행
- *   }]
- * }
+ * Vercel Cron 설정: ❌ REMOVED (vercel.json에서 삭제됨)
+ *
+ * 수동 테스트 용도:
+ * POST /api/cron/refresh-popular
+ * Header: Authorization: Bearer ${ADMIN_SECRET}
  */
 export async function GET(request: NextRequest) {
   try {
@@ -33,7 +38,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('[RefreshPopular] Cron job started at', new Date().toISOString());
+    console.log('[RefreshPopular] ⚠️ Manual refresh started (auto cron disabled)', new Date().toISOString());
     const startTime = Date.now();
 
     // 1️⃣ 인기 검색어 조회 (검색 횟수 5회 이상)
@@ -41,7 +46,7 @@ export async function GET(request: NextRequest) {
     const limit = 50;
     const popularQueries = await getPopularQueries(minSearchCount, limit);
 
-    console.log(`[RefreshPopular] 📊 Found ${popularQueries.length} popular queries`);
+    console.log(`[RefreshPopular] 📊 Found ${popularQueries.length} popular queries (searchCount >= ${minSearchCount})`);
 
     if (popularQueries.length === 0) {
       const duration = Date.now() - startTime;

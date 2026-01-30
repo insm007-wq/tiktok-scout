@@ -1,13 +1,14 @@
-# 스마트 캐싱 + 자동 갱신 흐름도 (R2 제거)
+# 스마트 캐싱 + On-Demand 갱신 흐름도 (R2 제거 + 비용 최적화)
 
 **📅 업데이트**: 2026-01-30
-**변경사항**: R2 완전 제거 → CDN URL 직접 사용 + 12시간 자동 갱신
+**변경사항**: 자동 갱신 크론 제거 → On-Demand 스크래핑 + 12시간 TTL (비용 75% 절감)
 
 ---
 
 ## 전체 동작 흐름
 
 ### 일반 검색 (사용자)
+
 ```
 ┌─────────────┐
 │ 사용자 검색  │
@@ -57,7 +58,7 @@
                            │
                            ▼
                 ┌──────────────────────────┐
-                │   MongoDB 캐시 저장      │
+                │   MongoDB 캐시 저장       │
                 │   - searchCount: 0       │
                 │   - TTL: 24시간          │
                 │   - CDN URL 저장         │
@@ -70,40 +71,47 @@
                 └──────────────────────────┘
 ```
 
-### 자동 갱신 (12시간마다)
+### On-Demand 갱신 (캐시 만료 후)
+
 ```
-        Vercel Cron
-         (0시, 12시)
-            │
-            ▼
-    ┌──────────────────────┐
-    │ 인기 검색어 조회     │
-    │ (searchCount ≥ 5)    │
-    └──────────┬───────────┘
-               │
-               ▼
-    ┌──────────────────────┐
-    │ BullMQ Queue에 추가  │
-    │ (top 50 queries)     │
-    └──────────┬───────────┘
-               │
-               ▼
-    ┌──────────────────────┐
-    │ Railway Worker       │
-    │ 처리 (병렬)          │
-    └──────────┬───────────┘
-               │
-               ▼
-    ┌──────────────────────┐
-    │ 새 CDN URL 수신      │
-    └──────────┬───────────┘
-               │
-               ▼
-    ┌──────────────────────┐
-    │ MongoDB 캐시 갱신    │
-    │ - 새 CDN URL        │
-    │ - lastRefreshedAt   │
-    └──────────────────────┘
+   12시간 경과
+      │
+      ▼
+┌─────────────────┐
+│ 캐시 TTL 만료   │
+│(expiresAt < now)│
+└────────┬────────┘
+         │
+         ▼
+   사용자 재검색
+      │
+      ▼
+┌─────────────────┐
+│ 캐시 미스 감지  │
+└────────┬────────┘
+         │
+         ▼
+┌──────────────────────┐
+│ BullMQ Queue에 추가  │
+└────────┬─────────────┘
+         │
+         ▼
+┌──────────────────────┐
+│ Railway Worker       │
+│ 처리 (30-60초)       │
+└────────┬─────────────┘
+         │
+         ▼
+┌──────────────────────┐
+│ 새 CDN URL 수신      │
+└────────┬─────────────┘
+         │
+         ▼
+┌──────────────────────┐
+│ MongoDB 캐시 갱신    │
+│ - 새 CDN URL        │
+│ - expiresAt: +12h   │
+└──────────────────────┘
 ```
 
 ---
@@ -111,6 +119,7 @@
 ## 상세 흐름
 
 ### 1️⃣ 사용자 검색
+
 ```
 사용자: "프라이팬" 검색
   ↓
@@ -122,6 +131,7 @@ searchCount 초기화: 0
 ```
 
 ### 2️⃣ 캐시 조회 (2회차 이상)
+
 ```
 캐시 히트 (MongoDB)
   ↓
@@ -132,39 +142,45 @@ searchCount 증가: 0 → 1, 1 → 2, ... → 5
 CDN URL 반환 (24시간 TTL 동안 유효)
 ```
 
-### 3️⃣ 자동 갱신 (searchCount ≥ 5)
+### 3️⃣ On-Demand 갱신 (캐시 미스)
+
 ```
-[12시간마다 Vercel Cron 실행]
+[Vercel Cron ❌ 제거 - 비용 절감]
+
+사용자 재검색
   ↓
-인기 검색어 조회: searchCount ≥ 5
+캐시 TTL 만료 확인 (12시간 경과)
   ↓
-예: "프라이팬" (searchCount: 5) 발견
+캐시 미스 감지
   ↓
 BullMQ Queue에 추가
   ↓
 Railway Worker가 처리:
   - Apify 호출
-  - 새로운 CDN URL 수신
+  - 새로운 CDN URL 수신 (30-60초 대기)
   ↓
 MongoDB 갱신:
   - CDN URL 업데이트
-  - lastRefreshedAt 설정
-  - searchCount 유지
+  - expiresAt: +12시간
+  - searchCount 증가
   ↓
-다음 사용자: 항상 최신 CDN URL 반환 ✅
+사용자에게 반환 (새 CDN URL) ✅
 ```
 
-### 4️⃣ TTL 만료 후 (일반 검색어)
+### 4️⃣ 캐시 만료 후 처리
+
 ```
-캐시 TTL: 24시간 경과
+캐시 TTL: 12시간 경과
   ↓
 캐시 만료 자동 삭제 (MongoDB TTL)
   ↓
-사용자 재검색
+다음 사용자 검색 시:
   ↓
-캐시 미스: 새로 스크래핑
+캐시 미스 → 새로 스크래핑 (30-60초)
   ↓
-새 CDN URL로 캐시 갱신
+새 CDN URL로 캐시 갱신 (+12시간)
+  ↓
+이후 사용자: 캐시 히트 (즉시) ✅
 ```
 
 ---
@@ -172,32 +188,33 @@ MongoDB 갱신:
 ## 스키마 변경사항
 
 ### VideoCacheDocument (MongoDB)
+
 ```typescript
 interface VideoCacheDocument {
   query: string;
   platform: Platform;
   videos: VideoResult[];
 
-  // 새 필드
-  searchCount: number;        // 누적 검색 횟수 (인기도)
-  lastRefreshedAt?: Date;     // 마지막 자동 갱신 시간
+  // 모니터링 필드
+  searchCount: number; // 누적 검색 횟수 (인기도)
+  accessCount: number; // 전체 조회 횟수
 
-  // 기존 필드
-  expiresAt: Date;            // TTL: 24시간
-  accessCount: number;        // 전체 조회 횟수
-  lastAccessedAt: Date;
+  // 만료 관리
+  expiresAt: Date; // TTL: 12시간 (before: 24시간)
   createdAt: Date;
+  lastAccessedAt: Date;
 }
 ```
 
 ### MongoDB 인덱스
+
 ```typescript
 // 인기 검색어 정렬용 (신규)
-createIndex({ searchCount: -1 })
+createIndex({ searchCount: -1 });
 
 // 기존 인덱스
-createIndex({ expiresAt: 1 })     // TTL 자동 삭제
-createIndex({ cacheKey: 1 })      // 조회 최적화
+createIndex({ expiresAt: 1 }); // TTL 자동 삭제
+createIndex({ cacheKey: 1 }); // 조회 최적화
 ```
 
 ---
@@ -205,6 +222,7 @@ createIndex({ cacheKey: 1 })      // 조회 최적화
 ## 환경 변수
 
 ### 제거됨 (R2 관련)
+
 ```env
 ❌ R2_ENDPOINT
 ❌ R2_ACCESS_KEY_ID
@@ -213,141 +231,184 @@ createIndex({ cacheKey: 1 })      // 조회 최적화
 ❌ R2_PUBLIC_DOMAIN
 ```
 
-### 필요 (크론 설정)
+### 필요 (크론 설정 및 수동 테스트)
+
 ```env
-✅ CRON_SECRET          # Vercel Cron 인증
+✅ CRON_SECRET          # Vercel Cron 인증 (warm-cache 용)
 ✅ ADMIN_SECRET         # 수동 갱신 테스트
 ```
 
----
-
-## 핵심 개선사항
-
-| 항목 | Before | After | 개선 |
-|------|--------|-------|------|
-| **R2 업로드 실패** | 30% | 0% | ❌ 제거 |
-| **썸네일 성공률** | 70% | 100% | ✅ +30% |
-| **자동 갱신** | 없음 | 12시간마다 | ✅ 자동화 |
-| **TTL** | 90일 | 24시간 | ✅ 효율 |
-| **월간 비용** | $25 | $0 | ✅ -$25 |
-| **코드 라인** | +117 (R2) | -320 (R2 제거) | ✅ -203 |
+**주의**: `refresh-popular` 자동 갱신이 제거되었으므로, CRON_SECRET은 이제 `warm-cache`만 사용합니다.
 
 ---
 
-## 파일 위치 변경
+## 핵심 개선사항 (Phase 2: 비용 최적화)
 
-### 삭제됨
-```
-❌ lib/storage/r2.ts
-❌ app/api/upload-to-r2/route.ts
-❌ app/api/cdn-to-r2/route.ts
-```
+| 항목                 | Phase 1 (전) | Phase 2 (현재) | 개선           |
+| -------------------- | ------------ | -------------- | -------------- |
+| **자동 갱신**        | 12시간마다  | ❌ 제거 (필요시만) | ✅ 비용 75% 절감 |
+| **TTL**              | 24시간       | 12시간         | ✅ CDN 유효성 보장 |
+| **Apify 크레딧/월**  | 400K         | 100K           | ✅ -300K (-75%) |
+| **월간 추가 비용**   | +$30         | $0             | ✅ -$30        |
+| **사용 패턴**        | 예측기반     | 수요기반       | ✅ 효율화      |
+| **사용자 경험**      | 즉시 (캐시)  | 30-60초 대기   | ⏱️ 트레이드오프 |
 
-### 신규
-```
-✅ app/api/cron/refresh-popular/route.ts
-   - GET: Vercel Cron 자동 실행
-   - POST: 수동 갱신 (테스트)
-```
+**결론**: 30-60초 대기는 사용자가 수용 가능하며, **월 $30 절감** 효과
+
+---
+
+## 파일 변경사항 (Phase 2)
 
 ### 수정됨
+
 ```
-✏️ lib/cache.ts
-   - getPopularQueries() 함수 추가
-   - searchCount 추적 로직
-   - TTL: 1일로 변경
-
-✏️ lib/models/VideoCache.ts
-   - searchCount 필드 추가
-   - lastRefreshedAt 필드 추가
-
-✏️ lib/mongodb.ts
-   - searchCount 인덱스 추가
-
-✏️ lib/scrapers/douyin.ts
-   - R2 업로드 제거
-   - CDN URL 직접 반환
-
-✏️ lib/scrapers/tiktok.ts
-   - R2 업로드 제거
-   - CDN URL 직접 반환
-
-✏️ lib/scrapers/xiaohongshu.ts
-   - R2 업로드 제거
-   - CDN URL 직접 반환
-
 ✏️ vercel.json
-   - refresh-popular 크론 추가
+   - ❌ refresh-popular 크론 제거
+   - ✅ warm-cache 크론만 유지
+
+✏️ lib/cache.ts
+   - TTL: 24시간 → 12시간 (0.5일 = 12시간)
+   - setVideoToMongoDB() 기본값: ttlDays: 1 → 0.5
+   - setVideoToCache() MongoDB 저장: 90일 → 0.5일
+
+✏️ app/api/cron/refresh-popular/route.ts
+   - 문서 업데이트: "Automatic Cron Disabled"
+   - GET: 더 이상 Vercel Cron에서 호출 안 함
+   - POST: 수동 테스트용으로만 유지
+```
+
+### 유지됨 (기존 R2 제거)
+
+```
+✅ app/api/cron/warm-cache/route.ts
+   - 6시간마다 top 20 쿼리 사전 캐시 (선택사항)
+
+✅ lib/cache.ts getPopularQueries()
+   - searchCount 기반 인기 검색어 조회
+
+✅ lib/mongodb.ts
+   - searchCount 인덱스 (이미 추가됨)
+
+✅ lib/scrapers/douyin.ts, tiktok.ts, xiaohongshu.ts
+   - CDN URL 직접 사용 (R2 제거 완료)
 ```
 
 ---
 
 ## API 엔드포인트
 
-### GET /api/cron/refresh-popular
-```bash
-curl -X GET https://yourdomain.com/api/cron/refresh-popular \
-  -H "Authorization: Bearer ${CRON_SECRET}"
+### POST /api/cron/refresh-popular (수동 테스트 전용)
 
-응답:
-{
-  "success": true,
-  "queriesFound": 50,
-  "queriesQueued": 50,
-  "duration": "2500ms"
-}
-```
+**주의**: 자동 갱신이 제거되었습니다. 수동으로만 호출할 수 있습니다.
 
-### POST /api/cron/refresh-popular (테스트)
 ```bash
 curl -X POST https://yourdomain.com/api/cron/refresh-popular \
   -H "Authorization: Bearer ${ADMIN_SECRET}" \
   -H "Content-Type: application/json" \
-  -d '{"minSearchCount": 5, "limit": 50}'
+  -d '{
+    "minSearchCount": 5,
+    "limit": 50
+  }'
 ```
 
----
-
-## Vercel Cron 설정
-
-**vercel.json**
+**응답**:
 ```json
 {
-  "crons": [{
-    "path": "/api/cron/refresh-popular",
-    "schedule": "0 */12 * * *"  // 0시, 12시마다
-  }]
+  "success": true,
+  "queriesFound": 50,
+  "queriesQueued": 50,
+  "duration": "2500ms",
+  "timestamp": "2026-01-30T12:00:00Z"
 }
 ```
 
----
+### GET /api/cron/warm-cache (여전히 자동 실행)
 
-## 예상 결과
-
-### 24시간 내
-```
-✅ 인기 검색어: 12시간마다 자동 갱신 → 항상 유효한 CDN URL
-✅ 일반 검색어: 캐시에서 CDN URL 반환 (유효)
-```
-
-### 24시간 후
-```
-인기 검색어 (5회 이상):
-  ✅ 12시간마다 자동 갱신 → 항상 최신 CDN URL
-
-일반 검색어:
-  ✅ 캐시 만료 → 재검색 시 새 CDN URL 획득
-```
+**상태**: ✅ 여전히 활성화 (6시간마다)
+- 목적: 인기 검색어 상위 20개 사전 캐시
+- 자동 스크래핑 아님, 기존 데이터 갱신만
 
 ---
 
-## 마이그레이션 완료 ✅
+## Vercel Cron 설정 (Phase 2 - 비용 최적화)
 
+**vercel.json** (업데이트됨)
+
+```json
+{
+  "crons": [
+    {
+      "path": "/api/cron/warm-cache",
+      "schedule": "0 */6 * * *"
+    }
+  ]
+}
+```
+
+**변경사항**:
+- ❌ `refresh-popular` (12시간마다) 제거
+- ✅ `warm-cache` (6시간마다) 유지
+
+---
+
+## 사용자 경험 (Phase 2)
+
+### 첫 검색
+
+```
+[0초] 사용자: "프라이팬" 검색
+  ↓
+[~30초] 스크래핑 중...
+  ↓
+[~60초] ✅ 결과 반환 + 캐시 저장
+```
+
+### 12시간 이내 재검색
+
+```
+[0초] 사용자: "프라이팬" 검색
+  ↓
+[즉시] ✅ 캐시 히트 (CDN URL 유효)
+```
+
+### 12시간 후 재검색
+
+```
+[0초] 사용자: "프라이팬" 검색
+  ↓
+[~30초] 캐시 만료 감지 → 재스크래핑 (사용자가 기다림)
+  ↓
+[~60초] ✅ 새로운 CDN URL 반환
+```
+
+**요약**:
+- 12시간 내: 즉시 결과 ✅
+- 12시간 후: 30-60초 대기 (평상시 이용 시간대는 캐시 히트 높음)
+
+---
+
+## 마이그레이션 완료 ✅ (Phase 1 + Phase 2)
+
+### Phase 1: R2 제거 (완료)
 - ✅ R2 완전 제거
 - ✅ CDN URL 직접 사용
-- ✅ 24시간 TTL
-- ✅ 12시간 자동 갱신
-- ✅ MongoDB searchCount 추적
-- ✅ Vercel Cron 설정
+- ✅ 스마트 캐싱 시스템
+
+### Phase 2: 비용 최적화 (2026-01-30 완료)
+- ✅ 자동 갱신 크론 제거 (refresh-popular)
+- ✅ TTL: 24시간 → 12시간 변경
+- ✅ On-Demand 스크래핑 전환
+- ✅ 비용 75% 절감 (400K → 100K Apify 크레딧/월)
 
 **상태**: 배포 준비 완료 🚀
+
+---
+
+## 비용 분석
+
+| 항목 | 예상 비용/월 | 절감율 |
+|------|------------|--------|
+| Phase 1 (R2 제거 후) | 400K + $30 | -$25 (R2) |
+| Phase 2 (자동 갱신 제거) | 100K + $0 | -300K (-75%) |
+
+**결론**: 매월 ~$30 절감 + 300K Apify 크레딧 절감
