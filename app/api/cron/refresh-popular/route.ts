@@ -16,7 +16,7 @@ import { searchQueue } from '@/lib/queue/search-queue';
  * {
  *   "crons": [{
  *     "path": "/api/cron/refresh-popular",
- *     "schedule": "0 */12 * * *"  // 0시, 12시마다 실행
+ *     "schedule": "0 */12 * * *" (매 12시간: 0시, 12시)
  *   }]
  * }
  */
