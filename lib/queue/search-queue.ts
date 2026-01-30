@@ -18,6 +18,7 @@ export interface SearchJobData {
   platform: 'tiktok' | 'douyin' | 'xiaohongshu'
   dateRange?: string
   isRecrawl?: boolean  // Flag indicating this is a recrawl due to CDN URL expiration
+  isAutoRefresh?: boolean  // Flag indicating this is an auto-refresh from cron job
 }
 
 /**
