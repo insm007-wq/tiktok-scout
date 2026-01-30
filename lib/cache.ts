@@ -1,7 +1,7 @@
 /**
  * 계층형 캐시 시스템: L1(메모리) + L2(MongoDB)
  * - L1: LRU 메모리 캐시 (24시간 TTL, 최대 10,000 항목)
- * - L2: MongoDB 캐시 (90일 TTL, 영구 저장)
+ * - L2: MongoDB 캐시 (12시간 TTL, On-Demand 스크래핑)
  */
 
 import { VideoResult, Platform } from '@/types/video';
@@ -382,32 +382,5 @@ export async function clearSearchCache(
   } catch (error) {
     console.error('[Cache] Error clearing search cache:', error);
     // 에러를 throw하지 않음 (취소 작업은 계속 진행되어야 함)
-  }
-}
-
-/**
- * 인기 검색어 조회 (자동 갱신용)
- * @param minSearchCount - 최소 검색 횟수 (기본값: 5)
- * @param limit - 반환 개수 (기본값: 50)
- */
-export async function getPopularQueries(
-  minSearchCount: number = 5,
-  limit: number = 50
-): Promise<VideoCacheDocument[]> {
-  try {
-    const db = await getDb();
-
-    const popular = await db.collection<VideoCacheDocument>('video_cache')
-      .find({ searchCount: { $gte: minSearchCount } })
-      .sort({ searchCount: -1 })
-      .limit(limit)
-      .toArray();
-
-    console.log(`[Cache] 📊 Found ${popular.length} popular queries (min searchCount: ${minSearchCount})`);
-
-    return popular;
-  } catch (error) {
-    console.error('[Cache] Error getting popular queries:', error);
-    return [];
   }
 }
