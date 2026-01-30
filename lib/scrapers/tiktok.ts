@@ -1,6 +1,5 @@
 import { VideoResult } from '@/types/video';
 import { fetchWithRetry, fetchPostWithRetry, fetchGetWithRetry } from '@/lib/utils/fetch-with-retry';
-import { uploadMediaToR2 } from '@/lib/storage/r2';
 
 /**
  * TikTok 영상 검색 (Api Dojo TikTok Scraper)
@@ -119,7 +118,7 @@ export async function searchTikTokVideos(
     }
 
 
-    // 결과 변환 (R2 업로드)
+    // 결과 변환 (CDN URL 직접 사용, R2 업로드 제거)
     const results = await Promise.all(
       dataset.slice(0, Math.min(limit, 50)).map(async (item: any, index: number) => {
         const hashtags = Array.isArray(item.hashtags)
@@ -142,25 +141,12 @@ export async function searchTikTokVideos(
                          item.videoCover ||
                          undefined;
 
-        // ✅ NEW: CDN URL 수신 로깅
+        // ✅ CDN URL 수신 (R2 업로드 없음)
         console.log(`[Scraper:TikTok] 🖼️ CDN URL received`, {
           videoId: item.id || `video-${index}`,
           hasThumbnail: !!tiktokThumbnail,
           thumbnailPreview: tiktokThumbnail ? tiktokThumbnail.substring(0, 60) : 'N/A',
           hasVideo: !!videoUrl,
-        });
-
-        // R2에 업로드 (원본 CDN URL 영구 보존용)
-        const r2Media = await uploadMediaToR2(tiktokThumbnail, videoUrl);
-
-        // ✅ NEW: R2 업로드 결과 로깅
-        const finalThumbnail = r2Media.thumbnail || tiktokThumbnail;
-        const thumbnailType = r2Media.thumbnail ? 'R2' : (tiktokThumbnail ? 'CDN' : 'NONE');
-        console.log(`[Scraper:TikTok] 📦 R2 upload result`, {
-          videoId: item.id || `video-${index}`,
-          thumbnailType,
-          r2Success: !!r2Media.thumbnail,
-          finalUrl: finalThumbnail ? finalThumbnail.substring(0, 60) : 'N/A',
         });
 
         return {
@@ -177,8 +163,8 @@ export async function searchTikTokVideos(
           createTime: item.uploadedAt ? parseInt(String(item.uploadedAt)) * 1000 : Date.now(),
           videoDuration: item.video?.duration ? parseInt(String(item.video.duration)) : 0,
           hashtags: hashtags,
-          thumbnail: finalThumbnail,
-          videoUrl: r2Media.video || videoUrl,
+          thumbnail: tiktokThumbnail,
+          videoUrl: videoUrl,
           webVideoUrl: webVideoUrl,
         };
       })

@@ -921,6 +921,13 @@ export default function Search() {
           // ✅ 새로운: 최신 비디오 데이터 가져오기
           const freshVideos = statusData.data || [];
           console.log("[Recrawl] Fresh videos count:", freshVideos.length);
+          console.log("[Recrawl] DEBUG: statusData structure:", {
+            hasData: !!statusData.data,
+            isArray: Array.isArray(freshVideos),
+            length: freshVideos.length,
+            firstVideoId: freshVideos[0]?.id,
+            firstVideoTitle: freshVideos[0]?.title?.substring(0, 50),
+          });
 
           addToast("success", "새로운 데이터를 가져왔습니다!", "✅ 완료", 3000);
 
@@ -1027,6 +1034,12 @@ export default function Search() {
 
           if (result.success && result.videos) {
             console.log("[Download] Recrawl completed, searching for fresh video data...");
+            console.log("[Download] DEBUG: Video matching info:", {
+              originalVideoId: video.id,
+              freshVideosCount: result.videos.length,
+              freshVideoIds: result.videos.slice(0, 3).map(v => v.id),
+              idMatch: result.videos.some(v => v.id === video.id),
+            });
 
             // ✅ ID로 새 결과에서 같은 비디오 찾기
             const freshVideo = result.videos.find(v => v.id === video.id);
@@ -1128,6 +1141,7 @@ export default function Search() {
           videoUrl: video.videoUrl,
           videoId: video.id,
           platform,
+          format: "text",
         }),
       });
 
@@ -1220,13 +1234,13 @@ export default function Search() {
         throw new Error(error.error || "자막 추출 실패");
       }
 
-      // SRT 파일 다운로드 (플랫폼별 파일명)
+      // 텍스트 파일 다운로드 (플랫폼별 파일명)
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       const filePrefix = platform === 'douyin' ? 'douyin' : 'tiktok';
-      link.download = `${filePrefix}_${video.id}_subtitles.srt`;
+      link.download = `${filePrefix}_${video.id}_subtitles.txt`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

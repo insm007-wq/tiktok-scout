@@ -1,7 +1,6 @@
 import { VideoResult } from '@/types/video';
 import { parseXiaohongshuTime } from '@/lib/utils/xiaohongshuTimeParser';
 import { fetchPostWithRetry, fetchGetWithRetry } from '@/lib/utils/fetch-with-retry';
-import { uploadMediaToR2 } from '@/lib/storage/r2';
 
 /**
  * Xiaohongshu(小红书) 영상 검색 (easyapi Search Scraper)
@@ -157,19 +156,7 @@ export async function searchXiaohongshuVideos(
           hasVideo: false,
         });
 
-        // R2에 업로드 (원본 CDN URL 영구 보존용)
-        const r2Media = await uploadMediaToR2(thumbnail, undefined);
-
-        // ✅ NEW: R2 업로드 결과 로깅
-        const finalThumbnail = r2Media.thumbnail || thumbnail;
-        const thumbnailType = r2Media.thumbnail ? 'R2' : (thumbnail ? 'CDN' : 'NONE');
-        console.log(`[Scraper:Xiaohongshu] 📦 R2 upload result`, {
-          videoId: item.item?.id || item.id || `xiaohongshu-${index}`,
-          thumbnailType,
-          r2Success: !!r2Media.thumbnail,
-          finalUrl: finalThumbnail ? finalThumbnail.substring(0, 60) : 'N/A',
-        });
-
+        // ✅ CDN URL 직접 사용 (R2 업로드 제거)
         return {
           id: item.item?.id || item.id || `xiaohongshu-${index}`,
           title: title,
@@ -187,7 +174,7 @@ export async function searchXiaohongshuVideos(
             item.item?.note_card?.video?.media?.duration ||
             0,
           hashtags: [],
-          thumbnail: finalThumbnail,
+          thumbnail: thumbnail,
           videoUrl: undefined,
           webVideoUrl: item.link || item.postUrl || item.url || undefined,
         };
@@ -383,19 +370,7 @@ export async function searchXiaohongshuVideosParallel(
           hasVideo: false,
         });
 
-        // R2에 업로드 (원본 CDN URL 영구 보존용)
-        const r2Media = await uploadMediaToR2(thumbnail, undefined);
-
-        // ✅ NEW: R2 업로드 결과 로깅
-        const finalThumbnail = r2Media.thumbnail || thumbnail;
-        const thumbnailType = r2Media.thumbnail ? 'R2' : (thumbnail ? 'CDN' : 'NONE');
-        console.log(`[Scraper:Xiaohongshu] 📦 R2 upload result`, {
-          videoId: item.item?.id || item.id || `xiaohongshu-${index}`,
-          thumbnailType,
-          r2Success: !!r2Media.thumbnail,
-          finalUrl: finalThumbnail ? finalThumbnail.substring(0, 60) : 'N/A',
-        });
-
+        // ✅ CDN URL 직접 사용 (R2 업로드 제거)
         return {
           id: item.item?.id || item.id || `xiaohongshu-${index}`,
           title: title,
@@ -413,7 +388,7 @@ export async function searchXiaohongshuVideosParallel(
             item.item?.note_card?.video?.media?.duration ||
             0,
           hashtags: [],
-          thumbnail: finalThumbnail,
+          thumbnail: thumbnail,
           videoUrl: undefined,
           webVideoUrl: item.link || item.postUrl || item.url || undefined,
         };

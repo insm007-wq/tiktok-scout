@@ -12,9 +12,11 @@ export interface VideoCacheDocument {
   videos: VideoResult[];               // 영상 목록
   videoCount: number;                  // 결과 개수
   createdAt: Date;                     // 캐시 생성 시간
-  expiresAt: Date;                     // 만료 시간 (TTL 인덱스)
+  expiresAt: Date;                     // 만료 시간 (24시간 TTL)
   accessCount: number;                 // 조회 횟수 (인기도 추적)
   lastAccessedAt: Date;                // 마지막 조회 시간
+  searchCount: number;                 // 누적 검색 횟수 (인기 검색어 판정용)
+  lastRefreshedAt?: Date;              // 마지막 자동 갱신 시간
 }
 
 /**

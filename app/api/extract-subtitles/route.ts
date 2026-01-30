@@ -1,9 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchWithRetry } from '@/lib/utils/fetch-with-retry';
 
+// SRT를 순수 텍스트로 변환 (시간, 씬 번호 제거)
+function parseSrtToText(srtContent: string): string {
+  return srtContent
+    .split('\n')
+    .filter(line => {
+      // 빈 줄 제거
+      if (!line.trim()) return false;
+      // 숫자만 있는 줄 제거 (씬 번호)
+      if (/^\d+$/.test(line.trim())) return false;
+      // 타이밍 줄 제거 (XX:XX:XX,XXX --> XX:XX:XX,XXX)
+      if (line.includes('-->')) return false;
+      return true;
+    })
+    .join('\n')
+    .trim();
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { videoUrl, videoId, platform = 'tiktok', webVideoUrl } = await req.json();
+    const { videoUrl, videoId, platform = 'tiktok', webVideoUrl, format = 'text' } = await req.json();
 
     // TikTok과 Douyin만 지원 (Xiaohongshu는 향후 추가)
     if (platform !== 'tiktok' && platform !== 'douyin') {
@@ -215,13 +232,24 @@ export async function POST(req: NextRequest) {
 
     console.log('[ExtractSubtitles] ✅ Subtitle extraction successful');
 
-    // SRT 파일 반환 (플랫폼별 파일명)
+    // 포맷에 따라 변환
     const filePrefix = platform === 'douyin' ? 'douyin' : 'tiktok';
-    return new NextResponse(srtContent, {
+    let content = srtContent;
+    let fileName = `${filePrefix}_${videoId}_subtitles.srt`;
+    let fileExt = 'srt';
+
+    if (format === 'text') {
+      content = parseSrtToText(srtContent);
+      fileName = `${filePrefix}_${videoId}_subtitles.txt`;
+      fileExt = 'txt';
+    }
+
+    // 파일 반환
+    return new NextResponse(content, {
       status: 200,
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
-        'Content-Disposition': `attachment; filename="${filePrefix}_${videoId}_subtitles.srt"`,
+        'Content-Disposition': `attachment; filename="${fileName}"`,
         'Cache-Control': 'no-cache',
       },
     });

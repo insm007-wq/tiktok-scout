@@ -188,10 +188,15 @@ export async function getVideoFromMongoDB(
     }
 
     // 조회 통계 업데이트 (비동기로 실행)
+    // searchCount: 사용자 검색 횟수 (인기도 판정용)
+    // accessCount: 전체 조회 횟수
     db.collection('video_cache').updateOne(
       { cacheKey },
       {
-        $inc: { accessCount: 1 },
+        $inc: {
+          accessCount: 1,
+          searchCount: 1  // 사용자 검색 카운터 증가
+        },
         $set: { lastAccessedAt: new Date() }
       }
     ).catch(() => {});
@@ -204,14 +209,14 @@ export async function getVideoFromMongoDB(
 
 /**
  * MongoDB에 영상 캐시 저장 (L2 캐시)
- * @param ttlDays - 캐시 유지 기간 (기본값: 90일)
+ * @param ttlDays - 캐시 유지 기간 (기본값: 1일 - 24시간 TTL)
  */
 export async function setVideoToMongoDB(
   query: string,
   platform: Platform,
   videos: VideoResult[],
   dateRange?: string,
-  ttlDays: number = 90
+  ttlDays: number = 1  // ✅ Changed: 24시간 TTL (1일)
 ): Promise<void> {
   try {
     const db = await getDb();
@@ -227,6 +232,7 @@ export async function setVideoToMongoDB(
       createdAt: new Date(),
       expiresAt: new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000),
       accessCount: 1,
+      searchCount: 0,  // ✅ NEW: 초기화 (getVideoFromMongoDB에서 증가)
       lastAccessedAt: new Date(),
     };
 
@@ -374,5 +380,32 @@ export async function clearSearchCache(
   } catch (error) {
     console.error('[Cache] Error clearing search cache:', error);
     // 에러를 throw하지 않음 (취소 작업은 계속 진행되어야 함)
+  }
+}
+
+/**
+ * 인기 검색어 조회 (자동 갱신용)
+ * @param minSearchCount - 최소 검색 횟수 (기본값: 5)
+ * @param limit - 반환 개수 (기본값: 50)
+ */
+export async function getPopularQueries(
+  minSearchCount: number = 5,
+  limit: number = 50
+): Promise<VideoCacheDocument[]> {
+  try {
+    const db = await getDb();
+
+    const popular = await db.collection<VideoCacheDocument>('video_cache')
+      .find({ searchCount: { $gte: minSearchCount } })
+      .sort({ searchCount: -1 })
+      .limit(limit)
+      .toArray();
+
+    console.log(`[Cache] 📊 Found ${popular.length} popular queries (min searchCount: ${minSearchCount})`);
+
+    return popular;
+  } catch (error) {
+    console.error('[Cache] Error getting popular queries:', error);
+    return [];
   }
 }
