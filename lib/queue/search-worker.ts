@@ -15,60 +15,10 @@ import {
   RATE_LIMITER_MAX,
   RATE_LIMITER_DURATION,
   QUEUE_NAME,
-  RAILWAY_TIMEOUT,
 } from './constants'
 
 const CONCURRENCY = process.env.WORKER_CONCURRENCY ? parseInt(process.env.WORKER_CONCURRENCY) : DEFAULT_WORKER_CONCURRENCY
-const RAILWAY_URL = process.env.RAILWAY_SERVER_URL
-const RAILWAY_SECRET = process.env.RAILWAY_API_SECRET
 const APIFY_KEY = process.env.APIFY_API_KEY
-
-/**
- * Scrape videos via Railway server (production environment)
- * Falls back to local scraper if Railway is not available or fails
- * @param query - Search query
- * @param platform - Video platform (tiktok, douyin, or xiaohongshu)
- * @param dateRange - Optional date range for filtering results
- * @returns Array of videos or null if scraping fails
- */
-async function scrapeViaRailway(
-  query: string,
-  platform: 'tiktok' | 'douyin' | 'xiaohongshu',
-  dateRange?: string
-): Promise<any[] | null> {
-  if (!RAILWAY_URL || !RAILWAY_SECRET) {
-    return null
-  }
-
-  try {
-    const response = await fetch(`${RAILWAY_URL}/api/scrape`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': RAILWAY_SECRET,
-      },
-      body: JSON.stringify({
-        query,
-        platform,
-        limit: MAX_VIDEOS_PER_SEARCH,
-        dateRange,
-      }),
-      signal: AbortSignal.timeout(RAILWAY_TIMEOUT), // 2 minute timeout
-    })
-
-    const data = await response.json()
-
-    if (response.ok && data.success && Array.isArray(data.videos)) {
-      return data.videos
-    }
-    return null
-  } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[Worker] Railway scraping failed:', error instanceof Error ? error.message : String(error))
-    }
-    return null
-  }
-}
 
 /**
  * Classifies scraping errors into specific error types for better debugging
@@ -108,28 +58,23 @@ const worker = new Worker<SearchJobData>(
     let videos
 
     try {
-      // Try scraping via Railway server first (production)
-      videos = await scrapeViaRailway(query, platform, dateRange)
+      // Use local scrapers (via Apify API)
+      if (!APIFY_KEY) {
+        throw new Error('APIFY_KEY environment variable not configured')
+      }
 
-      // Fallback to local scrapers if Railway unavailable or failed
-      if (!videos || videos.length === 0) {
-        if (!APIFY_KEY) {
-          throw new Error('APIFY_KEY environment variable not configured')
-        }
-
-        switch (platform) {
-          case 'tiktok':
-            videos = await searchTikTokVideos(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
-            break
-          case 'douyin':
-            videos = await searchDouyinVideosParallel(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
-            break
-          case 'xiaohongshu':
-            videos = await searchXiaohongshuVideosParallel(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
-            break
-          default:
-            throw new Error(`Unknown platform: ${platform}`)
-        }
+      switch (platform) {
+        case 'tiktok':
+          videos = await searchTikTokVideos(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
+          break
+        case 'douyin':
+          videos = await searchDouyinVideosParallel(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
+          break
+        case 'xiaohongshu':
+          videos = await searchXiaohongshuVideosParallel(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
+          break
+        default:
+          throw new Error(`Unknown platform: ${platform}`)
       }
 
       try {
