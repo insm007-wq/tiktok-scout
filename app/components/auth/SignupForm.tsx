@@ -262,23 +262,23 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
           )}
         </div>
 
-        {/* 초대 코드 */}
+        {/* 접근 코드 */}
         <div>
           <label htmlFor="invitationCode" className="block text-sm font-medium text-white/90 mb-2">
-            초대 코드 <span className="text-red-400">*</span>
+            접근 코드 <span className="text-red-400">*</span>
           </label>
           <input
             id="invitationCode"
             type="text"
             value={formData.invitationCode || ''}
             onChange={(e) => setFormData({ ...formData, invitationCode: e.target.value })}
-            placeholder="관리자로부터 받은 초대 코드를 입력해주세요"
+            placeholder="접근 코드를 입력해주세요"
             className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all uppercase"
           />
           {fieldErrors.invitationCode && (
             <p className="text-red-400 text-sm mt-1">{fieldErrors.invitationCode[0]}</p>
           )}
-          <p className="text-white/50 text-xs mt-1">관리자로부터 받은 초대 코드를 입력해주세요</p>
+          <p className="text-white/50 text-xs mt-1">서비스 이용을 위한 접근 코드를 입력해주세요</p>
         </div>
 
         {error && (

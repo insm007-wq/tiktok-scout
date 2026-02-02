@@ -28,9 +28,7 @@ export const infoSchema = z
 
     invitationCode: z
       .string()
-      .min(6, '초대 코드는 6자 이상이어야 합니다')
-      .max(50, '초대 코드는 50자 이하여야 합니다')
-      .regex(/^[A-Za-z0-9-]+$/, '초대 코드는 영문, 숫자, 하이픈만 사용 가능합니다')
+      .refine(val => val.trim().toUpperCase() === 'DONBOK', '유효하지 않은 접근 코드입니다.')
       .transform(val => val.trim().toUpperCase()),
   })
   .refine((data) => data.password === data.passwordConfirm, {
@@ -107,9 +105,7 @@ export const signupSchema = z
 
     invitationCode: z
       .string()
-      .min(6, '초대 코드는 6자 이상이어야 합니다')
-      .max(50, '초대 코드는 50자 이하여야 합니다')
-      .regex(/^[A-Za-z0-9-]+$/, '초대 코드는 영문, 숫자, 하이픈만 사용 가능합니다')
+      .refine(val => val.trim().toUpperCase() === 'DONBOK', '유효하지 않은 접근 코드입니다.')
       .transform(val => val.trim().toUpperCase()),
 
     wantsTextbook: z.boolean(),

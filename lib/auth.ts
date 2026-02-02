@@ -28,9 +28,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: 'Email', type: 'email', placeholder: 'example@example.com' },
         password: { label: 'Password', type: 'password' },
+        accessCode: { label: 'Access Code', type: 'text' },
       },
       async authorize(credentials) {
-        // 입력값 검증
+        // 입력값 검증 - accessCode는 선택사항
         if (!credentials?.email || !credentials?.password) {
           console.warn('[Auth] 이메일 또는 비밀번호 누락')
           return null
@@ -39,6 +40,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           const email = credentials.email as string
           const password = credentials.password as string
+          const accessCode = (credentials.accessCode as string || '').trim().toUpperCase()
 
           // 사용자 조회
           const user = await getUserById(email)
@@ -69,7 +71,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // 관리자 승인 확인
           if (!user.isApproved) {
             console.warn('[Auth] 승인 대기 중')
-            throw new Error('PENDING_APPROVAL')
+            return {
+              id: user._id?.toString() || email,
+              email: user.email,
+              name: user.name,
+              image: user.image,
+              isAdmin: user.isAdmin || false,
+              isApproved: user.isApproved || false,
+              isVerified: user.isVerified || false,
+              phone: user.phone,
+              _error: 'PENDING_APPROVAL',
+            } as any
           }
 
           // 계정 차단 확인
@@ -90,6 +102,58 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return null
           }
 
+          // ✨ 핵심 로직: hasAccessCode 확인
+          if (!user.hasAccessCode) {
+            // 접근 코드가 필요한 사용자
+            if (!accessCode) {
+              console.warn('[Auth] 접근 코드 필요')
+              // 에러를 User 객체에 담아서 반환
+              return {
+                id: user._id?.toString() || email,
+                email: user.email,
+                name: user.name,
+                image: user.image,
+                isAdmin: user.isAdmin || false,
+                isApproved: user.isApproved || false,
+                isVerified: user.isVerified || false,
+                phone: user.phone,
+                _error: 'ACCESS_CODE_REQUIRED',
+              } as any
+            }
+
+            // 접근 코드 검증
+            if (accessCode !== 'DONBOK') {
+              console.warn('[Auth] 유효하지 않은 접근 코드')
+              return {
+                id: user._id?.toString() || email,
+                email: user.email,
+                name: user.name,
+                image: user.image,
+                isAdmin: user.isAdmin || false,
+                isApproved: user.isApproved || false,
+                isVerified: user.isVerified || false,
+                phone: user.phone,
+                _error: 'INVALID_ACCESS_CODE',
+              } as any
+            }
+
+            // 접근 코드 검증 성공 → DB 업데이트
+            const { connectToDatabase } = await import('./mongodb')
+            const { db } = await connectToDatabase()
+            await db.collection('users').updateOne(
+              { email },
+              {
+                $set: {
+                  hasAccessCode: true,
+                  accessCodeUsedAt: new Date(),
+                  updatedAt: new Date(),
+                },
+              }
+            )
+            console.log(`[Auth] ✓ 접근 코드 인증 완료: ${email}`)
+          }
+          // hasAccessCode: true인 경우 → 코드 검증 생략
+
           console.log('[Auth] 로그인 성공')
 
           return {
@@ -104,7 +168,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
         } catch (error) {
           console.error('[Auth] 인증 중 오류:', error)
-          return null
+          throw error
         }
       },
     }),
@@ -135,6 +199,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
 
   callbacks: {
+    async signIn({ user }) {
+      // _error 필드가 있으면 로그인은 진행하되, 토큰에 에러 정보 저장
+      if ((user as any)._error) {
+        const errorCode = (user as any)._error
+        console.log(`[Auth] signIn 콜백: 에러 감지 - ${errorCode}`)
+      }
+      return true
+    },
+
     async jwt({ token, user, trigger, session }) {
       // 초기 로그인
       if (user) {
@@ -146,6 +219,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.isApproved = user.isApproved
         token.isVerified = user.isVerified
         token.phone = user.phone
+        // _error가 있으면 토큰에 저장
+        if ((user as any)._error) {
+          (token as any)._error = (user as any)._error
+        }
       }
 
       // 세션 업데이트 시 (update 호출)
@@ -168,6 +245,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.isApproved = token.isApproved as boolean
         session.user.isVerified = token.isVerified as boolean
         session.user.phone = token.phone as string | undefined
+      }
+      // _error가 있으면 session에 노출
+      if ((token as any)._error) {
+        (session as any)._error = (token as any)._error
       }
       return session
     },

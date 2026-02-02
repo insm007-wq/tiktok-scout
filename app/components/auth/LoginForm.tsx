@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { signIn } from 'next-auth/react'
+import { signIn, signOut, getSession } from 'next-auth/react'
 import { loginSchema, type LoginFormData } from '@/lib/validations/auth'
 import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react'
 
@@ -17,9 +17,11 @@ export default function LoginForm() {
     rememberMe: false,
   })
 
+  const [accessCode, setAccessCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
   const [showPassword, setShowPassword] = useState(false)
+  const [showAccessCodeField, setShowAccessCodeField] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
 
   // URL의 error 파라미터 확인 (페이지 로드 시)
@@ -28,6 +30,12 @@ export default function LoginForm() {
     if (errorParam) {
       if (errorParam === 'CredentialsSignin') {
         setError('아이디 또는 비밀번호를 확인해주세요.')
+      } else if (errorParam === 'ACCESS_CODE_REQUIRED') {
+        setShowAccessCodeField(true)
+        setError('접근 코드를 입력해주세요. 첫 로그인 시 코드가 필요합니다.')
+      } else if (errorParam === 'INVALID_ACCESS_CODE') {
+        setShowAccessCodeField(true)
+        setError('유효하지 않은 접근 코드입니다.')
       } else if (errorParam === 'PENDING_APPROVAL') {
         setError('승인 대기 중입니다. 관리자 승인 후 로그인 가능합니다.')
       } else if (errorParam === 'SMS_NOT_VERIFIED') {
@@ -56,32 +64,68 @@ export default function LoginForm() {
     setLoading(true)
 
     try {
-      // NextAuth signIn 호출
+      // NextAuth signIn 호출 (accessCode는 선택사항)
       const response = await signIn('credentials', {
         email: result.data.email,
         password: result.data.password,
+        accessCode: accessCode.trim() || '', // 빈 문자열도 허용
         redirect: false,
       })
 
-      if (response?.error) {
+      if (!response?.ok) {
+        // response?.url에서 에러 파라미터 추출 (signIn 콜백에서 리다이렉트 경로를 반환한 경우)
+        const errorFromUrl = response?.url ? new URL(response.url, window.location.origin).searchParams.get('error') : null
+        const errorCode = errorFromUrl || response?.error
+
         // 에러 코드에 따라 메시지 분리
-        if (response?.error === 'PENDING_APPROVAL') {
+        if (errorCode === 'ACCESS_CODE_REQUIRED') {
+          setShowAccessCodeField(true)
+          setError('접근 코드를 입력해주세요. 첫 로그인 시 코드가 필요합니다.')
+          return
+        } else if (errorCode === 'INVALID_ACCESS_CODE') {
+          setShowAccessCodeField(true)
+          setError('유효하지 않은 접근 코드입니다.')
+          return
+        } else if (errorCode === 'PENDING_APPROVAL') {
           setError('승인 대기 중입니다. 관리자 승인 후 로그인 가능합니다.')
-        } else if (response?.error === 'SMS_NOT_VERIFIED') {
+        } else if (errorCode === 'SMS_NOT_VERIFIED') {
           setError('SMS 인증을 완료해주세요.')
-        } else if (response?.error === 'ACCOUNT_BANNED') {
+        } else if (errorCode === 'ACCOUNT_BANNED') {
           setError('차단된 계정입니다. 관리자에게 문의하세요.')
-        } else if (response?.error === 'ACCOUNT_DISABLED') {
+        } else if (errorCode === 'ACCOUNT_DISABLED') {
           setError('비활성화된 계정입니다.')
-        } else if (response?.error === 'INVALID_CREDENTIALS' || response?.error === 'CredentialsSignin') {
+        } else if (errorCode === 'INVALID_CREDENTIALS' || errorCode === 'CredentialsSignin') {
           setError('아이디 또는 비밀번호를 확인해주세요.')
         } else {
-          setError(`로그인 실패: ${response?.error || '알 수 없는 오류'}`)
+          setError(`로그인 실패: ${errorCode || '알 수 없는 오류'}`)
         }
         return
       }
 
-      // 로그인 성공
+      // 로그인 성공 → session에서 _error 확인
+      const session = await getSession()
+      const sessionError = (session as any)?._error
+
+      if (sessionError === 'ACCESS_CODE_REQUIRED') {
+        // 접근 코드가 필요한 경우
+        await signOut({ redirect: false })
+        setShowAccessCodeField(true)
+        setError('접근 코드를 입력해주세요. 첫 로그인 시 코드가 필요합니다.')
+        return
+      } else if (sessionError === 'INVALID_ACCESS_CODE') {
+        // 잘못된 접근 코드
+        await signOut({ redirect: false })
+        setShowAccessCodeField(true)
+        setError('유효하지 않은 접근 코드입니다.')
+        return
+      } else if (sessionError === 'PENDING_APPROVAL') {
+        // 승인 대기 중
+        await signOut({ redirect: false })
+        setError('승인 대기 중입니다. 관리자 승인 후 로그인 가능합니다.')
+        return
+      }
+
+      // 실제 로그인 성공
       router.push(callbackUrl)
       router.refresh()
     } catch (err) {
@@ -152,6 +196,27 @@ export default function LoginForm() {
         />
         <span className="text-sm text-white/70">로그인 상태 유지</span>
       </label>
+
+      {/* 접근 코드 - 필요할 때만 표시 */}
+      {showAccessCodeField && (
+        <div>
+          <label htmlFor="accessCode" className="block text-sm font-medium text-white/90 mb-2">
+            접근 코드
+          </label>
+          <input
+            id="accessCode"
+            type="text"
+            value={accessCode}
+            onChange={(e) => setAccessCode(e.target.value)}
+            placeholder="접근 코드를 입력하세요"
+            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all"
+            disabled={loading}
+          />
+          <p className="text-white/50 text-xs mt-1">
+            💡 첫 로그인 시 필요한 코드입니다
+          </p>
+        </div>
+      )}
 
       {/* 에러 메시지 */}
       {error && (

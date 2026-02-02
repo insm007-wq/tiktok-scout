@@ -35,6 +35,8 @@ interface User {
   isWithdrawn?: boolean  // 회원 탈퇴 여부
   withdrawnAt?: Date  // 탈퇴 일시
   withdrawalExpiresAt?: Date  // 재가입 허용 일시 (탈퇴 + 14일)
+  hasAccessCode?: boolean  // 접근 코드 입력 여부
+  accessCodeUsedAt?: Date  // 코드 입력 시점
 }
 
 function getUsersCollection(db: Db): Collection<User> {
