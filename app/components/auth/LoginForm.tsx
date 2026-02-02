@@ -33,6 +33,9 @@ export default function LoginForm() {
       } else if (errorParam === 'ACCESS_CODE_REQUIRED') {
         setShowAccessCodeField(true)
         setError('접근 코드를 입력해주세요. 첫 로그인 시 코드가 필요합니다.')
+      } else if (errorParam === 'ACCESS_CODE_EXPIRED') {
+        setShowAccessCodeField(true)
+        setError('접근 코드가 만료되었습니다. 다시 입력해주세요.')
       } else if (errorParam === 'INVALID_ACCESS_CODE') {
         setShowAccessCodeField(true)
         setError('유효하지 않은 접근 코드입니다.')
@@ -82,6 +85,10 @@ export default function LoginForm() {
           setShowAccessCodeField(true)
           setError('접근 코드를 입력해주세요. 첫 로그인 시 코드가 필요합니다.')
           return
+        } else if (errorCode === 'ACCESS_CODE_EXPIRED') {
+          setShowAccessCodeField(true)
+          setError('접근 코드가 만료되었습니다. 다시 입력해주세요.')
+          return
         } else if (errorCode === 'INVALID_ACCESS_CODE') {
           setShowAccessCodeField(true)
           setError('유효하지 않은 접근 코드입니다.')
@@ -111,6 +118,12 @@ export default function LoginForm() {
         await signOut({ redirect: false })
         setShowAccessCodeField(true)
         setError('접근 코드를 입력해주세요. 첫 로그인 시 코드가 필요합니다.')
+        return
+      } else if (sessionError === 'ACCESS_CODE_EXPIRED') {
+        // 접근 코드가 만료된 경우
+        await signOut({ redirect: false })
+        setShowAccessCodeField(true)
+        setError('접근 코드가 만료되었습니다. 다시 입력해주세요.')
         return
       } else if (sessionError === 'INVALID_ACCESS_CODE') {
         // 잘못된 접근 코드

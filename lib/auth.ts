@@ -102,11 +102,38 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return null
           }
 
-          // ✨ 핵심 로직: hasAccessCode 확인
+          // ✨ 3개월(90일) 만료 체크
+          const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000
+          let isExpired = false
+
+          if (user.hasAccessCode && user.accessCodeUsedAt) {
+            isExpired = Date.now() - new Date(user.accessCodeUsedAt).getTime() > THREE_MONTHS_MS
+
+            // 만료 시 hasAccessCode를 false로 재설정
+            if (isExpired) {
+              console.warn('[Auth] 접근 코드 만료됨')
+              const { connectToDatabase } = await import('./mongodb')
+              const { db } = await connectToDatabase()
+              await db.collection('users').updateOne(
+                { email },
+                {
+                  $set: {
+                    hasAccessCode: false,
+                    updatedAt: new Date()
+                  }
+                }
+              )
+              user.hasAccessCode = false
+            }
+          }
+
+          // 접근 코드가 필요하거나 만료된 경우
           if (!user.hasAccessCode) {
             // 접근 코드가 필요한 사용자
             if (!accessCode) {
               console.warn('[Auth] 접근 코드 필요')
+              // 만료 여부에 따라 다른 에러 반환
+              const errorCode = isExpired ? 'ACCESS_CODE_EXPIRED' : 'ACCESS_CODE_REQUIRED'
               // 에러를 User 객체에 담아서 반환
               return {
                 id: user._id?.toString() || email,
@@ -117,7 +144,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 isApproved: user.isApproved || false,
                 isVerified: user.isVerified || false,
                 phone: user.phone,
-                _error: 'ACCESS_CODE_REQUIRED',
+                _error: errorCode,
               } as any
             }
 
