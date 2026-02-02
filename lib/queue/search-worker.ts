@@ -55,7 +55,7 @@ const worker = new Worker<SearchJobData>(
       // Progress update failure is non-critical, continue processing
     }
 
-    let videos
+    let videos: any[] = []
 
     try {
       // Use local scrapers (via Apify API)

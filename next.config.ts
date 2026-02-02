@@ -1,12 +1,12 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
-  // ✅ 보안 헤더 추가 (정적 파일 제외)
+  // ✅ 보안 헤더 추가
   async headers() {
     return [
       {
-        // 정적 파일 제외: 이미지, 매니페스트, robots.txt, favicon 등
-        source: '/((?!.*\\.(png|jpg|jpeg|gif|svg|ico|webmanifest|txt)$).*)',
+        // 모든 경로에 보안 헤더 적용
+        source: '/:path*',
         headers: [
           {
             key: 'X-Content-Type-Options',
