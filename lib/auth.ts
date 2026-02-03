@@ -20,6 +20,13 @@ declare module 'next-auth' {
   }
 }
 
+// 로그에서 PII(개인정보) 보호: 이메일 마스킹
+function maskEmail(email: string): string {
+  const atIndex = email.indexOf('@')
+  if (atIndex <= 2) return email // 너무 짧으면 마스킹 안 함
+  return email.substring(0, 2) + '***' + email.substring(atIndex)
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
@@ -182,7 +189,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 },
               }
             )
-            console.log(`[Auth] ✓ 접근 코드 인증 완료: ${email} (${planType})`)
+            console.log(`[Auth] ✓ 접근 코드 인증 완료: ${maskEmail(email)} (${planType})`)
           } else if (accessCode) {
             // 이후 로그인: 코드가 입력되었으면 업그레이드/다운그레이드 검증
 
@@ -237,7 +244,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 // 조건 미충족: 7일이 지나지 않았음
                 const timeSinceLastEntry = Date.now() - new Date(user.lastCodeEnteredAt!).getTime()
                 const remainingDays = Math.ceil((7 * 24 * 60 * 60 * 1000 - timeSinceLastEntry) / (24 * 60 * 60 * 1000))
-                console.warn(`[Auth] 코드 입력 대기 기간 확인: ${email} (${remainingDays}일 후 가능)`)
+                console.warn(`[Auth] 코드 입력 대기 기간 확인: ${maskEmail(email)} (${remainingDays}일 후 가능)`)
                 return {
                   id: user._id?.toString() || email,
                   email: user.email,
@@ -252,11 +259,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               }
 
               const planType = accessCode === 'DONBOK' ? '프리미엄 90일' : '스탠다드 30일'
-              console.log(`[Auth] ✓ 코드 업그레이드: ${email} (${currentExpiryDays}일 → ${newExpiryDays}일)`)
+              console.log(`[Auth] ✓ 코드 업그레이드: ${maskEmail(email)} (${currentExpiryDays}일 → ${newExpiryDays}일)`)
 
             } else if (newExpiryDays < currentExpiryDays) {
               // 다운그레이드: 거부
-              console.warn(`[Auth] 코드 다운그레이드 시도: ${email} (${currentExpiryDays}일 → ${newExpiryDays}일)`)
+              console.warn(`[Auth] 코드 다운그레이드 시도: ${maskEmail(email)} (${currentExpiryDays}일 → ${newExpiryDays}일)`)
               return {
                 id: user._id?.toString() || email,
                 email: user.email,
@@ -271,7 +278,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
             } else {
               // 동일한 코드: 이미 등록됨
-              console.warn(`[Auth] 코드 중복 입력 시도: ${email} (${currentExpiryDays}일 이미 등록됨)`)
+              console.warn(`[Auth] 코드 중복 입력 시도: ${maskEmail(email)} (${currentExpiryDays}일 이미 등록됨)`)
               return {
                 id: user._id?.toString() || email,
                 email: user.email,
