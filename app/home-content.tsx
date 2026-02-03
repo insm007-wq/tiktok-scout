@@ -13,7 +13,6 @@ export default function HomeContent() {
     setIsRefreshing(true);
     setTimeout(() => {
       setIsRefreshing(false);
-      window.location.reload();
     }, 600);
   };
 
