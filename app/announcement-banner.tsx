@@ -34,7 +34,7 @@ export default function AnnouncementBanner() {
           <ul className={styles.bannerList}>
             <li>
               <span className={styles.checkmark}>✔</span>
-              <span>일주일 체험 코드 입력자 → 3/1까지 자동 연장!</span>
+              <span>기존 사용자는 오늘부터 3월 5일까지 (30일) 무료 이용!</span>
             </li>
             <li>
               <span className={styles.checkmark}>✔</span>
