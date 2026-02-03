@@ -235,9 +235,6 @@ export default function LoginForm() {
             className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all"
             disabled={loading}
           />
-          <p className="text-white/50 text-xs mt-1">
-            💡 DONBOK (90일 프리미엄) 또는 FORMAN (30일 스탠다드)
-          </p>
         </div>
       )}
 
