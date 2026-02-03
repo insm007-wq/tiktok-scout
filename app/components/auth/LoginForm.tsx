@@ -215,7 +215,7 @@ export default function LoginForm() {
         type="button"
         onClick={() => setShowAccessCodeField(!showAccessCodeField)}
         disabled={loading}
-        className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors disabled:opacity-50"
+        className="text-base font-medium text-cyan-400 hover:text-cyan-300 transition-colors disabled:opacity-50"
       >
         {showAccessCodeField ? '✓ 초대 코드 입력' : '+ 초대 코드 입력'}
       </button>
@@ -223,7 +223,7 @@ export default function LoginForm() {
       {/* 접근 코드 - 필요할 때만 표시 */}
       {showAccessCodeField && (
         <div>
-          <label htmlFor="accessCode" className="block text-sm font-medium text-white/90 mb-2">
+          <label htmlFor="accessCode" className="block text-base font-medium text-white/90 mb-2">
             초대 코드
           </label>
           <input
