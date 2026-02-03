@@ -1,25 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { X } from 'lucide-react'
 import styles from './announcement-banner.module.css'
 
 export default function AnnouncementBanner() {
-  const [isVisible, setIsVisible] = useState(false)
-
-  useEffect(() => {
-    // 로컬스토리지에서 오늘 닫았는지 확인
-    const today = new Date().toISOString().split('T')[0]
-    const closedDate = localStorage.getItem('announcementBannerClosed')
-
-    if (closedDate !== today) {
-      setIsVisible(true)
-    }
-  }, [])
+  const [isVisible, setIsVisible] = useState(true)
 
   const handleClose = () => {
-    const today = new Date().toISOString().split('T')[0]
-    localStorage.setItem('announcementBannerClosed', today)
     setIsVisible(false)
   }
 
