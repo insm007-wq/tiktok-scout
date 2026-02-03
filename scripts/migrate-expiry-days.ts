@@ -1,9 +1,19 @@
-import { connectToDatabase } from '../lib/mongodb'
+import { MongoClient } from 'mongodb'
+import dotenv from 'dotenv'
+
+dotenv.config({ path: '.env.local' })
 
 async function migrateExpiryDays() {
   console.log('🔄 기존 사용자 만료 기간 마이그레이션 시작...')
 
-  const { db } = await connectToDatabase()
+  const mongoUrl = process.env.MONGODB_URI
+  if (!mongoUrl) {
+    throw new Error('MONGODB_URI 환경 변수가 설정되지 않았습니다')
+  }
+
+  const client = new MongoClient(mongoUrl)
+  await client.connect()
+  const db = client.db(process.env.DB_NAME || 'tiktok-scout')
   const collection = db.collection('users')
 
   // 1. expiryDays가 없는 모든 사용자에게 30일 설정 (기존 사용자들)
@@ -18,12 +28,15 @@ async function migrateExpiryDays() {
     process.exit(0)
   }
 
-  // 기존 사용자를 30일(FORMAN)로 설정
+  // 기존 사용자를 30일(FORMNA)로 설정
+  // accessCodeUsedAt을 오늘(2024-02-03)로 설정 → 3월 5일 만료
   const result = await collection.updateMany(
     { expiryDays: { $exists: false } },
     {
       $set: {
         expiryDays: 30,
+        accessCodeUsedAt: new Date(), // 오늘부터 30일 카운트
+        hasAccessCode: true, // 기존 사용자도 코드 있는 것으로 표시
         updatedAt: new Date()
       }
     }
@@ -53,10 +66,12 @@ async function migrateExpiryDays() {
   console.log('✅ 검증 2: expiryDays 분포')
   distribution.forEach((item: any) => {
     const days = item._id || '없음'
-    const planName = item._id === 30 ? 'FORMAN(30일)' : item._id === 90 ? 'DONBOK(90일)' : '미설정'
+    const planName = item._id === 30 ? 'FORMNA(30일)' : item._id === 90 ? 'DONBOK(90일)' : '미설정'
     console.log(`   - ${planName}: ${item.count}명`)
   })
 
+  await client.close()
+  console.log('✅ 마이그레이션 완료!')
   process.exit(0)
 }
 
