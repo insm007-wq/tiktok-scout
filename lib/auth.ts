@@ -130,14 +130,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             }
           }
 
-          // 접근 코드가 필요하거나 만료된 경우
+          // 접근 코드 검증 로직
           if (!user.hasAccessCode) {
-            // 접근 코드가 필요한 사용자
+            // 첫 로그인: 접근 코드 필수 (초대 코드가 설정되지 않은 신규 사용자)
             if (!accessCode) {
               console.warn('[Auth] 접근 코드 필요')
-              // 만료 여부에 따라 다른 에러 반환
               const errorCode = isExpired ? 'ACCESS_CODE_EXPIRED' : 'ACCESS_CODE_REQUIRED'
-              // 에러를 User 객체에 담아서 반환
               return {
                 id: user._id?.toString() || email,
                 email: user.email,
@@ -151,17 +149,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               } as any
             }
 
-            // 접근 코드 검증 (DONBOK 또는 FORMAN)
-            let expiryDays = 0
-            let planType = ''
-
-            if (accessCode === 'DONBOK') {
-              expiryDays = 90
-              planType = '프리미엄 90일'
-            } else if (accessCode === 'FORMAN') {
-              expiryDays = 30
-              planType = '스탠다드 30일'
-            } else {
+            // 첫 로그인 시 접근 코드 검증 (DONBOK 또는 FORMAN)
+            if (accessCode !== 'DONBOK' && accessCode !== 'FORMAN') {
               console.warn('[Auth] 유효하지 않은 접근 코드')
               return {
                 id: user._id?.toString() || email,
@@ -176,7 +165,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               } as any
             }
 
-            // 접근 코드 검증 성공 → DB 업데이트
+            // 첫 로그인 성공: expiryDays 설정
+            const expiryDays = accessCode === 'DONBOK' ? 90 : 30
+            const planType = accessCode === 'DONBOK' ? '프리미엄 90일' : '스탠다드 30일'
+
             const { connectToDatabase } = await import('./mongodb')
             const { db } = await connectToDatabase()
             await db.collection('users').updateOne(
@@ -191,8 +183,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               }
             )
             console.log(`[Auth] ✓ 접근 코드 인증 완료: ${email} (${planType})`)
+          } else if (accessCode) {
+            // 이후 로그인: 코드가 입력되었으면 유효성만 검증 (expiryDays 업데이트 안 함)
+            if (accessCode !== 'DONBOK' && accessCode !== 'FORMAN') {
+              console.warn('[Auth] 유효하지 않은 접근 코드')
+              return {
+                id: user._id?.toString() || email,
+                email: user.email,
+                name: user.name,
+                image: user.image,
+                isAdmin: user.isAdmin || false,
+                isApproved: user.isApproved || false,
+                isVerified: user.isVerified || false,
+                phone: user.phone,
+                _error: 'INVALID_ACCESS_CODE',
+              } as any
+            }
+            console.log(`[Auth] ✓ 접근 코드 검증 완료: ${email}`)
           }
-          // hasAccessCode: true인 경우 → 코드 검증 생략
+          // hasAccessCode: true이고 accessCode가 없는 경우 → 코드 검증 생략 (이전 코드의 유효 기간 내)
 
           console.log('[Auth] 로그인 성공')
 
