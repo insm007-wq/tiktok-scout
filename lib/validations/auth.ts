@@ -29,8 +29,8 @@ export const infoSchema = z
     invitationCode: z
       .string()
       .refine(
-        val => ['DONBOK', 'FORMAN'].includes(val.trim().toUpperCase()),
-        '유효하지 않은 접근 코드입니다. (DONBOK 또는 FORMAN)'
+        val => ['DONBOK', 'FORMNA'].includes(val.trim().toUpperCase()),
+        '유효하지 않은 접근 코드입니다.'
       )
       .transform(val => val.trim().toUpperCase()),
   })
@@ -109,8 +109,8 @@ export const signupSchema = z
     invitationCode: z
       .string()
       .refine(
-        val => ['DONBOK', 'FORMAN'].includes(val.trim().toUpperCase()),
-        '유효하지 않은 접근 코드입니다. (DONBOK 또는 FORMAN)'
+        val => ['DONBOK', 'FORMNA'].includes(val.trim().toUpperCase()),
+        '유효하지 않은 접근 코드입니다.'
       )
       .transform(val => val.trim().toUpperCase()),
 

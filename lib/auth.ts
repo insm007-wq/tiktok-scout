@@ -149,8 +149,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               } as any
             }
 
-            // 첫 로그인 시 접근 코드 검증 (DONBOK 또는 FORMAN)
-            if (accessCode !== 'DONBOK' && accessCode !== 'FORMAN') {
+            // 첫 로그인 시 접근 코드 검증 (DONBOK 또는 FORMNA)
+            if (accessCode !== 'DONBOK' && accessCode !== 'FORMNA') {
               console.warn('[Auth] 유효하지 않은 접근 코드')
               return {
                 id: user._id?.toString() || email,
@@ -185,7 +185,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             console.log(`[Auth] ✓ 접근 코드 인증 완료: ${email} (${planType})`)
           } else if (accessCode) {
             // 이후 로그인: 코드가 입력되었으면 유효성만 검증 (expiryDays 업데이트 안 함)
-            if (accessCode !== 'DONBOK' && accessCode !== 'FORMAN') {
+            if (accessCode !== 'DONBOK' && accessCode !== 'FORMNA') {
               console.warn('[Auth] 유효하지 않은 접근 코드')
               return {
                 id: user._id?.toString() || email,

@@ -518,7 +518,7 @@ export async function createUser(userData: {
 
   const now = new Date()
 
-  // 초대 코드 검증 (DONBOK 또는 FORMAN)
+  // 초대 코드 검증 (DONBOK 또는 FORMNA)
   let hasAccessCode = false
   let expiryDays: number | undefined = undefined
   const code = userData.invitationCode?.trim().toUpperCase()
@@ -526,7 +526,7 @@ export async function createUser(userData: {
   if (code === 'DONBOK') {
     hasAccessCode = true
     expiryDays = 90
-  } else if (code === 'FORMAN') {
+  } else if (code === 'FORMNA') {
     hasAccessCode = true
     expiryDays = 30
   }

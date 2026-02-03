@@ -38,16 +38,16 @@ export async function POST(req: NextRequest) {
     // 초대 코드 검증 (DONBOK 또는 FORMAN)
     const submittedCode = data.invitationCode.trim().toUpperCase()
 
-    // 지원하는 코드: DONBOK (90일), FORMAN (30일)
+    // 지원하는 코드: DONBOK (90일), FORMNA (30일)
     const validCodes = {
       DONBOK: { expiryDays: 90, planType: '프리미엄 90일' },
-      FORMAN: { expiryDays: 30, planType: '스탠다드 30일' },
+      FORMNA: { expiryDays: 30, planType: '스탠다드 30일' },
     } as const
 
     if (!Object.keys(validCodes).includes(submittedCode)) {
       console.warn('[Signup API] Invalid invitation code:', submittedCode)
       return NextResponse.json(
-        { error: '유효하지 않은 초대 코드입니다. (DONBOK 또는 FORMAN)' },
+        { error: '유효하지 않은 접근 코드입니다.' },
         { status: 403 }
       )
     }
