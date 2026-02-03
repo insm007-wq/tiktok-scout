@@ -35,24 +35,24 @@ export async function POST(req: NextRequest) {
 
     const data = parsed.data
 
-    // 초대 코드 확인
-    if (!INVITATION_CODE) {
-      return NextResponse.json(
-        { error: '초대 코드 시스템이 설정되지 않았습니다.' },
-        { status: 500 }
-      )
-    }
-
+    // 초대 코드 검증 (DONBOK 또는 FORMAN)
     const submittedCode = data.invitationCode.trim().toUpperCase()
-    const validCode = INVITATION_CODE.trim().toUpperCase()
 
-    if (submittedCode !== validCode) {
-      console.warn('[Signup API] Invalid invitation code')
+    // 지원하는 코드: DONBOK (90일), FORMNA (30일)
+    const validCodes = {
+      DONBOK: { expiryDays: 90, planType: '프리미엄 90일' },
+      FORMNA: { expiryDays: 30, planType: '스탠다드 30일' },
+    } as const
+
+    if (!Object.keys(validCodes).includes(submittedCode)) {
+      console.warn('[Signup API] Invalid invitation code:', submittedCode)
       return NextResponse.json(
-        { error: '유효하지 않은 초대 코드입니다' },
+        { error: '유효하지 않은 접근 코드입니다.' },
         { status: 403 }
       )
     }
+
+    const codeConfig = validCodes[submittedCode as keyof typeof validCodes]
 
     // 이메일 중복 확인 및 탈퇴 상태 확인
     const existingEmail = await getUserById(data.email)
@@ -112,7 +112,12 @@ export async function POST(req: NextRequest) {
       marketingConsent: data.marketingConsent,
       wantsTextbook: data.wantsTextbook,
       isApproved: true,
+      invitationCode: submittedCode, // 초대 코드 전달
     })
+
+    // 로그인 정보 출력
+    const planType = codeConfig.planType
+    console.log(`[Signup] ✓ 회원가입 완료: ${data.email} (${planType})`)
 
     return NextResponse.json(
       {

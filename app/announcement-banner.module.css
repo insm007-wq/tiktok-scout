@@ -1,0 +1,151 @@
+.bannerContainer {
+  width: 100%;
+  background: linear-gradient(135deg, #FE2C55 0%, #FF6B9D 50%, #25F4EE 100%);
+  padding: 20px 16px;
+  margin-bottom: 32px;
+  border-radius: 12px;
+  animation: slideDown 0.4s ease-out;
+  box-shadow: 0 8px 32px rgba(254, 44, 85, 0.3);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bannerContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.bannerText {
+  flex: 1;
+  color: white;
+}
+
+.bannerTitle {
+  font-size: 1.2em;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.bannerList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bannerList li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95em;
+  line-height: 1.4;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.checkmark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.closeButton {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.closeButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.closeButton:active {
+  transform: scale(0.95);
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .bannerContainer {
+    padding: 16px 12px;
+    margin-bottom: 24px;
+  }
+
+  .bannerContent {
+    gap: 12px;
+  }
+
+  .bannerTitle {
+    font-size: 1em;
+    margin-bottom: 10px;
+  }
+
+  .bannerList li {
+    font-size: 0.9em;
+    gap: 6px;
+  }
+
+  .closeButton {
+    width: 36px;
+    height: 36px;
+  }
+
+  .closeButton :global(svg) {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .bannerContainer {
+    padding: 12px 8px;
+    margin-bottom: 16px;
+    border-radius: 8px;
+  }
+
+  .bannerContent {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .bannerTitle {
+    font-size: 0.95em;
+    margin-bottom: 8px;
+  }
+
+  .bannerList li {
+    font-size: 0.85em;
+  }
+
+  .closeButton {
+    align-self: flex-end;
+  }
+}

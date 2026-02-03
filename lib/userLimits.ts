@@ -35,6 +35,10 @@ interface User {
   isWithdrawn?: boolean  // 회원 탈퇴 여부
   withdrawnAt?: Date  // 탈퇴 일시
   withdrawalExpiresAt?: Date  // 재가입 허용 일시 (탈퇴 + 14일)
+  hasAccessCode?: boolean  // 접근 코드 입력 여부
+  accessCodeUsedAt?: Date  // 코드 입력 시점
+  expiryDays?: number  // 접근 코드 만료 기간 (기본: 30일, 프리미엄: 90일)
+  lastCodeEnteredAt?: Date  // 마지막으로 코드를 입력한 시간 (업그레이드/다운그레이드 시도 시)
 }
 
 function getUsersCollection(db: Db): Collection<User> {
@@ -495,6 +499,7 @@ export async function rejectUser(email: string, adminEmail: string): Promise<boo
 /**
  * 새로운 사용자 생성 (회원가입 시)
  * isApproved를 false로 설정하여 관리자 승인 대기 상태로 생성
+ * invitationCode가 DONBOK/FORMAN이면 hasAccessCode: true로 설정
  */
 export async function createUser(userData: {
   email: string
@@ -507,11 +512,26 @@ export async function createUser(userData: {
   provider?: string
   providerId?: string
   isApproved?: boolean
+  invitationCode?: string
 }): Promise<User> {
   const { db } = await connectToDatabase()
   const collection = getUsersCollection(db)
 
   const now = new Date()
+
+  // 초대 코드 검증 (DONBOK 또는 FORMNA)
+  let hasAccessCode = false
+  let expiryDays: number | undefined = undefined
+  const code = userData.invitationCode?.trim().toUpperCase()
+
+  if (code === 'DONBOK') {
+    hasAccessCode = true
+    expiryDays = 90
+  } else if (code === 'FORMNA') {
+    hasAccessCode = true
+    expiryDays = 30
+  }
+
   const user: User = {
     email: userData.email,
     name: userData.name,
@@ -535,6 +555,9 @@ export async function createUser(userData: {
     marketingConsent: userData.marketingConsent ?? false,
     // 교재 배송 희망 저장
     wantsTextbook: userData.wantsTextbook ?? false,
+    // 유효한 초대 코드 입력 시만 hasAccessCode: true
+    hasAccessCode,
+    ...(hasAccessCode && { accessCodeUsedAt: now, expiryDays }),
   }
 
   // password는 선택적으로 추가

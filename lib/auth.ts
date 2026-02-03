@@ -20,6 +20,13 @@ declare module 'next-auth' {
   }
 }
 
+// 로그에서 PII(개인정보) 보호: 이메일 마스킹
+function maskEmail(email: string): string {
+  const atIndex = email.indexOf('@')
+  if (atIndex <= 2) return email // 너무 짧으면 마스킹 안 함
+  return email.substring(0, 2) + '***' + email.substring(atIndex)
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
@@ -28,9 +35,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: 'Email', type: 'email', placeholder: 'example@example.com' },
         password: { label: 'Password', type: 'password' },
+        accessCode: { label: 'Access Code', type: 'text' },
       },
       async authorize(credentials) {
-        // 입력값 검증
+        // 입력값 검증 - accessCode는 선택사항
         if (!credentials?.email || !credentials?.password) {
           console.warn('[Auth] 이메일 또는 비밀번호 누락')
           return null
@@ -39,6 +47,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           const email = credentials.email as string
           const password = credentials.password as string
+          const accessCode = (credentials.accessCode as string || '').trim().toUpperCase()
 
           // 사용자 조회
           const user = await getUserById(email)
@@ -69,7 +78,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // 관리자 승인 확인
           if (!user.isApproved) {
             console.warn('[Auth] 승인 대기 중')
-            throw new Error('PENDING_APPROVAL')
+            return {
+              id: user._id?.toString() || email,
+              email: user.email,
+              name: user.name,
+              image: user.image,
+              isAdmin: user.isAdmin || false,
+              isApproved: user.isApproved || false,
+              isVerified: user.isVerified || false,
+              phone: user.phone,
+              _error: 'PENDING_APPROVAL',
+            } as any
           }
 
           // 계정 차단 확인
@@ -90,6 +109,191 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return null
           }
 
+          // ✨ 사용자별 만료 기간으로 동적 체크
+          let isExpired = false
+
+          if (user.hasAccessCode && user.accessCodeUsedAt) {
+            // expiryDays가 없으면 기본값 30일 사용
+            const expiryDays = user.expiryDays || 30
+            const expiryMs = expiryDays * 24 * 60 * 60 * 1000
+            const elapsedMs = Date.now() - new Date(user.accessCodeUsedAt).getTime()
+            isExpired = elapsedMs > expiryMs
+
+            // 만료 시 hasAccessCode를 false로 재설정
+            if (isExpired) {
+              console.warn(`[Auth] 접근 코드 만료됨 (${expiryDays}일 경과)`)
+              const { connectToDatabase } = await import('./mongodb')
+              const { db } = await connectToDatabase()
+              await db.collection('users').updateOne(
+                { email },
+                {
+                  $set: {
+                    hasAccessCode: false,
+                    updatedAt: new Date()
+                  }
+                }
+              )
+              user.hasAccessCode = false
+            }
+          }
+
+          // 접근 코드 검증 로직
+          if (!user.hasAccessCode) {
+            // 첫 로그인: 접근 코드 필수 (초대 코드가 설정되지 않은 신규 사용자)
+            if (!accessCode) {
+              console.warn('[Auth] 접근 코드 필요')
+              const errorCode = isExpired ? 'ACCESS_CODE_EXPIRED' : 'ACCESS_CODE_REQUIRED'
+              return {
+                id: user._id?.toString() || email,
+                email: user.email,
+                name: user.name,
+                image: user.image,
+                isAdmin: user.isAdmin || false,
+                isApproved: user.isApproved || false,
+                isVerified: user.isVerified || false,
+                phone: user.phone,
+                _error: errorCode,
+              } as any
+            }
+
+            // 첫 로그인 시 접근 코드 검증 (DONBOK 또는 FORMNA)
+            if (accessCode !== 'DONBOK' && accessCode !== 'FORMNA') {
+              console.warn('[Auth] 유효하지 않은 접근 코드')
+              return {
+                id: user._id?.toString() || email,
+                email: user.email,
+                name: user.name,
+                image: user.image,
+                isAdmin: user.isAdmin || false,
+                isApproved: user.isApproved || false,
+                isVerified: user.isVerified || false,
+                phone: user.phone,
+                _error: 'INVALID_ACCESS_CODE',
+              } as any
+            }
+
+            // 첫 로그인 성공: expiryDays 설정
+            const expiryDays = accessCode === 'DONBOK' ? 90 : 30
+            const planType = accessCode === 'DONBOK' ? '프리미엄 90일' : '스탠다드 30일'
+
+            const { connectToDatabase } = await import('./mongodb')
+            const { db } = await connectToDatabase()
+            await db.collection('users').updateOne(
+              { email },
+              {
+                $set: {
+                  hasAccessCode: true,
+                  accessCodeUsedAt: new Date(),
+                  expiryDays,
+                  updatedAt: new Date(),
+                },
+              }
+            )
+            console.log(`[Auth] ✓ 접근 코드 인증 완료: ${maskEmail(email)} (${planType})`)
+          } else if (accessCode) {
+            // 이후 로그인: 코드가 입력되었으면 업그레이드/다운그레이드 검증
+
+            // 1. 유효한 코드인지 확인
+            if (accessCode !== 'DONBOK' && accessCode !== 'FORMNA') {
+              console.warn('[Auth] 유효하지 않은 접근 코드')
+              return {
+                id: user._id?.toString() || email,
+                email: user.email,
+                name: user.name,
+                image: user.image,
+                isAdmin: user.isAdmin || false,
+                isApproved: user.isApproved || false,
+                isVerified: user.isVerified || false,
+                phone: user.phone,
+                _error: 'INVALID_ACCESS_CODE',
+              } as any
+            }
+
+            // 2. 새 코드의 expiryDays 계산
+            const newExpiryDays = accessCode === 'DONBOK' ? 90 : 30
+            const currentExpiryDays = user.expiryDays || 30
+
+            // 3. 업그레이드/다운그레이드 판단
+            if (newExpiryDays > currentExpiryDays) {
+              // 업그레이드: 허용
+              const { connectToDatabase } = await import('./mongodb')
+              const { db } = await connectToDatabase()
+
+              // 7일 대기 기간 확인과 업데이트를 원자적으로 처리
+              const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+              const updateResult = await db.collection('users').findOneAndUpdate(
+                {
+                  email,
+                  $or: [
+                    { lastCodeEnteredAt: { $exists: false } }, // 기록 없음
+                    { lastCodeEnteredAt: { $lte: sevenDaysAgo } } // 7일 이상 경과
+                  ]
+                },
+                {
+                  $set: {
+                    expiryDays: newExpiryDays,
+                    accessCodeUsedAt: new Date(), // 기간 갱신
+                    lastCodeEnteredAt: new Date(), // 코드 입력 시간 갱신
+                    updatedAt: new Date(),
+                  },
+                },
+                { returnDocument: 'after' }
+              )
+
+              if (!updateResult) {
+                // 조건 미충족: 7일이 지나지 않았음
+                const timeSinceLastEntry = Date.now() - new Date(user.lastCodeEnteredAt!).getTime()
+                const remainingDays = Math.ceil((7 * 24 * 60 * 60 * 1000 - timeSinceLastEntry) / (24 * 60 * 60 * 1000))
+                console.warn(`[Auth] 코드 입력 대기 기간 확인: ${maskEmail(email)} (${remainingDays}일 후 가능)`)
+                return {
+                  id: user._id?.toString() || email,
+                  email: user.email,
+                  name: user.name,
+                  image: user.image,
+                  isAdmin: user.isAdmin || false,
+                  isApproved: user.isApproved || false,
+                  isVerified: user.isVerified || false,
+                  phone: user.phone,
+                  _error: 'CODE_UPGRADE_COOLDOWN',
+                } as any
+              }
+
+              const planType = accessCode === 'DONBOK' ? '프리미엄 90일' : '스탠다드 30일'
+              console.log(`[Auth] ✓ 코드 업그레이드: ${maskEmail(email)} (${currentExpiryDays}일 → ${newExpiryDays}일)`)
+
+            } else if (newExpiryDays < currentExpiryDays) {
+              // 다운그레이드: 거부
+              console.warn(`[Auth] 코드 다운그레이드 시도: ${maskEmail(email)} (${currentExpiryDays}일 → ${newExpiryDays}일)`)
+              return {
+                id: user._id?.toString() || email,
+                email: user.email,
+                name: user.name,
+                image: user.image,
+                isAdmin: user.isAdmin || false,
+                isApproved: user.isApproved || false,
+                isVerified: user.isVerified || false,
+                phone: user.phone,
+                _error: 'CODE_DOWNGRADE_NOT_ALLOWED',
+              } as any
+
+            } else {
+              // 동일한 코드: 이미 등록됨
+              console.warn(`[Auth] 코드 중복 입력 시도: ${maskEmail(email)} (${currentExpiryDays}일 이미 등록됨)`)
+              return {
+                id: user._id?.toString() || email,
+                email: user.email,
+                name: user.name,
+                image: user.image,
+                isAdmin: user.isAdmin || false,
+                isApproved: user.isApproved || false,
+                isVerified: user.isVerified || false,
+                phone: user.phone,
+                _error: 'CODE_ALREADY_USED',
+              } as any
+            }
+          }
+          // hasAccessCode: true이고 accessCode가 없는 경우 → 코드 검증 생략 (이전 코드의 유효 기간 내)
+
           console.log('[Auth] 로그인 성공')
 
           return {
@@ -104,7 +308,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
         } catch (error) {
           console.error('[Auth] 인증 중 오류:', error)
-          return null
+          throw error
         }
       },
     }),
@@ -135,6 +339,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
 
   callbacks: {
+    async signIn({ user }) {
+      // _error 필드가 있으면 로그인은 진행하되, 토큰에 에러 정보 저장
+      if ((user as any)._error) {
+        const errorCode = (user as any)._error
+        console.log(`[Auth] signIn 콜백: 에러 감지 - ${errorCode}`)
+      }
+      return true
+    },
+
     async jwt({ token, user, trigger, session }) {
       // 초기 로그인
       if (user) {
@@ -146,6 +359,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.isApproved = user.isApproved
         token.isVerified = user.isVerified
         token.phone = user.phone
+        // _error가 있으면 토큰에 저장
+        if ((user as any)._error) {
+          (token as any)._error = (user as any)._error
+        }
       }
 
       // 세션 업데이트 시 (update 호출)
@@ -168,6 +385,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.isApproved = token.isApproved as boolean
         session.user.isVerified = token.isVerified as boolean
         session.user.phone = token.phone as string | undefined
+      }
+      // _error가 있으면 session에 노출
+      if ((token as any)._error) {
+        (session as any)._error = (token as any)._error
       }
       return session
     },
