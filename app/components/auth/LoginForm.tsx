@@ -32,7 +32,7 @@ export default function LoginForm() {
         setError('아이디 또는 비밀번호를 확인해주세요.')
       } else if (errorParam === 'ACCESS_CODE_REQUIRED') {
         setShowAccessCodeField(true)
-        setError('접근 코드를 입력해주세요. 첫 로그인 시 코드가 필요합니다.')
+        setError('접근 코드를 입력해주세요. (DONBOK: 90일 프리미엄, FORMAN: 30일)')
       } else if (errorParam === 'ACCESS_CODE_EXPIRED') {
         setShowAccessCodeField(true)
         setError('사용 기간이 만료되었습니다. 접근 코드를 입력하거나 유료 결제를 진행해주세요.')
@@ -83,7 +83,7 @@ export default function LoginForm() {
         // 에러 코드에 따라 메시지 분리
         if (errorCode === 'ACCESS_CODE_REQUIRED') {
           setShowAccessCodeField(true)
-          setError('접근 코드를 입력해주세요. 첫 로그인 시 코드가 필요합니다.')
+          setError('접근 코드를 입력해주세요. (DONBOK: 90일 프리미엄, FORMAN: 30일)')
           return
         } else if (errorCode === 'ACCESS_CODE_EXPIRED') {
           setShowAccessCodeField(true)
@@ -117,7 +117,7 @@ export default function LoginForm() {
         // 접근 코드가 필요한 경우
         await signOut({ redirect: false })
         setShowAccessCodeField(true)
-        setError('접근 코드를 입력해주세요. 첫 로그인 시 코드가 필요합니다.')
+        setError('접근 코드를 입력해주세요. (DONBOK: 90일 프리미엄, FORMAN: 30일)')
         return
       } else if (sessionError === 'ACCESS_CODE_EXPIRED') {
         // 접근 코드가 만료된 경우

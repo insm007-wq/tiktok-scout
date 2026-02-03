@@ -151,8 +151,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               } as any
             }
 
-            // 접근 코드 검증
-            if (accessCode !== 'DONBOK') {
+            // 접근 코드 검증 (DONBOK 또는 FORMAN)
+            let expiryDays = 0
+            let planType = ''
+
+            if (accessCode === 'DONBOK') {
+              expiryDays = 90
+              planType = '프리미엄 90일'
+            } else if (accessCode === 'FORMAN') {
+              expiryDays = 30
+              planType = '스탠다드 30일'
+            } else {
               console.warn('[Auth] 유효하지 않은 접근 코드')
               return {
                 id: user._id?.toString() || email,
@@ -176,12 +185,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 $set: {
                   hasAccessCode: true,
                   accessCodeUsedAt: new Date(),
-                  expiryDays: 90,  // DONBOK 입력 시 90일 부여
+                  expiryDays,
                   updatedAt: new Date(),
                 },
               }
             )
-            console.log(`[Auth] ✓ 접근 코드 인증 완료: ${email} (프리미엄 90일)`)
+            console.log(`[Auth] ✓ 접근 코드 인증 완료: ${email} (${planType})`)
           }
           // hasAccessCode: true인 경우 → 코드 검증 생략
 

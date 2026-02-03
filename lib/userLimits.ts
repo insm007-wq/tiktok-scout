@@ -538,10 +538,8 @@ export async function createUser(userData: {
     marketingConsent: userData.marketingConsent ?? false,
     // 교재 배송 희망 저장
     wantsTextbook: userData.wantsTextbook ?? false,
-    // 신규 가입 시 기본 30일 사용 권한 부여
-    hasAccessCode: true,
-    accessCodeUsedAt: now,
-    expiryDays: 30,
+    // 신규 가입 시 코드 입력 필수 (DONBOK 또는 FORMAN)
+    hasAccessCode: false,
   }
 
   // password는 선택적으로 추가
