@@ -210,23 +210,33 @@ export default function LoginForm() {
         <span className="text-sm text-white/70">로그인 상태 유지</span>
       </label>
 
+      {/* 초대 코드 토글 버튼 */}
+      <button
+        type="button"
+        onClick={() => setShowAccessCodeField(!showAccessCodeField)}
+        disabled={loading}
+        className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors disabled:opacity-50"
+      >
+        {showAccessCodeField ? '✓ 초대 코드 입력' : '+ 초대 코드 입력'}
+      </button>
+
       {/* 접근 코드 - 필요할 때만 표시 */}
       {showAccessCodeField && (
         <div>
           <label htmlFor="accessCode" className="block text-sm font-medium text-white/90 mb-2">
-            접근 코드
+            초대 코드
           </label>
           <input
             id="accessCode"
             type="text"
             value={accessCode}
-            onChange={(e) => setAccessCode(e.target.value)}
-            placeholder="접근 코드를 입력하세요"
+            onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
+            placeholder="DONBOK 또는 FORMAN"
             className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all"
             disabled={loading}
           />
           <p className="text-white/50 text-xs mt-1">
-            💡 첫 로그인 시 필요한 코드입니다
+            💡 DONBOK (90일 프리미엄) 또는 FORMAN (30일 스탠다드)
           </p>
         </div>
       )}
