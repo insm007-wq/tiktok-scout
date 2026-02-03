@@ -230,8 +230,9 @@ export default function LoginForm() {
             id="accessCode"
             type="text"
             value={accessCode}
-            onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
+            onChange={(e) => setAccessCode(e.target.value.toUpperCase().slice(0, 20))}
             placeholder=""
+            maxLength={20}
             className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all"
             disabled={loading}
           />
