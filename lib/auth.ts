@@ -184,7 +184,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             )
             console.log(`[Auth] ✓ 접근 코드 인증 완료: ${email} (${planType})`)
           } else if (accessCode) {
-            // 이후 로그인: 코드가 입력되었으면 유효성만 검증 (expiryDays 업데이트 안 함)
+            // 이후 로그인: 코드가 입력되었으면 업그레이드/다운그레이드 검증
+
+            // 1. 유효한 코드인지 확인
             if (accessCode !== 'DONBOK' && accessCode !== 'FORMNA') {
               console.warn('[Auth] 유효하지 않은 접근 코드')
               return {
@@ -199,7 +201,89 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 _error: 'INVALID_ACCESS_CODE',
               } as any
             }
-            console.log(`[Auth] ✓ 접근 코드 검증 완료: ${email}`)
+
+            // 2. 새 코드의 expiryDays 계산
+            const newExpiryDays = accessCode === 'DONBOK' ? 90 : 30
+            const currentExpiryDays = user.expiryDays || 30
+
+            // 3. 업그레이드/다운그레이드 판단
+            if (newExpiryDays > currentExpiryDays) {
+              // 업그레이드: 허용
+              const { connectToDatabase } = await import('./mongodb')
+              const { db } = await connectToDatabase()
+
+              // 7일 대기 기간 확인과 업데이트를 원자적으로 처리
+              const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+              const updateResult = await db.collection('users').findOneAndUpdate(
+                {
+                  email,
+                  $or: [
+                    { lastCodeEnteredAt: { $exists: false } }, // 기록 없음
+                    { lastCodeEnteredAt: { $lte: sevenDaysAgo } } // 7일 이상 경과
+                  ]
+                },
+                {
+                  $set: {
+                    expiryDays: newExpiryDays,
+                    accessCodeUsedAt: new Date(), // 기간 갱신
+                    lastCodeEnteredAt: new Date(), // 코드 입력 시간 갱신
+                    updatedAt: new Date(),
+                  },
+                },
+                { returnDocument: 'after' }
+              )
+
+              if (!updateResult) {
+                // 조건 미충족: 7일이 지나지 않았음
+                const timeSinceLastEntry = Date.now() - new Date(user.lastCodeEnteredAt!).getTime()
+                const remainingDays = Math.ceil((7 * 24 * 60 * 60 * 1000 - timeSinceLastEntry) / (24 * 60 * 60 * 1000))
+                console.warn(`[Auth] 코드 입력 대기 기간 확인: ${email} (${remainingDays}일 후 가능)`)
+                return {
+                  id: user._id?.toString() || email,
+                  email: user.email,
+                  name: user.name,
+                  image: user.image,
+                  isAdmin: user.isAdmin || false,
+                  isApproved: user.isApproved || false,
+                  isVerified: user.isVerified || false,
+                  phone: user.phone,
+                  _error: 'CODE_UPGRADE_COOLDOWN',
+                } as any
+              }
+
+              const planType = accessCode === 'DONBOK' ? '프리미엄 90일' : '스탠다드 30일'
+              console.log(`[Auth] ✓ 코드 업그레이드: ${email} (${currentExpiryDays}일 → ${newExpiryDays}일)`)
+
+            } else if (newExpiryDays < currentExpiryDays) {
+              // 다운그레이드: 거부
+              console.warn(`[Auth] 코드 다운그레이드 시도: ${email} (${currentExpiryDays}일 → ${newExpiryDays}일)`)
+              return {
+                id: user._id?.toString() || email,
+                email: user.email,
+                name: user.name,
+                image: user.image,
+                isAdmin: user.isAdmin || false,
+                isApproved: user.isApproved || false,
+                isVerified: user.isVerified || false,
+                phone: user.phone,
+                _error: 'CODE_DOWNGRADE_NOT_ALLOWED',
+              } as any
+
+            } else {
+              // 동일한 코드: 이미 등록됨
+              console.warn(`[Auth] 코드 중복 입력 시도: ${email} (${currentExpiryDays}일 이미 등록됨)`)
+              return {
+                id: user._id?.toString() || email,
+                email: user.email,
+                name: user.name,
+                image: user.image,
+                isAdmin: user.isAdmin || false,
+                isApproved: user.isApproved || false,
+                isVerified: user.isVerified || false,
+                phone: user.phone,
+                _error: 'CODE_ALREADY_USED',
+              } as any
+            }
           }
           // hasAccessCode: true이고 accessCode가 없는 경우 → 코드 검증 생략 (이전 코드의 유효 기간 내)
 

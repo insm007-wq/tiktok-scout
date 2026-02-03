@@ -39,6 +39,15 @@ export default function LoginForm() {
       } else if (errorParam === 'INVALID_ACCESS_CODE') {
         setShowAccessCodeField(true)
         setError('유효하지 않은 접근 코드입니다.')
+      } else if (errorParam === 'CODE_DOWNGRADE_NOT_ALLOWED') {
+        setShowAccessCodeField(true)
+        setError('이미 등록된 코드가 있습니다. 더 낮은 등급으로 변경할 수 없습니다.')
+      } else if (errorParam === 'CODE_ALREADY_USED') {
+        setShowAccessCodeField(true)
+        setError('이미 등록된 코드입니다. 다른 코드를 입력해주세요.')
+      } else if (errorParam === 'CODE_UPGRADE_COOLDOWN') {
+        setShowAccessCodeField(true)
+        setError('코드 업그레이드는 7일에 한 번만 가능합니다. 잠시 후 다시 시도해주세요.')
       } else if (errorParam === 'PENDING_APPROVAL') {
         setError('승인 대기 중입니다. 관리자 승인 후 로그인 가능합니다.')
       } else if (errorParam === 'SMS_NOT_VERIFIED') {
@@ -93,6 +102,18 @@ export default function LoginForm() {
           setShowAccessCodeField(true)
           setError('유효하지 않은 접근 코드입니다.')
           return
+        } else if (errorCode === 'CODE_DOWNGRADE_NOT_ALLOWED') {
+          setShowAccessCodeField(true)
+          setError('이미 등록된 코드가 있습니다. 더 낮은 등급으로 변경할 수 없습니다.')
+          return
+        } else if (errorCode === 'CODE_ALREADY_USED') {
+          setShowAccessCodeField(true)
+          setError('이미 등록된 코드입니다. 다른 코드를 입력해주세요.')
+          return
+        } else if (errorCode === 'CODE_UPGRADE_COOLDOWN') {
+          setShowAccessCodeField(true)
+          setError('코드 업그레이드는 7일에 한 번만 가능합니다. 잠시 후 다시 시도해주세요.')
+          return
         } else if (errorCode === 'PENDING_APPROVAL') {
           setError('승인 대기 중입니다. 관리자 승인 후 로그인 가능합니다.')
         } else if (errorCode === 'SMS_NOT_VERIFIED') {
@@ -130,6 +151,24 @@ export default function LoginForm() {
         await signOut({ redirect: false })
         setShowAccessCodeField(true)
         setError('유효하지 않은 접근 코드입니다.')
+        return
+      } else if (sessionError === 'CODE_DOWNGRADE_NOT_ALLOWED') {
+        // 다운그레이드 불가
+        await signOut({ redirect: false })
+        setShowAccessCodeField(true)
+        setError('이미 등록된 코드가 있습니다. 더 낮은 등급으로 변경할 수 없습니다.')
+        return
+      } else if (sessionError === 'CODE_ALREADY_USED') {
+        // 이미 등록된 코드
+        await signOut({ redirect: false })
+        setShowAccessCodeField(true)
+        setError('이미 등록된 코드입니다. 다른 코드를 입력해주세요.')
+        return
+      } else if (sessionError === 'CODE_UPGRADE_COOLDOWN') {
+        // 코드 업그레이드 대기 기간
+        await signOut({ redirect: false })
+        setShowAccessCodeField(true)
+        setError('코드 업그레이드는 7일에 한 번만 가능합니다. 잠시 후 다시 시도해주세요.')
         return
       } else if (sessionError === 'PENDING_APPROVAL') {
         // 승인 대기 중

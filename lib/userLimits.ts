@@ -38,6 +38,7 @@ interface User {
   hasAccessCode?: boolean  // 접근 코드 입력 여부
   accessCodeUsedAt?: Date  // 코드 입력 시점
   expiryDays?: number  // 접근 코드 만료 기간 (기본: 30일, 프리미엄: 90일)
+  lastCodeEnteredAt?: Date  // 마지막으로 코드를 입력한 시간 (업그레이드/다운그레이드 시도 시)
 }
 
 function getUsersCollection(db: Db): Collection<User> {
