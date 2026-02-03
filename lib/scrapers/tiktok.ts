@@ -142,7 +142,7 @@ export async function searchTikTokVideos(
                          undefined;
 
         // ✅ CDN URL 수신 (R2 업로드 없음)
-        console.log(`[Scraper:TikTok] 🖼️ CDN URL received`, {
+        console.log(`[Worker:TikTok] 🖼️ CDN URL received`, {
           videoId: item.id || `video-${index}`,
           hasThumbnail: !!tiktokThumbnail,
           thumbnailPreview: tiktokThumbnail ? tiktokThumbnail.substring(0, 60) : 'N/A',

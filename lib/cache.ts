@@ -187,6 +187,18 @@ export async function getVideoFromMongoDB(
       return null;
     }
 
+    // ✅ DEBUG: 캐시 히트 로그
+    const remainingMs = cached.expiresAt.getTime() - Date.now();
+    const remainingHours = (remainingMs / (60 * 60 * 1000)).toFixed(1);
+    console.log(`[Cache] ✅ Cache hit from MongoDB`, {
+      platform,
+      query: query.substring(0, 30),
+      videoCount: cached.videos.length,
+      expiresAt: cached.expiresAt.toISOString(),
+      remainingHours: parseFloat(remainingHours),
+      remainingMs,
+    });
+
     // 조회 통계 업데이트 (비동기로 실행)
     // searchCount: 사용자 검색 횟수 (인기도 판정용)
     // accessCount: 전체 조회 횟수
@@ -222,6 +234,8 @@ export async function setVideoToMongoDB(
     const db = await getDb();
     const cacheKey = generateCacheKey(platform, query, dateRange);
 
+    const expiresAt = new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000);
+
     const doc: VideoCacheDocument = {
       cacheKey,
       platform,
@@ -230,11 +244,26 @@ export async function setVideoToMongoDB(
       videos,
       videoCount: videos.length,
       createdAt: new Date(),
-      expiresAt: new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000),
+      expiresAt,
       accessCount: 1,
       searchCount: 0,  // ✅ NEW: 초기화 (getVideoFromMongoDB에서 증가)
       lastAccessedAt: new Date(),
     };
+
+    // ✅ DEBUG: TTL 검증 로그
+    const ttlMs = ttlDays * 24 * 60 * 60 * 1000;
+    const ttlHours = (ttlMs / (60 * 60 * 1000)).toFixed(1);
+    console.log(`[Cache] 💾 Saving to MongoDB`, {
+      platform,
+      query: query.substring(0, 30),
+      videoCount: videos.length,
+      ttlDays,
+      ttlHours: parseFloat(ttlHours),
+      expiresAt: expiresAt.toISOString(),
+      createdAt: doc.createdAt.toISOString(),
+      expiresAtTimestamp: expiresAt.getTime(),
+      nowTimestamp: Date.now(),
+    });
 
     await db.collection('video_cache').updateOne(
       { cacheKey },
