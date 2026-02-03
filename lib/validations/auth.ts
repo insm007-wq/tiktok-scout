@@ -28,7 +28,10 @@ export const infoSchema = z
 
     invitationCode: z
       .string()
-      .refine(val => val.trim().toUpperCase() === 'DONBOK', '유효하지 않은 접근 코드입니다.')
+      .refine(
+        val => ['DONBOK', 'FORMAN'].includes(val.trim().toUpperCase()),
+        '유효하지 않은 접근 코드입니다. (DONBOK 또는 FORMAN)'
+      )
       .transform(val => val.trim().toUpperCase()),
   })
   .refine((data) => data.password === data.passwordConfirm, {
@@ -105,7 +108,10 @@ export const signupSchema = z
 
     invitationCode: z
       .string()
-      .refine(val => val.trim().toUpperCase() === 'DONBOK', '유효하지 않은 접근 코드입니다.')
+      .refine(
+        val => ['DONBOK', 'FORMAN'].includes(val.trim().toUpperCase()),
+        '유효하지 않은 접근 코드입니다. (DONBOK 또는 FORMAN)'
+      )
       .transform(val => val.trim().toUpperCase()),
 
     wantsTextbook: z.boolean(),
