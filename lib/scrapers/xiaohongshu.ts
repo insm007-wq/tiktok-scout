@@ -149,7 +149,7 @@ export async function searchXiaohongshuVideos(
           item.item?.note_card?.cover?.url_default;
 
         // ✅ NEW: CDN URL 수신 로깅
-        console.log(`[Scraper:Xiaohongshu] 🖼️ CDN URL received`, {
+        console.log(`[Worker:Xiaohongshu] 🖼️ CDN URL received`, {
           videoId: item.item?.id || item.id || `xiaohongshu-${index}`,
           hasThumbnail: !!thumbnail,
           thumbnailPreview: thumbnail ? thumbnail.substring(0, 60) : 'N/A',
@@ -303,7 +303,7 @@ export async function searchXiaohongshuVideosParallel(
     // 필터링 통계 로그
     if (combinedDataset.length > videoOnlyDataset.length) {
       const filtered = combinedDataset.length - videoOnlyDataset.length;
-      console.log(`[Scraper:Xiaohongshu] 🔍 Filtered ${filtered} non-video items`);
+      console.log(`[Worker:Xiaohongshu] 🔍 Filtered ${filtered} non-video items`);
     }
 
     if (videoOnlyDataset.length === 0) {
@@ -363,7 +363,7 @@ export async function searchXiaohongshuVideosParallel(
           item.item?.note_card?.cover?.url_default;
 
         // ✅ NEW: CDN URL 수신 로깅
-        console.log(`[Scraper:Xiaohongshu] 🖼️ CDN URL received`, {
+        console.log(`[Worker:Xiaohongshu] 🖼️ CDN URL received`, {
           videoId: item.item?.id || item.id || `xiaohongshu-${index}`,
           hasThumbnail: !!thumbnail,
           thumbnailPreview: thumbnail ? thumbnail.substring(0, 60) : 'N/A',

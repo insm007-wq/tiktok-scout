@@ -113,7 +113,7 @@ export async function searchDouyinVideos(
         const douyinVideoUrl = item.videoMeta?.playUrl || item.video?.url || item.downloadUrl || item.playUrl || undefined;
 
         // ✅ CDN URL 수신 (R2 업로드 없음)
-        console.log(`[Scraper:Douyin] 🖼️ CDN URL received`, {
+        console.log(`[Worker:Douyin] 🖼️ CDN URL received`, {
           videoId: item.id || `douyin-video-${index}`,
           hasThumbnail: !!douyinThumbnail,
           thumbnailPreview: douyinThumbnail ? douyinThumbnail.substring(0, 60) : 'N/A',
@@ -281,7 +281,7 @@ export async function searchDouyinVideosParallel(
         const douyinVideoUrl = item.videoMeta?.playUrl || item.video?.url || item.downloadUrl || item.playUrl || undefined;
 
         // ✅ ENHANCED: 더 자세한 로깅 (비디오 URL이 없는 경우 디버깅용)
-        console.log(`[Scraper:Douyin] 🖼️ Response data analysis`, {
+        console.log(`[Worker:Douyin] 🖼️ Response data analysis`, {
           videoId: item.id || `douyin-video-${index}`,
           hasThumbnail: !!douyinThumbnail,
           thumbnailPreview: douyinThumbnail ? douyinThumbnail.substring(0, 60) : 'N/A',
