@@ -29,20 +29,20 @@ export default function AnnouncementBanner() {
     <div className={styles.bannerContainer}>
       <div className={styles.bannerContent}>
         <div className={styles.bannerText}>
-          <h3 className={styles.bannerTitle}>🎉 틱톡킬라 무료 이용 한 달 더 연장!</h3>
+          <h3 className={styles.bannerTitle}>🚀 틱톡킬라, 무료로 시작하세요</h3>
 
           <ul className={styles.bannerList}>
             <li>
-              <span className={styles.checkmark}>✔</span>
-              <span>기존 사용자는 오늘부터 3월 5일까지 (30일) 무료 이용!</span>
+              <span className={styles.checkmark}>💫</span>
+              <span>30일 완전 무료 · 2월 3일~3월 5일</span>
             </li>
             <li>
-              <span className={styles.checkmark}>✔</span>
-              <span>3월부터 정식 요금제: 월 32,900원</span>
+              <span className={styles.checkmark}>💰</span>
+              <span>3월부터 월 ₩32,900</span>
             </li>
             <li>
-              <span className={styles.checkmark}>✔</span>
-              <span>폼나는커머스 수강생 → 3개월 무료 코드, 수강생 카페 확인!</span>
+              <span className={styles.checkmark}>🎓</span>
+              <span>수강생 특별 혜택 · 3개월 무료 (카페에서 확인)</span>
             </li>
           </ul>
         </div>
