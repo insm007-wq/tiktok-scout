@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import AnnouncementBanner from "./announcement-banner";
 import styles from "./page.module.css";
 
 export default function HomeContent() {
@@ -63,6 +64,9 @@ export default function HomeContent() {
 
       {/* 메인 콘텐츠 */}
       <div className={`${styles.contentWrapper} ${styles.animateFadeInUp}`}>
+        {/* 공지사항 배너 */}
+        <AnnouncementBanner />
+
         {/* 타이틀 */}
         <div className={styles.titleSection}>
           <h1 onClick={handleTitleClick} className={`${styles.neonTitle} ${isRefreshing ? styles.titleRefresh : ""}`}>
