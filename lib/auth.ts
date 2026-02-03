@@ -102,16 +102,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return null
           }
 
-          // ✨ 3개월(90일) 만료 체크
-          const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000
+          // ✨ 사용자별 만료 기간으로 동적 체크
           let isExpired = false
 
           if (user.hasAccessCode && user.accessCodeUsedAt) {
-            isExpired = Date.now() - new Date(user.accessCodeUsedAt).getTime() > THREE_MONTHS_MS
+            // expiryDays가 없으면 기본값 30일 사용
+            const expiryDays = user.expiryDays || 30
+            const expiryMs = expiryDays * 24 * 60 * 60 * 1000
+            const elapsedMs = Date.now() - new Date(user.accessCodeUsedAt).getTime()
+            isExpired = elapsedMs > expiryMs
 
             // 만료 시 hasAccessCode를 false로 재설정
             if (isExpired) {
-              console.warn('[Auth] 접근 코드 만료됨')
+              console.warn(`[Auth] 접근 코드 만료됨 (${expiryDays}일 경과)`)
               const { connectToDatabase } = await import('./mongodb')
               const { db } = await connectToDatabase()
               await db.collection('users').updateOne(
@@ -173,11 +176,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 $set: {
                   hasAccessCode: true,
                   accessCodeUsedAt: new Date(),
+                  expiryDays: 90,  // DONBOK 입력 시 90일 부여
                   updatedAt: new Date(),
                 },
               }
             )
-            console.log(`[Auth] ✓ 접근 코드 인증 완료: ${email}`)
+            console.log(`[Auth] ✓ 접근 코드 인증 완료: ${email} (프리미엄 90일)`)
           }
           // hasAccessCode: true인 경우 → 코드 검증 생략
 

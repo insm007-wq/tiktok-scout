@@ -13,7 +13,8 @@
     "worker:logs": "pm2 logs",
     "redis:local": "docker-compose -f docker-compose.local.yml up",
     "redis:stop": "docker-compose -f docker-compose.local.yml down",
-    "test:load": "npm run build && npm run worker:pm2 & npm run dev"
+    "test:load": "npm run build && npm run worker:pm2 & npm run dev",
+    "migrate:expiry": "tsx scripts/migrate-expiry-days.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.645.0",

@@ -37,6 +37,7 @@ interface User {
   withdrawalExpiresAt?: Date  // 재가입 허용 일시 (탈퇴 + 14일)
   hasAccessCode?: boolean  // 접근 코드 입력 여부
   accessCodeUsedAt?: Date  // 코드 입력 시점
+  expiryDays?: number  // 접근 코드 만료 기간 (기본: 30일, 프리미엄: 90일)
 }
 
 function getUsersCollection(db: Db): Collection<User> {
@@ -537,6 +538,10 @@ export async function createUser(userData: {
     marketingConsent: userData.marketingConsent ?? false,
     // 교재 배송 희망 저장
     wantsTextbook: userData.wantsTextbook ?? false,
+    // 신규 가입 시 기본 30일 사용 권한 부여
+    hasAccessCode: true,
+    accessCodeUsedAt: now,
+    expiryDays: 30,
   }
 
   // password는 선택적으로 추가
