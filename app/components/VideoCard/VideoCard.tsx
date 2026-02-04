@@ -247,6 +247,31 @@ export default function VideoCard({ video, showVPH = false, vph, onChannelClick,
         </div>
 
         <TagAnalysis tags={tags} title={title} />
+
+        {/* Buttons */}
+        <div className="video-buttons">
+          <button
+            className="btn-view-channel"
+            onClick={(e) => {
+              e.preventDefault();
+              onChannelClick?.(channelId || id, channelTitle);
+            }}
+          >
+            <Play size={12} />
+            채널
+          </button>
+
+          <button
+            className="btn-view-comments"
+            onClick={(e) => {
+              e.preventDefault();
+              onCommentsClick?.(id, title);
+            }}
+          >
+            <MessageCircle size={12} />
+            댓글
+          </button>
+        </div>
       </div>
     </div>
   );
