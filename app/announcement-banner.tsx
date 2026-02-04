@@ -32,6 +32,10 @@ export default function AnnouncementBanner() {
               <span className={styles.checkmark}>🎓</span>
               <span>폼나스 커머스 수강생 · 3개월 무료 (카페에서 확인)</span>
             </li>
+            <li>
+              <span className={styles.checkmark}>🔑</span>
+              <span>회원가입 초대코드: <strong>FORMNA</strong></span>
+            </li>
           </ul>
         </div>
 
