@@ -16,8 +16,8 @@ export async function connectToDatabase() {
   }
 
   const client = new MongoClient(mongoUri, {
-    maxPoolSize: 100,       // ✅ 동접 300 지원: 100-150이 적정
-    minPoolSize: 50,        // 워밍업용
+    maxPoolSize: 500,
+    minPoolSize: 100,
     maxIdleTimeMS: 60000,
     waitQueueTimeoutMS: 2000,
     compressors: ['zlib'],

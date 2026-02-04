@@ -22,7 +22,7 @@ module.exports = {
       max_memory_restart: '2G',
       env: {
         NODE_ENV: 'production',
-        WORKER_CONCURRENCY: '50'
+        WORKER_CONCURRENCY: '50'  // 3워커 × 50 = 동접 300 지원
       },
       watch: false,
       ignore_watch: [

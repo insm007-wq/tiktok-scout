@@ -15,12 +15,9 @@ interface CacheEntry<T> {
   expiresAt: number;
 }
 
-// ✅ 동접 300 지원 캐시 설정
-// 워커 3 × 동시성 50 = 150 동시 작업
-// 각 작업당 캐시 1-2개 = 150-300 필요
-// 여유도 포함: 8000-10000이 최적
+// LRU 캐시 설정: 최대 10,000개 항목, 24시간 TTL
 const cache = new LRUCache<string, CacheEntry<any>>({
-  max: 10000,                    // 동접 300 지원
+  max: 10000,                    // 최대 10,000개 항목
   ttl: 24 * 60 * 60 * 1000,     // 24시간
   updateAgeOnGet: true,          // GET할 때 TTL 갱신
   allowStale: false,             // 만료된 항목 반환 안 함
@@ -28,95 +25,23 @@ const cache = new LRUCache<string, CacheEntry<any>>({
 });
 
 /**
- * 캐시에서 데이터 조회 (만료 확인)
- */
-export function getFromCache<T>(
-  query: string,
-  platform: string,
-  dateRange?: string
-): T | null {
-  // ✅ FIXED: 간단한 키 생성 (Platform 타입 오류 방지)
-  const key = `${platform}:${query}:${dateRange || 'all'}`;
-  const entry = cache.get(key);
-
-  if (!entry) return null;
-
-  // 만료 확인
-  if (Date.now() > entry.expiresAt) {
-    cache.delete(key);
-    return null;
-  }
-
-  return entry.data as T;
-}
-
-/**
- * 캐시에 데이터 저장 (기본 TTL: 30분)
- */
-export function setCache<T>(
-  query: string,
-  platform: string,
-  data: T,
-  dateRange?: string,
-  ttlMinutes: number = 30
-): void {
-  // ✅ FIXED: 간단한 키 생성 (Platform 타입 오류 방지)
-  const key = `${platform}:${query}:${dateRange || 'all'}`;
-  const expiresAt = Date.now() + ttlMinutes * 60 * 1000;
-
-  cache.set(key, {
-    data,
-    expiresAt,
-  });
-}
-
-/**
- * ✅ 캐시 통계 (메모리 모니터링)
+ * 캐시 통계 조회
  */
 export function getCacheStats() {
   let count = 0;
   let totalSize = 0;
-  let expiredCount = 0;
 
   cache.forEach((entry) => {
-    const size = JSON.stringify(entry.data).length;
     if (Date.now() <= entry.expiresAt) {
       count++;
-      totalSize += size;
-    } else {
-      expiredCount++;
+      totalSize += JSON.stringify(entry.data).length;
     }
   });
-
-  const utilizationPercent = ((count / 10000) * 100).toFixed(1);
 
   return {
     count,
     totalSizeKB: Math.round(totalSize / 1024),
-    totalSizeMB: (Math.round(totalSize / 1024) / 1024).toFixed(2),
-    expiredCount,
-    utilization: `${utilizationPercent}%`,
-    maxItems: 10000
   };
-}
-
-/**
- * 만료된 캐시 정리
- */
-export function cleanupExpiredCache() {
-  let cleaned = 0;
-
-  cache.forEach((entry, key) => {
-    if (Date.now() > entry.expiresAt) {
-      cache.delete(key);
-      cleaned++;
-    }
-  });
-
-  if (cleaned > 0) {
-  }
-
-  return cleaned;
 }
 
 /**
