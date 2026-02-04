@@ -55,7 +55,7 @@ export async function searchDouyinVideos(
 
     const runId = runData.data.id;
 
-    // 2️⃣ 완료 대기 (Polling with retry)
+    // 2️⃣ 완료 대기 (Polling with exponential backoff)
     let status = 'RUNNING';
     let attempt = 0;
     const maxAttempts = 120;
@@ -63,6 +63,8 @@ export async function searchDouyinVideos(
     const maxWaitTime = 5000;
 
     while ((status === 'RUNNING' || status === 'READY') && attempt < maxAttempts) {
+      await new Promise(r => setTimeout(r, waitTime));  // ✅ 루프 시작 시 대기
+
       const statusRes = await fetchGetWithRetry(
         `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`,
         {},
@@ -73,20 +75,13 @@ export async function searchDouyinVideos(
       status = statusData.data.status;
       attempt++;
 
-      if (attempt % 10 === 0) {
-      }
-
-      if (status === 'SUCCEEDED') {
-        break;
-      }
+      if (status === 'SUCCEEDED') break;
       if (status === 'FAILED' || status === 'ABORTED') {
         return [];
       }
 
-      if (status === 'RUNNING' || status === 'READY') {
-        await new Promise(r => setTimeout(r, waitTime));
-        waitTime = Math.min(waitTime * 2, maxWaitTime);
-      }
+      // ✅ 다음 폴링을 위해 wait time 증가
+      waitTime = Math.min(waitTime * 1.5, maxWaitTime);
     }
 
     if (status !== 'SUCCEEDED') {
@@ -225,7 +220,7 @@ export async function searchDouyinVideosParallel(
       const maxWaitTime = 5000;
 
       while ((status === 'RUNNING' || status === 'READY') && attempt < maxAttempts) {
-        await new Promise(r => setTimeout(r, waitTime));
+        await new Promise(r => setTimeout(r, waitTime));  // ✅ 루프 시작 시 대기
 
         const statusRes = await fetch(
           `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
@@ -234,16 +229,12 @@ export async function searchDouyinVideosParallel(
         status = statusData.data.status;
         attempt++;
 
-        if (attempt % 10 === 0) {
-        }
-
-        if (status === 'SUCCEEDED') {
-          break;
-        }
+        if (status === 'SUCCEEDED') break;
         if (status === 'FAILED' || status === 'ABORTED') {
           return [];
         }
 
+        // ✅ 다음 폴링을 위해 wait time 증가
         waitTime = Math.min(waitTime * 1.5, maxWaitTime);
       }
 

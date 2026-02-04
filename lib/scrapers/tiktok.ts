@@ -57,14 +57,16 @@ export async function searchTikTokVideos(
 
     const runId = runData.data.id;
 
-    // 2️⃣ 완료 대기 (Polling with retry)
+    // 2️⃣ 완료 대기 (Polling with exponential backoff)
     let status = 'RUNNING';
     let attempt = 0;
-    const maxAttempts = 60;
+    const maxAttempts = 120;  // ✅ IMPROVED: Douyin과 일관성 (60→120)
     let waitTime = 500;
     const maxWaitTime = 5000;
 
     while ((status === 'RUNNING' || status === 'READY') && attempt < maxAttempts) {
+      await new Promise(r => setTimeout(r, waitTime));  // ✅ 루프 시작 시 대기
+
       const statusRes = await fetchGetWithRetry(
         `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`,
         {},
@@ -75,22 +77,16 @@ export async function searchTikTokVideos(
       status = statusData.data.status;
       attempt++;
 
-
       if (status === 'SUCCEEDED') break;
       if (status === 'FAILED' || status === 'ABORTED') {
-        const failureMsg = statusData.data.failureMessage || 'Unknown failure'
-        const errorMsg = `[TikTok] Run failed: ${status} - ${failureMsg}`
         return [];
       }
 
-      if (status === 'RUNNING' || status === 'READY') {
-        await new Promise(r => setTimeout(r, waitTime));
-        waitTime = Math.min(waitTime * 2, maxWaitTime);
-      }
+      // ✅ 다음 폴링을 위해 wait time 증가
+      waitTime = Math.min(waitTime * 1.5, maxWaitTime);
     }
 
     if (status !== 'SUCCEEDED') {
-      const timeoutMsg = `[TikTok] Run timeout or failed: ${status} after ${attempt} attempts`
       return [];
     }
 

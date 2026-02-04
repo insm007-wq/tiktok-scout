@@ -31,7 +31,53 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 할당량 체크 (관리자는 무제한)
+    const body: SearchRequest = await request.json()
+    const { query, platform, dateRange } = body
+
+    // 입력 유효성 검사
+    if (!query || !query.trim()) {
+      return NextResponse.json(
+        { error: '검색어를 입력해주세요.' },
+        { status: 400 }
+      )
+    }
+
+    // ✅ IMPROVED: 캐시 먼저 확인 (할당량 소비 전)
+    let cached = await getVideoFromCache(query, platform, dateRange)
+
+    if (cached) {
+      console.log(`[SearchAPI] ✅ Cache HIT (L1 메모리 - 할당량 제외)`, {
+        query: query.substring(0, 30),
+        platform,
+        videoCount: cached.videos.length,
+        timestamp: new Date().toISOString()
+      })
+      return NextResponse.json({
+        status: 'completed',
+        data: cached.videos,
+        cached: true,
+        timestamp: Date.now()
+      })
+    }
+
+    // L2 MongoDB 캐시 확인
+    const mongoCache = await getVideoFromMongoDB(query, platform, dateRange)
+    if (mongoCache) {
+      console.log(`[SearchAPI] ✅ Cache HIT (L2 MongoDB - 할당량 제외)`, {
+        query: query.substring(0, 30),
+        platform,
+        videoCount: mongoCache.videos.length,
+        timestamp: new Date().toISOString()
+      })
+      return NextResponse.json({
+        status: 'completed',
+        data: mongoCache.videos,
+        cached: true,
+        timestamp: Date.now()
+      })
+    }
+
+    // 캐시 미스 → 할당량 체크 및 차감 (실제 스크래핑 필요시에만)
     if (!session.user.isAdmin) {
       const usageCheck = await checkApiUsage(session.user.email)
 
@@ -46,61 +92,11 @@ export async function POST(request: NextRequest) {
           }
         }, { status: 429 })
       }
-    }
 
-    const body: SearchRequest = await request.json()
-    const { query, platform, dateRange } = body
-
-    // 입력 유효성 검사
-    if (!query || !query.trim()) {
-      return NextResponse.json(
-        { error: '검색어를 입력해주세요.' },
-        { status: 400 }
-      )
-    }
-
-    // 할당량 차감 (캐시 히트 여부와 상관없이)
-    if (!session.user.isAdmin) {
+      // ✅ 캐시 미스 시에만 할당량 차감
       await incrementApiUsage(session.user.email, query.trim())
     }
 
-    // 캐시 확인 (L1 메모리)
-    const cacheKey = `video:${platform}:${query}:${dateRange || 'all'}`
-    let cached = await getVideoFromCache(query, platform, dateRange)
-
-    if (cached) {
-      console.log(`[SearchAPI] ✅ Cache HIT (L1 메모리)`, {
-        query: query.substring(0, 30),
-        platform,
-        videoCount: cached.videos.length,
-        timestamp: new Date().toISOString()
-      })
-      return NextResponse.json({
-        status: 'completed',
-        data: cached.videos,
-        cached: true,
-        timestamp: Date.now()
-      })
-    }
-
-    // MongoDB L2 캐시 확인
-    const mongoCache = await getVideoFromMongoDB(query, platform, dateRange)
-    if (mongoCache) {
-      console.log(`[SearchAPI] ✅ Cache HIT (L2 MongoDB)`, {
-        query: query.substring(0, 30),
-        platform,
-        videoCount: mongoCache.videos.length,
-        timestamp: new Date().toISOString()
-      })
-      return NextResponse.json({
-        status: 'completed',
-        data: mongoCache.videos,
-        cached: true,
-        timestamp: Date.now()
-      })
-    }
-
-    // 캐시 미스 → 큐에 작업 추가
     console.log(`[SearchAPI] ❌ Cache MISS (재스크래핑 필요)`, {
       query: query.substring(0, 30),
       platform,

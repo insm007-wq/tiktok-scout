@@ -41,14 +41,16 @@ export async function searchXiaohongshuVideos(
 
     const runId = runData.data.id;
 
-    // 2️⃣ 완료 대기 (Polling with retry)
+    // 2️⃣ 완료 대기 (Polling with exponential backoff)
     let status = 'RUNNING';
     let attempt = 0;
-    const maxAttempts = 60;
+    const maxAttempts = 120;  // ✅ IMPROVED: 다른 플랫폼과 일관성 (60→120)
     let waitTime = 500;
     const maxWaitTime = 5000;
 
     while ((status === 'RUNNING' || status === 'READY') && attempt < maxAttempts) {
+      await new Promise(r => setTimeout(r, waitTime));  // ✅ 루프 시작 시 대기
+
       const statusRes = await fetchGetWithRetry(
         `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
       );
@@ -62,10 +64,8 @@ export async function searchXiaohongshuVideos(
         return [];
       }
 
-      if (status === 'RUNNING' || status === 'READY') {
-        await new Promise(r => setTimeout(r, waitTime));
-        waitTime = Math.min(waitTime * 1.5, maxWaitTime);
-      }
+      // ✅ 다음 폴링을 위해 wait time 증가
+      waitTime = Math.min(waitTime * 1.5, maxWaitTime);
     }
 
     if (status !== 'SUCCEEDED') {
@@ -245,26 +245,27 @@ export async function searchXiaohongshuVideosParallel(
     const datasetPromises = validRuns.map(async ({ runId, sortType }) => {
       let status = 'RUNNING';
       let attempt = 0;
-      const maxAttempts = 60;
+      const maxAttempts = 120;  // ✅ IMPROVED: 다른 플랫폼과 일관성 (60→120)
       let waitTime = 500;
       const maxWaitTime = 5000;
 
       while ((status === 'RUNNING' || status === 'READY') && attempt < maxAttempts) {
-        await new Promise(r => setTimeout(r, waitTime));
+        await new Promise(r => setTimeout(r, waitTime));  // ✅ 루프 시작 시 대기
 
         const statusRes = await fetch(
           `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
         );
         const statusData = await statusRes.json();
         status = statusData.data.status;
+        attempt++;
 
         if (status === 'SUCCEEDED') break;
         if (status === 'FAILED' || status === 'ABORTED' || status === 'TIMED-OUT') {
           return [];
         }
 
-        attempt++;
-        waitTime = Math.min(waitTime * 1.2, maxWaitTime);
+        // ✅ 다음 폴링을 위해 wait time 증가 (Douyin과 일관성: 1.5배)
+        waitTime = Math.min(waitTime * 1.5, maxWaitTime);
       }
 
       if (status !== 'SUCCEEDED') {
