@@ -15,9 +15,12 @@ interface CacheEntry<T> {
   expiresAt: number;
 }
 
-// LRU 캐시 설정: 최대 10,000개 항목, 24시간 TTL
+// ✅ 동접 300 지원 캐시 설정
+// 워커 3 × 동시성 50 = 150 동시 작업
+// 각 작업당 캐시 1-2개 = 150-300 필요
+// 여유도 포함: 8000-10000이 최적
 const cache = new LRUCache<string, CacheEntry<any>>({
-  max: 5000,                     // ✅ FIXED: 최대 5,000개 항목으로 제한 (메모리 누수 방지)
+  max: 10000,                    // 동접 300 지원
   ttl: 24 * 60 * 60 * 1000,     // 24시간
   updateAgeOnGet: true,          // GET할 때 TTL 갱신
   allowStale: false,             // 만료된 항목 반환 안 함
@@ -68,22 +71,32 @@ export function setCache<T>(
 }
 
 /**
- * 캐시 전체 조회
+ * ✅ 캐시 통계 (메모리 모니터링)
  */
 export function getCacheStats() {
   let count = 0;
   let totalSize = 0;
+  let expiredCount = 0;
 
   cache.forEach((entry) => {
+    const size = JSON.stringify(entry.data).length;
     if (Date.now() <= entry.expiresAt) {
       count++;
-      totalSize += JSON.stringify(entry.data).length;
+      totalSize += size;
+    } else {
+      expiredCount++;
     }
   });
+
+  const utilizationPercent = ((count / 10000) * 100).toFixed(1);
 
   return {
     count,
     totalSizeKB: Math.round(totalSize / 1024),
+    totalSizeMB: (Math.round(totalSize / 1024) / 1024).toFixed(2),
+    expiredCount,
+    utilization: `${utilizationPercent}%`,
+    maxItems: 10000
   };
 }
 

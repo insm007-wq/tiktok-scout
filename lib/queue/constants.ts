@@ -9,7 +9,7 @@ export const QUEUE_NAME = 'video-search' as const
 /** Maximum number of videos to scrape per search */
 export const MAX_VIDEOS_PER_SEARCH = 100 as const
 
-/** Default worker concurrency level */
+/** Default worker concurrency level (동접 300 지원) */
 export const DEFAULT_WORKER_CONCURRENCY = 50 as const
 
 /** Job processing timeout (5 minutes in milliseconds) */
