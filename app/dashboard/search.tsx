@@ -1875,19 +1875,6 @@ export default function Search() {
 
                             {/* 오른쪽 액션 버튼 */}
                             <div className="card-actions-vertical">
-                              {/* 상세 버튼 */}
-                              <button
-                                className="card-action-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedVideo(video);
-                                }}
-                                title="상세 정보"
-                              >
-                                <Info className="card-action-icon" />
-                                <span className="card-action-label">상세</span>
-                              </button>
-
                               {/* 다운로드 버튼 */}
                               <button
                                 className="card-action-btn"
