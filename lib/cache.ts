@@ -184,6 +184,13 @@ export async function getVideoFromMongoDB(
 
     // 만료 확인 (TTL 인덱스 대비 이중 체크)
     if (cached.expiresAt < new Date()) {
+      console.warn(`[Cache] ⏰ TTL 만료됨 (재스크래핑 필요)`, {
+        query: query.substring(0, 30),
+        platform,
+        expiresAt: cached.expiresAt.toISOString(),
+        now: new Date().toISOString(),
+        expiredMs: new Date().getTime() - cached.expiresAt.getTime()
+      })
       return null;
     }
 
@@ -265,13 +272,31 @@ export async function setVideoToMongoDB(
       nowTimestamp: Date.now(),
     });
 
-    await db.collection('video_cache').updateOne(
+    const result = await db.collection('video_cache').updateOne(
       { cacheKey },
       { $set: doc },
       { upsert: true }
     );
 
+    console.log(`[Cache] ✅ MongoDB 저장 완료`, {
+      platform,
+      query: query.substring(0, 30),
+      videoCount: videos.length,
+      cacheKey: cacheKey.substring(0, 50),
+      upsertedId: result.upsertedId,
+      modifiedCount: result.modifiedCount,
+      matchedCount: result.matchedCount,
+      expiresAt: expiresAt.toISOString(),
+      timestamp: new Date().toISOString()
+    });
+
   } catch (error) {
+    console.error(`[Cache] ❌ MongoDB 저장 실패`, {
+      query: query.substring(0, 30),
+      platform,
+      error: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString()
+    });
   }
 }
 
