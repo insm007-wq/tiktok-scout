@@ -63,6 +63,15 @@ const worker = new Worker<SearchJobData>(
         throw new Error('APIFY_KEY environment variable not configured')
       }
 
+      console.log(`[Worker] 🔄 스크래핑 시작`, {
+        jobId: job.id,
+        query: query.substring(0, 30),
+        platform,
+        dateRange: dateRange || 'all',
+        attempts: job.attemptsMade,
+        timestamp: new Date().toISOString()
+      })
+
       switch (platform) {
         case 'tiktok':
           videos = await searchTikTokVideos(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
@@ -76,6 +85,14 @@ const worker = new Worker<SearchJobData>(
         default:
           throw new Error(`Unknown platform: ${platform}`)
       }
+
+      console.log(`[Worker] ✅ 스크래핑 완료`, {
+        jobId: job.id,
+        query: query.substring(0, 30),
+        platform,
+        videoCount: videos.length,
+        timestamp: new Date().toISOString()
+      })
 
       try {
         await job.updateProgress(80)
@@ -94,8 +111,14 @@ const worker = new Worker<SearchJobData>(
       }
 
       // Cache write should not block job completion
-      setVideoToCache(query, platform, videos, dateRange).catch(() => {
-        // Silently ignore cache write failures
+      setVideoToCache(query, platform, videos, dateRange).catch((err) => {
+        console.error(`[Worker] ❌ 캐시 작성 실패`, {
+          jobId: job.id,
+          query: query.substring(0, 30),
+          platform,
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString()
+        })
       })
 
       try {
@@ -104,9 +127,26 @@ const worker = new Worker<SearchJobData>(
         // Progress update failure is non-critical
       }
 
+      console.log(`[Worker] 🎉 작업 완료 및 캐시 저장`, {
+        jobId: job.id,
+        query: query.substring(0, 30),
+        platform,
+        videoCount: videos.length,
+        timestamp: new Date().toISOString()
+      })
+
       return videos
     } catch (error) {
-      throw classifyScrapingError(error, platform)
+      const classifiedError = classifyScrapingError(error, platform)
+      console.error(`[Worker] ❌ 스크래핑 실패`, {
+        jobId: job.id,
+        query: query.substring(0, 30),
+        platform,
+        error: classifiedError.message,
+        attempts: job.attemptsMade,
+        timestamp: new Date().toISOString()
+      })
+      throw classifiedError
     }
   },
   {

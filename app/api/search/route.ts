@@ -69,6 +69,12 @@ export async function POST(request: NextRequest) {
     let cached = await getVideoFromCache(query, platform, dateRange)
 
     if (cached) {
+      console.log(`[SearchAPI] ✅ Cache HIT (L1 메모리)`, {
+        query: query.substring(0, 30),
+        platform,
+        videoCount: cached.videos.length,
+        timestamp: new Date().toISOString()
+      })
       return NextResponse.json({
         status: 'completed',
         data: cached.videos,
@@ -77,7 +83,31 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // MongoDB L2 캐시 확인
+    const mongoCache = await getVideoFromMongoDB(query, platform, dateRange)
+    if (mongoCache) {
+      console.log(`[SearchAPI] ✅ Cache HIT (L2 MongoDB)`, {
+        query: query.substring(0, 30),
+        platform,
+        videoCount: mongoCache.videos.length,
+        timestamp: new Date().toISOString()
+      })
+      return NextResponse.json({
+        status: 'completed',
+        data: mongoCache.videos,
+        cached: true,
+        timestamp: Date.now()
+      })
+    }
+
     // 캐시 미스 → 큐에 작업 추가
+    console.log(`[SearchAPI] ❌ Cache MISS (재스크래핑 필요)`, {
+      query: query.substring(0, 30),
+      platform,
+      dateRange: dateRange || 'all',
+      timestamp: new Date().toISOString()
+    })
+
     const job = await searchQueue.add('search', {
       query: query.trim(),
       platform,
@@ -87,6 +117,15 @@ export async function POST(request: NextRequest) {
     // 큐 길이 기반 예상 대기시간 계산
     const queueLength = await searchQueue.getWaitingCount()
     const estimatedWaitSeconds = Math.max(15, queueLength * 2)
+
+    console.log(`[SearchAPI] 📋 작업을 Queue에 추가`, {
+      jobId: job.id,
+      query: query.substring(0, 30),
+      platform,
+      queuePosition: queueLength + 1,
+      estimatedWaitSeconds,
+      timestamp: new Date().toISOString()
+    })
 
     return NextResponse.json({
       status: 'queued',

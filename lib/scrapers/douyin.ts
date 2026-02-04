@@ -36,6 +36,7 @@ export async function searchDouyinVideos(
       maxItemsPerUrl: 50,
       shouldDownloadVideos: true,  // videoUrl 포함을 위해 true로 설정 (호버 시 즉시 재생 가능)
       shouldDownloadCovers: false,
+      disableDataset: true,  // ✅ R2 저장 비활성화 (결과만 메모리에 반환)
     };
 
 

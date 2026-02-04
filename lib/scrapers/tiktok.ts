@@ -43,6 +43,7 @@ export async function searchTikTokVideos(
         dateRange: mapDateRange(dateRange),
         includeSearchKeywords: false,
         startUrls: [],
+        disableDataset: true,  // ✅ R2 저장 비활성화 (결과만 메모리에 반환)
       },
       {},
       { maxRetries: 3, initialDelayMs: 1000 }
