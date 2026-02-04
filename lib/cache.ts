@@ -15,14 +15,13 @@ interface CacheEntry<T> {
   expiresAt: number;
 }
 
-// LRU 캐시 설정: 최대 10,000개 항목, 24시간 TTL, 메모리 제한 1GB
+// LRU 캐시 설정: 최대 10,000개 항목, 24시간 TTL
 const cache = new LRUCache<string, CacheEntry<any>>({
-  max: 10000,                    // 최대 10,000개 항목
+  max: 5000,                     // ✅ FIXED: 최대 5,000개 항목으로 제한 (메모리 누수 방지)
   ttl: 24 * 60 * 60 * 1000,     // 24시간
   updateAgeOnGet: true,          // GET할 때 TTL 갱신
   allowStale: false,             // 만료된 항목 반환 안 함
-  ttlAutopurge: true,            // 만료된 항목 자동 삭제
-  maxSize: 1073741824            // 최대 1GB 메모리 제한 (메모리 누수 방지)
+  ttlAutopurge: true             // 만료된 항목 자동 삭제
 });
 
 /**
@@ -33,15 +32,15 @@ export function getFromCache<T>(
   platform: string,
   dateRange?: string
 ): T | null {
-  // 📝 NOTE: 일관성 유지를 위해 video 접두사 사용 (getVideoFromCache와 동일)
-  const videoKey = `video:${generateCacheKey(platform as Platform, query, dateRange)}`;
-  const entry = cache.get(videoKey);
+  // ✅ FIXED: 간단한 키 생성 (Platform 타입 오류 방지)
+  const key = `${platform}:${query}:${dateRange || 'all'}`;
+  const entry = cache.get(key);
 
   if (!entry) return null;
 
   // 만료 확인
   if (Date.now() > entry.expiresAt) {
-    cache.delete(videoKey);
+    cache.delete(key);
     return null;
   }
 
@@ -58,11 +57,11 @@ export function setCache<T>(
   dateRange?: string,
   ttlMinutes: number = 30
 ): void {
-  // 📝 NOTE: 일관성 유지를 위해 video 접두사 사용
-  const videoKey = `video:${generateCacheKey(platform as Platform, query, dateRange)}`;
+  // ✅ FIXED: 간단한 키 생성 (Platform 타입 오류 방지)
+  const key = `${platform}:${query}:${dateRange || 'all'}`;
   const expiresAt = Date.now() + ttlMinutes * 60 * 1000;
 
-  cache.set(videoKey, {
+  cache.set(key, {
     data,
     expiresAt,
   });

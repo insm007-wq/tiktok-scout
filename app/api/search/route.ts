@@ -42,11 +42,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // ✅ IMPROVED: 캐시 먼저 확인 (할당량 소비 전)
+    // 할당량 체크 (관리자는 무제한)
+    if (!session.user.isAdmin) {
+      const usageCheck = await checkApiUsage(session.user.email)
+
+      if (!usageCheck.allowed) {
+        return NextResponse.json({
+          error: '일일 검색 한도를 초과했습니다.',
+          details: {
+            used: usageCheck.used,
+            limit: usageCheck.limit,
+            remaining: usageCheck.remaining,
+            resetTime: usageCheck.resetTime
+          }
+        }, { status: 429 })
+      }
+    }
+
+    // ✅ IMPROVED: 캐시 먼저 확인
     let cached = await getVideoFromCache(query, platform, dateRange)
 
     if (cached) {
-      console.log(`[SearchAPI] ✅ Cache HIT (L1 메모리 - 할당량 제외)`, {
+      console.log(`[SearchAPI] ✅ Cache HIT (L1 메모리)`, {
         query: query.substring(0, 30),
         platform,
         videoCount: cached.videos.length,
@@ -63,7 +80,7 @@ export async function POST(request: NextRequest) {
     // L2 MongoDB 캐시 확인
     const mongoCache = await getVideoFromMongoDB(query, platform, dateRange)
     if (mongoCache) {
-      console.log(`[SearchAPI] ✅ Cache HIT (L2 MongoDB - 할당량 제외)`, {
+      console.log(`[SearchAPI] ✅ Cache HIT (L2 MongoDB)`, {
         query: query.substring(0, 30),
         platform,
         videoCount: mongoCache.videos.length,
@@ -77,23 +94,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // 캐시 미스 → 할당량 체크 및 차감 (실제 스크래핑 필요시에만)
+    // 캐시 미스 → 할당량 차감
     if (!session.user.isAdmin) {
-      const usageCheck = await checkApiUsage(session.user.email)
-
-      if (!usageCheck.allowed) {
-        return NextResponse.json({
-          error: '일일 검색 한도를 초과했습니다.',
-          details: {
-            used: usageCheck.used,
-            limit: usageCheck.limit,
-            remaining: usageCheck.remaining,
-            resetTime: usageCheck.resetTime
-          }
-        }, { status: 429 })
-      }
-
-      // ✅ 캐시 미스 시에만 할당량 차감
       await incrementApiUsage(session.user.email, query.trim())
     }
 
