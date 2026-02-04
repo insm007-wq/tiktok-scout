@@ -23,6 +23,7 @@ export async function searchXiaohongshuVideos(
     const inputParams = {
       keywords: [query],
       maxItems: Math.min(limit, 100),
+      disableDataset: true,  // ✅ R2 저장 비활성화 (결과만 메모리에 반환)
     };
 
     // 1️⃣ Run 시작 (429 에러 시 자동 재시도)
