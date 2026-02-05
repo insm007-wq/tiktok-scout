@@ -56,6 +56,8 @@ export default function LoginForm() {
         setError('차단된 계정입니다. 관리자에게 문의하세요.')
       } else if (errorParam === 'ACCOUNT_DISABLED') {
         setError('비활성화된 계정입니다.')
+      } else if (errorParam === 'ACCOUNT_WITHDRAWN') {
+        setError('탈퇴한 계정입니다.')
       }
     }
   }, [searchParams])
@@ -122,6 +124,8 @@ export default function LoginForm() {
           setError('차단된 계정입니다. 관리자에게 문의하세요.')
         } else if (errorCode === 'ACCOUNT_DISABLED') {
           setError('비활성화된 계정입니다.')
+        } else if (errorCode === 'ACCOUNT_WITHDRAWN') {
+          setError('탈퇴한 계정입니다.')
         } else if (errorCode === 'INVALID_CREDENTIALS' || errorCode === 'CredentialsSignin') {
           setError('아이디 또는 비밀번호를 확인해주세요.')
         } else {
@@ -174,6 +178,26 @@ export default function LoginForm() {
         // 승인 대기 중
         await signOut({ redirect: false })
         setError('승인 대기 중입니다. 관리자 승인 후 로그인 가능합니다.')
+        return
+      } else if (sessionError === 'CredentialsSignin') {
+        // 아이디 또는 비밀번호 오류
+        await signOut({ redirect: false })
+        setError('아이디 또는 비밀번호를 확인해주세요.')
+        return
+      } else if (sessionError === 'ACCOUNT_BANNED') {
+        // 차단된 계정
+        await signOut({ redirect: false })
+        setError('차단된 계정입니다. 관리자에게 문의하세요.')
+        return
+      } else if (sessionError === 'ACCOUNT_DISABLED') {
+        // 비활성화된 계정
+        await signOut({ redirect: false })
+        setError('비활성화된 계정입니다.')
+        return
+      } else if (sessionError === 'ACCOUNT_WITHDRAWN') {
+        // 탈퇴한 계정
+        await signOut({ redirect: false })
+        setError('탈퇴한 계정입니다.')
         return
       }
 

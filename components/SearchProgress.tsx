@@ -234,7 +234,7 @@ export function SearchProgress({
         .progress-bar-container {
           width: 100%;
           height: 6px;
-          background-color: rgba(0, 0, 0, 0.06);
+          background-color: rgba(59, 130, 246, 0.1);
           border-radius: 9999px;
           overflow: hidden;
           margin-bottom: 28px;

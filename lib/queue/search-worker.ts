@@ -20,6 +20,12 @@ import {
 const CONCURRENCY = process.env.WORKER_CONCURRENCY ? parseInt(process.env.WORKER_CONCURRENCY) : DEFAULT_WORKER_CONCURRENCY
 const APIFY_KEY = process.env.APIFY_API_KEY
 
+// ✅ IMPROVED: 시작 시 필수 환경 변수 검증
+if (!APIFY_KEY) {
+  console.error('❌ FATAL: APIFY_API_KEY environment variable is not set')
+  process.exit(1)
+}
+
 /**
  * Classifies scraping errors into specific error types for better debugging
  * @param error - The error to classify

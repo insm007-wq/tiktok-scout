@@ -31,6 +31,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const body: SearchRequest = await request.json()
+    const { query, platform, dateRange } = body
+
+    // 입력 유효성 검사
+    if (!query || !query.trim()) {
+      return NextResponse.json(
+        { error: '검색어를 입력해주세요.' },
+        { status: 400 }
+      )
+    }
+
     // 할당량 체크 (관리자는 무제한)
     if (!session.user.isAdmin) {
       const usageCheck = await checkApiUsage(session.user.email)
@@ -48,24 +59,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const body: SearchRequest = await request.json()
-    const { query, platform, dateRange } = body
-
-    // 입력 유효성 검사
-    if (!query || !query.trim()) {
-      return NextResponse.json(
-        { error: '검색어를 입력해주세요.' },
-        { status: 400 }
-      )
-    }
-
-    // 할당량 차감 (캐시 히트 여부와 상관없이)
-    if (!session.user.isAdmin) {
-      await incrementApiUsage(session.user.email, query.trim())
-    }
-
-    // 캐시 확인 (L1 메모리)
-    const cacheKey = `video:${platform}:${query}:${dateRange || 'all'}`
+    // ✅ IMPROVED: 캐시 먼저 확인
     let cached = await getVideoFromCache(query, platform, dateRange)
 
     if (cached) {
@@ -83,7 +77,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // MongoDB L2 캐시 확인
+    // L2 MongoDB 캐시 확인
     const mongoCache = await getVideoFromMongoDB(query, platform, dateRange)
     if (mongoCache) {
       console.log(`[SearchAPI] ✅ Cache HIT (L2 MongoDB)`, {
@@ -100,7 +94,11 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // 캐시 미스 → 큐에 작업 추가
+    // 캐시 미스 → 할당량 차감
+    if (!session.user.isAdmin) {
+      await incrementApiUsage(session.user.email, query.trim())
+    }
+
     console.log(`[SearchAPI] ❌ Cache MISS (재스크래핑 필요)`, {
       query: query.substring(0, 30),
       platform,

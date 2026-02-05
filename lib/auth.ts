@@ -54,7 +54,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
           if (!user) {
             console.warn('[Auth] 사용자를 찾을 수 없음')
-            return null
+            return {
+              id: email,
+              email: email,
+              name: undefined,
+              image: undefined,
+              isAdmin: false,
+              isApproved: false,
+              isVerified: false,
+              phone: undefined,
+              _error: 'CredentialsSignin',
+            } as any
           }
 
           // 비밀번호 검증
@@ -67,7 +77,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
           if (!isPasswordValid) {
             console.warn('[Auth] 비밀번호 불일치')
-            return null
+            return {
+              id: user._id?.toString() || email,
+              email: user.email,
+              name: user.name,
+              image: user.image,
+              isAdmin: user.isAdmin || false,
+              isApproved: user.isApproved || false,
+              isVerified: user.isVerified || false,
+              phone: user.phone,
+              _error: 'CredentialsSignin',
+            } as any
           }
 
           // SMS 인증 확인 - 개발 중 비활성화
@@ -94,19 +114,49 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // 계정 차단 확인
           if (user.isBanned) {
             console.warn('[Auth] 차단된 계정')
-            return null
+            return {
+              id: user._id?.toString() || email,
+              email: user.email,
+              name: user.name,
+              image: user.image,
+              isAdmin: user.isAdmin || false,
+              isApproved: user.isApproved || false,
+              isVerified: user.isVerified || false,
+              phone: user.phone,
+              _error: 'ACCOUNT_BANNED',
+            } as any
           }
 
           // 계정 비활성화 확인
           if (!user.isActive) {
             console.warn('[Auth] 비활성화된 계정')
-            return null
+            return {
+              id: user._id?.toString() || email,
+              email: user.email,
+              name: user.name,
+              image: user.image,
+              isAdmin: user.isAdmin || false,
+              isApproved: user.isApproved || false,
+              isVerified: user.isVerified || false,
+              phone: user.phone,
+              _error: 'ACCOUNT_DISABLED',
+            } as any
           }
 
           // 탈퇴한 계정 확인
           if (user.isWithdrawn) {
             console.warn('[Auth] 탈퇴한 계정')
-            return null
+            return {
+              id: user._id?.toString() || email,
+              email: user.email,
+              name: user.name,
+              image: user.image,
+              isAdmin: user.isAdmin || false,
+              isApproved: user.isApproved || false,
+              isVerified: user.isVerified || false,
+              phone: user.phone,
+              _error: 'ACCOUNT_WITHDRAWN',
+            } as any
           }
 
           // ✨ 사용자별 만료 기간으로 동적 체크
