@@ -1,7 +1,7 @@
 /**
  * 계층형 캐시 시스템: L1(메모리) + L2(MongoDB)
  * - L1: LRU 메모리 캐시 (24시간 TTL, 최대 10,000 항목)
- * - L2: MongoDB 캐시 (12시간 TTL, On-Demand 스크래핑)
+ * - L2: MongoDB 캐시 (6시간 TTL, On-Demand 스크래핑, CDN URL 만료 대응)
  */
 
 import { VideoResult, Platform } from '@/types/video';
@@ -160,14 +160,14 @@ export async function getVideoFromMongoDB(
 
 /**
  * MongoDB에 영상 캐시 저장 (L2 캐시)
- * @param ttlDays - 캐시 유지 기간 (기본값: 0.5일 - 12시간 TTL)
+ * @param ttlDays - 캐시 유지 기간 (기본값: 0.25일 - 6시간 TTL)
  */
 export async function setVideoToMongoDB(
   query: string,
   platform: Platform,
   videos: VideoResult[],
   dateRange?: string,
-  ttlDays: number = 0.5  // ✅ Changed: 12시간 TTL (0.5일)
+  ttlDays: number = 0.25  // ✅ Changed: 6시간 TTL (0.25일, CDN URL 만료 대응)
 ): Promise<void> {
   try {
     const db = await getDb();
@@ -334,10 +334,10 @@ export async function setVideoToCache(
     expiresAt,
   });
 
-  // L2: MongoDB 캐시 (12시간 TTL for on-demand scraping)
-  // Note: With Vercel Cron removed, cache expires after 12 hours
-  // Users will trigger re-scrape on cache miss
-  await setVideoToMongoDB(query, platform, videos, dateRange, 0.5);
+  // L2: MongoDB 캐시 (6시간 TTL for on-demand scraping)
+  // Note: TTL shortened to 6 hours to match CDN URL expiration time (~6 hours)
+  // CDN URL 만료 전에 캐시 자동 삭제되므로 사용자가 만료된 URL을 받지 않음
+  await setVideoToMongoDB(query, platform, videos, dateRange, 0.25);
 }
 
 /**

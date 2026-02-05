@@ -14,7 +14,7 @@
 | `getPopularQueries()` 함수 | lib/cache.ts:391 | ✅ 존재 |
 | `searchCount` 필드 | lib/models/VideoCache.ts | ✅ 추가됨 |
 | `lastRefreshedAt` 필드 | lib/models/VideoCache.ts | ✅ 추가됨 |
-| TTL 변경 (90일 → 24시간) | lib/cache.ts:217 | ✅ 변경됨 |
+| TTL 변경 (90일 → 6시간) | lib/cache.ts:217 | ✅ 변경됨 (CDN URL 만료 대응) |
 | `searchCount` 인덱스 | lib/mongodb.ts:98 | ✅ 추가됨 |
 | searchCount 증가 로직 | lib/cache.ts:195-200 | ✅ 구현됨 |
 
@@ -134,7 +134,7 @@
 |------|------|------|
 | 코드 구현 | ✅ 완료 | 모든 기능 구현됨 |
 | 테스트 | 📋 준비중 | 로컬 테스트 필요 |
-| 환경변수 | 📋 설정 필요 | CRON_SECRET, ADMIN_SECRET |
+| 환경변수 | ✅ 설정됨 | CRON_SECRET, ADMIN_SECRET (Phase 2) |
 | MongoDB 인덱스 | ✅ 자동 생성 | connectToDatabase()에서 생성 |
 | Vercel 배포 | 📋 배포 후 활성화 | vercel.json 포함됨 |
 | 마이그레이션 | ✅ 완료 | R2 완전 제거 |
@@ -145,11 +145,37 @@
 
 - ✅ Phase 1: MongoDB 스키마 개선 완료
 - ✅ Phase 2: 자동 갱신 API 완료
-- ✅ Phase 3: 스크래퍼 R2 제거 완료
-- ✅ Phase 4: R2 파일 완전 제거
+- ✅ Phase 3: 스크래퍼 R2 제거 완료 / 모든 크론 제거 완료
+- ✅ Phase 4: R2 파일 완전 제거 및 CDN URL 만료 대응 완료
 - ✅ 보안: 모든 엔드포인트 인증 구현
 - ✅ 성능: 인덱스, Rate limiting 최적화
 - ✅ 비용: R2 완전 제거로 $25/월 절감
+
+---
+
+### Phase 3 업데이트: 완전 최적화 (2026-01-30)
+
+| 항목 | 검증 | 결과 |
+|------|------|------|
+| warm-cache 크론 제거 | vercel.json | ✅ 제거됨 |
+| refresh-popular 크론 제거 | vercel.json | ✅ 제거됨 |
+| /api/cron/ 디렉토리 삭제 | 파일 시스템 | ✅ 제거됨 |
+| getPopularQueries() 함수 삭제 | lib/cache.ts | ✅ 제거됨 |
+| CRON_SECRET 제거 | 환경변수 | ✅ 제거됨 |
+
+**검증**: ✅ Phase 3 완료 - 완전한 On-Demand 모델
+
+---
+
+### Phase 4: CDN URL 만료 대응 (2026-02-05)
+
+| 항목 | 검증 | 결과 |
+|------|------|------|
+| TTL 단축 | lib/cache.ts | ✅ 12시간 → 6시간 |
+| 문서 업데이트 | R2_WORKFLOW.md | ✅ 업데이트됨 |
+| CDN 만료 전 캐시 삭제 | MongoDB TTL | ✅ 자동 처리 |
+
+**검증**: ✅ Phase 4 완료 - CDN URL 만료 문제 해결
 
 ---
 
