@@ -26,11 +26,15 @@ export default function AnnouncementBanner() {
             </li>
             <li>
               <span className={styles.checkmark}>💰</span>
-              <span>3월부터 월 ₩32,900</span>
+              <span>라이트 ₩19,800 · 프로 ₩29,800</span>
             </li>
             <li>
               <span className={styles.checkmark}>🎓</span>
-              <span>폼나스 커머스 수강생 · 3개월 무료 (카페에서 확인)</span>
+              <span>폼나느 커머스 수강생 · 3개월 무료 · 2월 3일 ~ 5월 3일 (카페에서 확인)</span>
+            </li>
+            <li>
+              <span className={styles.checkmark}>🎁</span>
+              <span>신규 가입 무료 코드: FORMNA · 한달 무료 이용</span>
             </li>
           </ul>
         </div>
