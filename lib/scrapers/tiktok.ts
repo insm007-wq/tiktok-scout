@@ -136,14 +136,28 @@ export async function searchTikTokVideos(
                          item.image ||
                          item.coverImage ||
                          item.videoCover ||
+                         item.dynamicCover ||
+                         item.staticCover ||
+                         item.imagePost?.imageList?.[0]?.imageUrl ||
+                         item.imagePostList?.imageList?.[0]?.imageUrl ||
+                         (Array.isArray(item.imageList) && item.imageList[0]?.imageUrl) ||
+                         (Array.isArray(item.imagePost) && item.imagePost[0]) ||
                          undefined;
 
         // ✅ CDN URL 수신 (R2 업로드 없음)
-        console.log(`[Worker:TikTok] 🖼️ CDN URL received`, {
+        console.log(`[Worker:TikTok] 🖼️ Item 상세 정보`, {
           videoId: item.id || `video-${index}`,
           hasThumbnail: !!tiktokThumbnail,
           thumbnailPreview: tiktokThumbnail ? tiktokThumbnail.substring(0, 60) : 'N/A',
           hasVideo: !!videoUrl,
+          itemKeys: Object.keys(item),
+          videoFieldKeys: item.video ? Object.keys(item.video) : 'no video field',
+          thumbnail: item.thumbnail || 'N/A',
+          image: item.image || 'N/A',
+          coverImage: item.coverImage || 'N/A',
+          videoCover: item.videoCover || 'N/A',
+          videoThumbnail: item.video?.thumbnail || 'N/A',
+          videoCover2: item.video?.cover || 'N/A',
         });
 
         return {
