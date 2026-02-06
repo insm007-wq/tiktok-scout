@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import { AlertCircle, Eye, EyeOff, Loader2, CheckCircle } from 'lucide-react'
+import SubscriptionCard from '@/app/components/SubscriptionCard'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -30,6 +31,11 @@ export default function ProfilePage() {
 
   // 마케팅 동의
   const [marketingConsent, setMarketingConsent] = useState(false)
+
+  // 로그아웃 핸들러
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/' })
+  }
 
   // 로딩 상태 체크
   if (status === 'loading') {
@@ -326,7 +332,23 @@ export default function ProfilePage() {
               >
                 개인정보 조회
               </a>
+              <button
+                onClick={handleLogout}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-lg hover:shadow-[0_0_20px_rgba(107,114,128,0.5)] transition-all font-semibold"
+              >
+                로그아웃
+              </button>
             </div>
+          </div>
+
+          {/* 구독 관리 */}
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8">
+            <h2 className="text-2xl font-bold text-cyan-400 mb-6">구독 관리</h2>
+            <SubscriptionCard
+              userEmail={session?.user?.email}
+              currentPlan={null}
+              nextBillingDate={null}
+            />
           </div>
         </div>
       </div>

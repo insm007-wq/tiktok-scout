@@ -87,7 +87,7 @@ export default function RootLayout({
         {/* Theme Color */}
         <meta name="theme-color" content="#000000" />
       </head>
-      <body className="bg-white text-gray-900 dark:bg-zinc-950 dark:text-white">
+      <body className="bg-black text-white">
         <Providers>{children}</Providers>
       </body>
     </html>
