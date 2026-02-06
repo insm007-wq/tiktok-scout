@@ -775,6 +775,14 @@ export default function Search() {
     localStorage.setItem("titok killa-search-history", JSON.stringify(newHistory));
   };
 
+  const handleVideoDownload = () => {
+    if (results.length === 0) {
+      setError("검색 결과가 없습니다");
+      return;
+    }
+    // TODO: 영상 다운로드 기능 구현
+  };
+
   const handleExcelDownload = () => {
     if (results.length === 0) {
       setError("검색 결과가 없습니다");
@@ -1715,6 +1723,10 @@ export default function Search() {
           <div className="content-header">
             <div className="content-title">검색결과</div>
             <div className="controls-right">
+              <button className="btn-video-download" onClick={handleVideoDownload}>
+                <Download size={16} style={{ display: "inline", marginRight: "4px" }} />
+                영상 다운로드
+              </button>
               <div className="view-toggle">
                 <button className={`view-btn ${viewMode === "card" ? "active" : ""}`} onClick={() => setViewMode("card")}>
                   <LayoutGrid size={16} style={{ display: "inline", marginRight: "4px" }} />
