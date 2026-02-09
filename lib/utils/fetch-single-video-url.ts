@@ -153,15 +153,22 @@ export async function fetchSingleVideoUrl(
     }
 
     const result = dataset[0];
+    console.log(`[fetchSingleVideoUrl] Full response:`, JSON.stringify(result, null, 2));
+    console.log(`[fetchSingleVideoUrl] Looking for field: ${config.urlField}`);
+    console.log(`[fetchSingleVideoUrl] Result[${config.urlField}]:`, result[config.urlField]);
+    console.log(`[fetchSingleVideoUrl] result.videoUrl:`, result.videoUrl);
+    console.log(`[fetchSingleVideoUrl] result.downloadUrl:`, result.downloadUrl);
+
     const videoUrl = result[config.urlField] || result.videoUrl || result.downloadUrl;
 
     if (!videoUrl) {
       console.error(`[fetchSingleVideoUrl] No video URL in response`);
       console.log(`[fetchSingleVideoUrl] Response keys:`, Object.keys(result));
+      console.log(`[fetchSingleVideoUrl] All response values:`, result);
       return { platform, webVideoUrl, error: `비디오 다운로드 링크를 가져올 수 없습니다.` };
     }
 
-    console.log(`[fetchSingleVideoUrl] ✅ Video URL extracted successfully`);
+    console.log(`[fetchSingleVideoUrl] ✅ Video URL extracted successfully: ${videoUrl.substring(0, 80)}`);
     return { videoUrl, webVideoUrl, platform };
 
   } catch (error) {
