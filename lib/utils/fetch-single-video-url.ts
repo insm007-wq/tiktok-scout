@@ -11,8 +11,8 @@ interface SingleVideoResult {
 
 /**
  * Fetch video URL using Apify Download Actors
- * - TikTok: apilabs~tiktok-downloader
- * - Douyin: scrapearchitect~douyin-video-downloader
+ * - TikTok: epctex/tiktok-video-downloader (highest-rated: 4.9★ 643 reviews)
+ * - Douyin: scrapearchitect/douyin-video-downloader
  * - Xiaohongshu: fallback to search (web-based protection)
  *
  * @param webVideoUrl - The web page URL (e.g., https://www.tiktok.com/@user/video/123456)
@@ -62,14 +62,14 @@ export async function fetchSingleVideoUrl(
     // TikTok & Douyin: Use dedicated download actors
     const actorConfig = {
       'tiktok': {
-        actorId: 'apilabs~tiktok-downloader',
-        paramName: 'videoUrls',
-        urlField: 'downloadUrl',
+        actorId: 'epctex/tiktok-video-downloader',  // Highest-rated: 4.9★ 643 reviews
+        paramName: 'startUrls',
+        urlField: 'videoUrl',
       },
       'douyin': {
-        actorId: 'scrapearchitect~douyin-video-downloader',
+        actorId: 'scrapearchitect/douyin-video-downloader',
         paramName: 'video_urls',
-        urlField: 'videoUrl',
+        urlField: 'videourl',  // Note: lowercase in scrapearchitect response
       },
     };
 
@@ -85,7 +85,7 @@ export async function fetchSingleVideoUrl(
       `https://api.apify.com/v2/acts/${config.actorId}/runs?token=${apiKey}`,
       platform === 'douyin'
         ? { video_urls: [{ url: webVideoUrl }] }
-        : { videoUrls: [webVideoUrl] },
+        : { startUrls: [webVideoUrl] },  // TikTok epctex actor expects startUrls
       {},
       { maxRetries: 3, initialDelayMs: 1000 }
     );
@@ -157,9 +157,17 @@ export async function fetchSingleVideoUrl(
     console.log(`[fetchSingleVideoUrl] Looking for field: ${config.urlField}`);
     console.log(`[fetchSingleVideoUrl] Result[${config.urlField}]:`, result[config.urlField]);
     console.log(`[fetchSingleVideoUrl] result.videoUrl:`, result.videoUrl);
+    console.log(`[fetchSingleVideoUrl] result.videourl:`, result.videourl);
     console.log(`[fetchSingleVideoUrl] result.downloadUrl:`, result.downloadUrl);
+    console.log(`[fetchSingleVideoUrl] result.downloadAddress:`, result.downloadAddress);
 
-    const videoUrl = result[config.urlField] || result.videoUrl || result.downloadUrl;
+    // Enhanced videoUrl extraction with multiple fallbacks for different actor response formats
+    const videoUrl =
+      result[config.urlField] ||     // Priority 1: configured field
+      result.videoUrl ||              // Priority 2: videoUrl (uppercase)
+      result.videourl ||              // Priority 3: videourl (lowercase for douyin)
+      result.downloadUrl ||           // Priority 4: downloadUrl (epctex fallback)
+      result.downloadAddress;         // Priority 5: downloadAddress (epctex alternative)
 
     if (!videoUrl) {
       console.error(`[fetchSingleVideoUrl] No video URL in response`);
