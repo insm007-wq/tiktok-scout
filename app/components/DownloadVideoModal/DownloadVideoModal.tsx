@@ -28,10 +28,13 @@ export default function DownloadVideoModal({
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
+  const [detectedPlatform, setDetectedPlatform] = useState<"tiktok" | "douyin" | "xiaohongshu" | null>(null);
 
   if (!isOpen) return null;
 
   const detectPlatformFromUrl = (url: string): "tiktok" | "douyin" | "xiaohongshu" | null => {
+    // Detect platform early for warnings
+    let platform: "tiktok" | "douyin" | "xiaohongshu" | null = null;
     if (url.includes("tiktok.com")) return "tiktok";
     if (url.includes("douyin.com")) return "douyin";
     if (url.includes("xiaohongshu.com")) return "xiaohongshu";
@@ -101,6 +104,16 @@ export default function DownloadVideoModal({
 
       if (!response.ok) {
         const data = await response.json();
+
+        // Handle Xiaohongshu fallback: open in browser
+        if (data.openInBrowser && data.webVideoUrl) {
+          console.log("[Modal] Opening in browser for Xiaohongshu");
+          window.open(data.webVideoUrl, "_blank");
+          setError("⚠️ Xiaohongshu는 웹 브라우저에서 직접 다운로드하셔야 합니다. 새 탭을 열었습니다.");
+          setIsDownloading(false);
+          return;
+        }
+
         throw new Error(data.error || "다운로드 실패");
       }
 
@@ -236,6 +249,60 @@ export default function DownloadVideoModal({
             </div>
           </div>
 
+          {/* Xiaohongshu 경고 */}
+          {detectedPlatform === "xiaohongshu" && (
+            <div
+              style={{
+                padding: "12px",
+                backgroundColor: "#fff3cd",
+                border: "1px solid #ffc107",
+                borderRadius: "8px",
+                marginBottom: "20px",
+                fontSize: "13px",
+                color: "#856404",
+                display: "flex",
+                gap: "8px",
+                alignItems: "flex-start",
+              }}
+            >
+              <AlertCircle size={16} style={{ flexShrink: 0, marginTop: "2px" }} />
+              <div>
+                <strong>⚠️ 참고:</strong> Xiaohongshu는 앱 기반 보호로 인해 웹에서 직접 보기만 지원됩니다. 새 탭에서 브라우저로 열리며, 그곳에서 다운로드할 수 있습니다.
+              </div>
+            </div>
+          )}
+
+          {/* 진행 중 표시 */}
+          {isDownloading && (
+            <div
+              style={{
+                marginBottom: "20px",
+                padding: "12px",
+                backgroundColor: "#f0f7ff",
+                border: "1px solid #b3d9ff",
+                borderRadius: "8px",
+                fontSize: "13px",
+                color: "#0056cc",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              <div
+                style={{
+                  display: "inline-block",
+                  width: "12px",
+                  height: "12px",
+                  border: "2px solid rgba(0, 86, 204, 0.3)",
+                  borderTop: "2px solid #0056cc",
+                  borderRadius: "50%",
+                  animation: "spin 0.8s linear infinite",
+                }}
+              />
+              <span>비디오를 찾는 중입니다... (약 5-10초 소요)</span>
+            </div>
+          )}
+
           {/* URL 입력 필드 */}
           <div style={{ marginBottom: "20px" }}>
             <label
@@ -254,8 +321,11 @@ export default function DownloadVideoModal({
                 type="text"
                 value={input}
                 onChange={(e) => {
-                  setInput(e.target.value);
+                  const newInput = e.target.value;
+                  setInput(newInput);
                   setError("");
+                  // Detect platform as user types
+                  setDetectedPlatform(detectPlatformFromUrl(newInput));
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder="https://www.tiktok.com/@gulum323/video/7595183372683463957"

@@ -41,9 +41,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Handle Xiaohongshu: no videoUrl available, fallback to web view
+    if (!finalVideoUrl && platform === 'xiaohongshu') {
+      return NextResponse.json(
+        {
+          error: 'Xiaohongshu는 웹에서 직접 보기만 지원됩니다',
+          webVideoUrl: webVideoUrl,
+          openInBrowser: true,
+        },
+        { status: 400 }
+      );
+    }
+
     if (!finalVideoUrl) {
       return NextResponse.json(
-        { error: '비디오 URL이 필요합니다.' },
+        { error: '비디오 URL을 가져올 수 없습니다. URL이 올바른지 확인해주세요.' },
         { status: 400 }
       );
     }

@@ -1,4 +1,7 @@
-import { fetchPostWithRetry, fetchGetWithRetry } from './fetch-with-retry';
+import { searchTikTokVideos } from '@/lib/scrapers/tiktok';
+import { searchDouyinVideosParallel } from '@/lib/scrapers/douyin';
+import { searchXiaohongshuVideosParallel } from '@/lib/scrapers/xiaohongshu';
+import type { VideoResult } from '@/types/video';
 
 interface SingleVideoResult {
   videoUrl?: string;
@@ -8,8 +11,51 @@ interface SingleVideoResult {
 }
 
 /**
- * Fetch a single video URL from Apify using the video's web page URL
+ * Extract video ID from platform URL
+ * @param url - The web page URL
+ * @returns Video ID or null
+ */
+function extractVideoIdFromUrl(url: string): string | null {
+  try {
+    // TikTok: /video/7595183372683463957
+    let match = url.match(/\/video\/(\d+)/);
+    if (match) return match[1];
+
+    // Douyin: /aweme/detail/7595183372683463957
+    match = url.match(/\/aweme\/detail\/(\d+)/);
+    if (match) return match[1];
+
+    // Xiaohongshu: /explore/1234567890
+    match = url.match(/\/explore\/(\w+)/);
+    if (match) return match[1];
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extract creator username from platform URL
+ * @param url - The web page URL
+ * @returns Creator username or null
+ */
+function extractCreatorUsername(url: string): string | null {
+  try {
+    const match = url.match(/@([^\/]+)/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch a single video URL from Apify using keyword search
  * Used for direct downloads when user provides a TikTok/Douyin/Xiaohongshu URL
+ *
+ * Key improvement: Uses search API with video ID as keyword instead of startUrls
+ * - ✅ Search API (keywords) is optimized and returns videoUrl
+ * - ❌ startUrls approach doesn't return video data for search-optimized actors
  *
  * @param webVideoUrl - The web page URL (e.g., https://www.tiktok.com/@user/video/123456)
  * @param platform - The platform (tiktok, douyin, xiaohongshu)
@@ -28,119 +74,77 @@ export async function fetchSingleVideoUrl(
   try {
     console.log(`[fetchSingleVideoUrl] Fetching ${platform} video from URL:`, webVideoUrl);
 
-    let actorId: string;
-    let startUrl: string;
+    // Step 1: Extract video ID from URL
+    const videoId = extractVideoIdFromUrl(webVideoUrl);
+    if (!videoId) {
+      console.error(`[fetchSingleVideoUrl] Could not extract video ID from URL`);
+      return { platform, webVideoUrl, error: '유효하지 않은 URL입니다. 비디오 링크를 확인해주세요.' };
+    }
 
-    // Select appropriate Apify actor based on platform
+    console.log(`[fetchSingleVideoUrl] Extracted video ID: ${videoId}`);
+
+    // Step 2: Extract creator username for better search accuracy
+    const username = extractCreatorUsername(webVideoUrl);
+    const searchQuery = username ? `@${username} ${videoId}` : videoId;
+
+    console.log(`[fetchSingleVideoUrl] Using search query: ${searchQuery}`);
+
+    // Step 3: Search using platform-specific search function
+    let results: VideoResult[] = [];
+
     if (platform === 'tiktok') {
-      actorId = 'apidojo~tiktok-scraper';
-      startUrl = webVideoUrl;
+      results = await searchTikTokVideos(searchQuery, 3, apiKey);
     } else if (platform === 'douyin') {
-      actorId = 'apidojo~douyin-scraper';
-      startUrl = webVideoUrl;
+      results = await searchDouyinVideosParallel(searchQuery, 3, apiKey);
     } else if (platform === 'xiaohongshu') {
-      actorId = 'apidojo~xiaohongshu-scraper';
-      startUrl = webVideoUrl;
+      results = await searchXiaohongshuVideosParallel(searchQuery, 3, apiKey);
     } else {
       return { platform, error: `Unknown platform: ${platform}` };
     }
 
-    // Step 1: Start Apify run with direct URL
-    const runRes = await fetchPostWithRetry(
-      `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
-      {
-        startUrls: [{ url: startUrl }],
-        maxItems: 1,  // Only fetch 1 video
-        disableDataset: true,  // Keep results in memory
-      },
-      {},
-      { maxRetries: 3, initialDelayMs: 1000 }
-    );
+    console.log(`[fetchSingleVideoUrl] Search returned ${results.length} results`);
 
-    const runData = await runRes.json();
-    if (!runRes.ok) {
-      console.error(`[fetchSingleVideoUrl] Run creation failed:`, runData);
-      return { platform, error: `Apify run creation failed: ${runRes.status}` };
+    // Step 4: Find matching video by ID
+    const match = results.find(v => v.id === videoId);
+
+    if (!match) {
+      console.error(`[fetchSingleVideoUrl] Video ID ${videoId} not found in search results`);
+      return {
+        platform,
+        webVideoUrl,
+        error: '비디오를 찾을 수 없습니다. URL이 올바른지 확인해주세요.',
+      };
     }
 
-    const runId = runData.data.id;
-    console.log(`[fetchSingleVideoUrl] Apify run started:`, runId);
-
-    // Step 2: Wait for completion (poll status)
-    let status = 'RUNNING';
-    let attempt = 0;
-    const maxAttempts = 120;  // Max 2 minutes wait
-    let waitTime = 500;
-    const maxWaitTime = 5000;
-
-    while ((status === 'RUNNING' || status === 'READY') && attempt < maxAttempts) {
-      await new Promise(r => setTimeout(r, waitTime));
-
-      const statusRes = await fetchGetWithRetry(
-        `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`,
-        {},
-        { maxRetries: 3, initialDelayMs: 1000 }
-      );
-
-      const statusData = await statusRes.json();
-      status = statusData.data.status;
-      attempt++;
-
-      console.log(`[fetchSingleVideoUrl] Status check ${attempt}/${maxAttempts}:`, status);
-
-      if (status === 'SUCCEEDED') break;
-      if (status === 'FAILED' || status === 'ABORTED') {
-        console.error(`[fetchSingleVideoUrl] Apify run ${status}`);
-        return { platform, error: `Apify run ${status}` };
-      }
-
-      waitTime = Math.min(waitTime * 1.5, maxWaitTime);
-    }
-
-    if (status !== 'SUCCEEDED') {
-      console.error(`[fetchSingleVideoUrl] Timeout: status is still ${status}`);
-      return { platform, error: `Timeout waiting for Apify results` };
-    }
-
-    // Step 3: Fetch results
-    const datasetRes = await fetchGetWithRetry(
-      `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`,
-      {},
-      { maxRetries: 3, initialDelayMs: 1000 }
-    );
-
-    if (!datasetRes.ok) {
-      console.error(`[fetchSingleVideoUrl] Dataset fetch failed:`, datasetRes.status);
-      return { platform, error: `Failed to fetch Apify results: ${datasetRes.status}` };
-    }
-
-    const dataset = await datasetRes.json();
-    if (!Array.isArray(dataset) || dataset.length === 0) {
-      console.error(`[fetchSingleVideoUrl] No results from Apify`);
-      return { platform, webVideoUrl, error: 'No video data found' };
-    }
-
-    const videoData = dataset[0];
-    console.log(`[fetchSingleVideoUrl] Video data fetched, keys:`, Object.keys(videoData));
-
-    // Extract video URL from Apify results
-    const videoUrl = videoData.video?.url ||
-                     videoData.downloadUrl ||
-                     videoData.videoUrl ||
-                     videoData.media?.url ||
-                     undefined;
+    // Step 5: Extract video URL from match
+    const videoUrl = match.videoUrl;
 
     if (!videoUrl) {
-      console.error(`[fetchSingleVideoUrl] No video URL found in Apify response`);
-      return { platform, webVideoUrl, error: 'Could not extract video URL from page' };
+      console.warn(`[fetchSingleVideoUrl] Video found but no videoUrl - platform: ${platform}, videoId: ${videoId}`);
+
+      // Handle platform-specific cases where videoUrl is not available
+      if (platform === 'xiaohongshu') {
+        console.log(`[fetchSingleVideoUrl] Xiaohongshu: videoUrl not available, returning webVideoUrl for browser fallback`);
+        return {
+          platform,
+          webVideoUrl: match.webVideoUrl || webVideoUrl,
+          error: undefined,  // No error - this is expected for Xiaohongshu
+        };
+      }
+
+      return {
+        platform,
+        webVideoUrl,
+        error: '비디오 다운로드 링크를 가져올 수 없습니다.',
+      };
     }
 
     console.log(`[fetchSingleVideoUrl] ✅ Video URL extracted successfully`);
-    return { videoUrl, webVideoUrl, platform };
+    return { videoUrl, webVideoUrl: match.webVideoUrl || webVideoUrl, platform };
 
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error(`[fetchSingleVideoUrl] Error:`, errorMsg);
-    return { platform, error: `Error fetching video URL: ${errorMsg}` };
+    return { platform, error: `비디오를 가져오는 중 오류 발생: ${errorMsg}` };
   }
 }
