@@ -104,8 +104,20 @@ export async function fetchSingleVideoUrl(
 
     console.log(`[fetchSingleVideoUrl] Search returned ${results.length} results`);
 
-    // Step 4: Find matching video by ID
-    const match = results.find(v => v.id === videoId);
+    // Step 4: Find matching video
+    // Strategy: Try to match by ID first, then by webVideoUrl pattern, finally use first result
+    let match = results.find(v => v.id === videoId);
+
+    if (!match && results.length > 0) {
+      // Try to match by webVideoUrl containing the videoId
+      match = results.find(v => v.webVideoUrl && v.webVideoUrl.includes(videoId));
+    }
+
+    if (!match && results.length > 0) {
+      // If search query is the videoId, the first result is likely correct
+      console.warn(`[fetchSingleVideoUrl] Using first search result as fallback (ID matching failed)`);
+      match = results[0];
+    }
 
     if (!match) {
       console.error(`[fetchSingleVideoUrl] Video ID ${videoId} not found in search results`);
