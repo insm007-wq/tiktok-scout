@@ -6,7 +6,7 @@ import { AlertCircle } from "lucide-react";
 interface SubscriptionCardProps {
   userEmail?: string;
   currentPlan?: "light" | "pro" | "pro-plus" | "ultra" | null;
-  nextBillingDate?: string;
+  nextBillingDate?: string | null;
 }
 
 export default function SubscriptionCard({

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchSingleVideoUrl } from '@/lib/utils/fetch-single-video-url';
 
 export async function POST(req: NextRequest) {
   try {
@@ -6,29 +7,37 @@ export async function POST(req: NextRequest) {
 
     let finalVideoUrl = videoUrl;
 
-    // Handle Xiaohongshu on-demand video URL fetching
-    if (platform === 'xiaohongshu' && !videoUrl && webVideoUrl) {
-      console.log('[Download] Xiaohongshu: Fetching video URL from post URL...');
+    // Handle on-demand video URL fetching for all platforms when videoUrl is not provided
+    if (!videoUrl && webVideoUrl) {
+      console.log(`[Download] ${platform}: Fetching video URL from web URL...`);
 
       try {
-        const fetchRes = await fetch('http://localhost:3000/api/fetch-xiaohongshu-video', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ postUrl: webVideoUrl }),
-        });
-
-        const fetchData = await fetchRes.json();
-
-        if (!fetchData.success) {
-          throw new Error(fetchData.error || 'Failed to fetch video URL');
+        const apiKey = process.env.APIFY_API_KEY;
+        if (!apiKey) {
+          throw new Error('APIFY_API_KEY not configured');
         }
 
-        finalVideoUrl = fetchData.videoUrl;
-        console.log('[Download] Xiaohongshu video URL obtained');
+        // Use Apify to fetch the actual CDN video URL from the web page
+        const result = await fetchSingleVideoUrl(webVideoUrl, platform as any, apiKey);
+
+        if (result.error) {
+          throw new Error(result.error);
+        }
+
+        if (!result.videoUrl) {
+          throw new Error('Could not extract video URL from page');
+        }
+
+        finalVideoUrl = result.videoUrl;
+        console.log(`[Download] ✅ ${platform} video URL extracted from web page`);
+
       } catch (error) {
-        console.error('[Download] Xiaohongshu video URL fetch failed:', error);
-        const errorMsg = error instanceof Error ? error.message : '샤오홍슈 영상 URL을 가져올 수 없습니다.';
-        throw new Error(errorMsg);
+        console.error(`[Download] ${platform} video URL fetch failed:`, error);
+        throw new Error(
+          error instanceof Error
+            ? error.message
+            : `${platform} URL에서 영상을 가져올 수 없습니다. 올바른 공개 영상 URL인지 확인해주세요.`
+        );
       }
     }
 

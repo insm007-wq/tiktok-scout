@@ -8,6 +8,7 @@ import ViewCountFilter from "@/app/components/Filters/ViewCountFilter/ViewCountF
 import PeriodFilter from "@/app/components/Filters/PeriodFilter/PeriodFilter";
 import VideoLengthFilter from "@/app/components/Filters/VideoLengthFilter/VideoLengthFilter";
 import EngagementRatioFilter from "@/app/components/Filters/EngagementRatioFilter/EngagementRatioFilter";
+import DownloadVideoModal from "@/app/components/DownloadVideoModal/DownloadVideoModal";
 import { formatDateWithTime, getRelativeDateString } from "@/lib/dateUtils";
 import { formatNumber, formatVideoDuration } from "@/lib/formatters";
 import UserDropdown from "@/app/components/UserDropdown/UserDropdown";
@@ -84,6 +85,8 @@ export default function Search() {
     totalQueueSize?: number;
     estimatedWaitSeconds?: number;
   } | null>(null);
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -776,12 +779,58 @@ export default function Search() {
   };
 
   const handleVideoDownload = () => {
-    if (results.length === 0) {
-      setError("검색 결과가 없습니다");
-      return;
-    }
-    // TODO: 영상 다운로드 기능 구현
+    setIsDownloadModalOpen(true);
   };
+
+  const handleDownloadFromUrl = useCallback(
+    async (video: any) => {
+      setIsDownloading(true);
+
+      try {
+        if (!video.videoUrl) {
+          throw new Error("영상 다운로드 정보를 불러올 수 없습니다.");
+        }
+
+        const response = await fetch("/api/download-video", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            videoUrl: video.videoUrl,
+            videoId: video.id,
+            platform,
+            webVideoUrl: video.webVideoUrl,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "다운로드 실패");
+        }
+
+        // 바이너리 데이터로 다운로드
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${platform}_${video.id}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        addToast("success", "영상 다운로드가 완료되었습니다!", "✅ 완료");
+        setIsDownloadModalOpen(false);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "다운로드 중 오류가 발생했습니다";
+        addToast("error", errorMessage, "❌ 오류");
+      } finally {
+        setIsDownloading(false);
+      }
+    },
+    [addToast, platform]
+  );
 
   const handleExcelDownload = () => {
     if (results.length === 0) {
@@ -2227,6 +2276,14 @@ export default function Search() {
           </div>
         </div>
       )}
+
+      {/* 영상 다운로드 모달 */}
+      <DownloadVideoModal
+        isOpen={isDownloadModalOpen}
+        onClose={() => setIsDownloadModalOpen(false)}
+        onDownload={handleDownloadFromUrl}
+        isLoading={isDownloading}
+      />
     </>
   );
 }
