@@ -104,23 +104,38 @@ export async function fetchSingleVideoUrl(
 
     console.log(`[fetchSingleVideoUrl] Search returned ${results.length} results`);
 
-    // Step 4: Find matching video
-    // Strategy: Try to match by ID first, then by webVideoUrl pattern, finally use first result
-    let match = results.find(v => v.id === videoId);
-
-    if (!match && results.length > 0) {
-      // Try to match by webVideoUrl containing the videoId
-      match = results.find(v => v.webVideoUrl && v.webVideoUrl.includes(videoId));
+    // Debug: Log search results
+    if (results.length > 0) {
+      console.log(`[fetchSingleVideoUrl] Search results summary:`, results.map((v, i) => ({
+        index: i,
+        id: v.id,
+        title: v.title?.substring(0, 50),
+        creator: v.creator,
+        webVideoUrl: v.webVideoUrl?.substring(0, 80),
+        hasVideoUrl: !!v.videoUrl,
+      })));
     }
 
+    // Step 4: Find matching video by ID (most reliable)
+    let match = results.find(v => v.id === videoId);
+    console.log(`[fetchSingleVideoUrl] Step 1 - Exact ID match: ${match ? '✅ Found' : '❌ Not found'}`);
+
+    // Step 2: Try to match by webVideoUrl containing the videoId
     if (!match && results.length > 0) {
-      // If search query is the videoId, the first result is likely correct
-      console.warn(`[fetchSingleVideoUrl] Using first search result as fallback (ID matching failed)`);
-      match = results[0];
+      match = results.find(v => v.webVideoUrl && v.webVideoUrl.includes(videoId));
+      console.log(`[fetchSingleVideoUrl] Step 2 - webVideoUrl pattern match: ${match ? '✅ Found' : '❌ Not found'}`);
+    }
+
+    // Step 3: Match by webVideoUrl equality (exact URL match)
+    if (!match && results.length > 0) {
+      match = results.find(v => v.webVideoUrl === webVideoUrl);
+      console.log(`[fetchSingleVideoUrl] Step 3 - Exact webVideoUrl match: ${match ? '✅ Found' : '❌ Not found'}`);
     }
 
     if (!match) {
-      console.error(`[fetchSingleVideoUrl] Video ID ${videoId} not found in search results`);
+      console.error(`[fetchSingleVideoUrl] Video not found - no matching criteria met`);
+      console.error(`[fetchSingleVideoUrl] Looking for videoId: ${videoId}`);
+      console.error(`[fetchSingleVideoUrl] Looking for webVideoUrl: ${webVideoUrl}`);
       return {
         platform,
         webVideoUrl,
