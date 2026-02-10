@@ -126,7 +126,7 @@
 
 .search-container-with-button {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: stretch;
   flex: 1;
 }
@@ -188,7 +188,7 @@
 /* 플랫폼 선택 UI */
 .platform-selector {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
 }
 
@@ -243,7 +243,7 @@
   font-size: 13px;
   font-weight: 700;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   min-width: 68px;
@@ -289,7 +289,7 @@
 
 .controls-right {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
   flex-wrap: wrap;
 }
@@ -314,8 +314,8 @@
 }
 
 .view-btn.active {
-  background: linear-gradient(135deg, #00E573 0%, #00B85C 100%);
-  color: #000000;
+  background: linear-gradient(135deg, #9D4EDD 0%, #7B2CBF 100%);
+  color: #FFFFFF;
 }
 
 .view-btn:hover:not(.active) {
@@ -335,26 +335,26 @@
 }
 
 .btn-excel {
-  background: linear-gradient(135deg, #9D4EDD 0%, #C77DFF 100%);
-  color: #FFFFFF;
+  background: linear-gradient(135deg, #00E573 0%, #00B85C 100%);
+  color: #000000;
   padding: 8px 24px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 16px rgba(157, 78, 221, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 229, 115, 0.3);
 }
 
 .btn-excel:hover {
-  background: linear-gradient(135deg, #C77DFF 0%, #9D4EDD 100%);
-  box-shadow: 0 6px 20px rgba(157, 78, 221, 0.5);
+  background: linear-gradient(135deg, #00FF7F 0%, #00E573 100%);
+  box-shadow: 0 6px 20px rgba(0, 229, 115, 0.5);
   transform: translateY(-2px);
 }
 
 .btn-excel:disabled {
-  background: rgba(157, 78, 221, 0.3);
+  background: rgba(0, 229, 115, 0.3);
   cursor: not-allowed;
   box-shadow: none;
 }
@@ -364,9 +364,9 @@
   color: #000000;
   padding: 8px 24px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 16px rgba(0, 229, 115, 0.3);
@@ -423,7 +423,7 @@
 
 .result-card:hover {
   background: rgba(45, 45, 58, 0.8);
-  border-color: #00E573;
+  border: 2px solid #00E573;
   box-shadow: 0 8px 32px rgba(0, 229, 115, 0.6);
   transform: translateY(-6px) scale(1.02);
 }
@@ -553,7 +553,7 @@
   font-weight: 700;
   margin-bottom: 8px;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
   line-height: 1.4;
@@ -595,9 +595,9 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: rgba(0, 229, 115, 0.15);
+  background: #FFFFFF;
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(0, 229, 115, 0.3);
+  border: 1px solid #FFFFFF;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -607,13 +607,14 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   padding: 0;
   z-index: 3;
+  color: #000000;
 }
 
 .card-action-btn:hover {
-  background: rgba(0, 229, 115, 0.25);
-  border-color: #00E573;
+  background: #FFFFFF;
+  border-color: #FFFFFF;
   transform: scale(1.15);
-  box-shadow: 0 4px 20px rgba(0, 229, 115, 0.4);
+  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.8);
 }
 
 .card-action-btn:active {
@@ -623,20 +624,20 @@
 .card-action-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;
-  background: rgba(0, 229, 115, 0.08);
-  border-color: rgba(0, 229, 115, 0.1);
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .card-action-icon {
   width: 18px;
   height: 18px;
-  color: #00E573;
+  color: #000000;
 }
 
 .card-action-label {
   font-size: 9px;
   font-weight: 700;
-  color: #00E573;
+  color: #000000;
   margin-top: 2px;
   letter-spacing: 0.3px;
 }
@@ -890,7 +891,7 @@
 
 .modal-footer {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   padding: 20px 24px;
   border-top: 1px solid rgba(0, 229, 115, 0.2);
   flex-shrink: 0;
@@ -963,8 +964,8 @@
 /* 모바일 - 768px 이하 */
 @media (max-width: 768px) {
   .results-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
   }
 
   .card-actions-vertical {
@@ -1031,13 +1032,13 @@
   }
 
   .card-action-btn {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
   }
 
   .card-action-icon {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
   }
 
   .card-action-label {

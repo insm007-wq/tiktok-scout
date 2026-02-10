@@ -19,12 +19,7 @@ interface DownloadVideoModalProps {
   isLoading?: boolean;
 }
 
-export default function DownloadVideoModal({
-  isOpen,
-  onClose,
-  onDownload,
-  isLoading = false,
-}: DownloadVideoModalProps) {
+export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoading = false }: DownloadVideoModalProps) {
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
@@ -131,7 +126,6 @@ export default function DownloadVideoModal({
       // Close modal after successful download
       setInput("");
       onClose();
-
     } catch (err) {
       setError(err instanceof Error ? err.message : "다운로드 중 오류가 발생했습니다.");
     } finally {
@@ -247,7 +241,7 @@ export default function DownloadVideoModal({
           >
             <AlertCircle size={16} style={{ flexShrink: 0, marginTop: "2px" }} />
             <div>
-              <strong>TikTok, Douyin, 샤오홍슈</strong> 영상 URL을 붙여넣기하면 자동으로 감지하여 다운로드합니다.
+              <strong>TikTok</strong> 영상 URL을 붙여넣기하면 자동으로 감지하여 다운로드합니다.
             </div>
           </div>
 
@@ -269,7 +263,8 @@ export default function DownloadVideoModal({
             >
               <AlertCircle size={16} style={{ flexShrink: 0, marginTop: "2px" }} />
               <div>
-                <strong>⚠️ 참고:</strong> Xiaohongshu는 앱 기반 보호로 인해 웹에서 직접 보기만 지원됩니다. 새 탭에서 브라우저로 열리며, 그곳에서 다운로드할 수 있습니다.
+                <strong>⚠️ 참고:</strong> Xiaohongshu는 앱 기반 보호로 인해 웹에서 직접 보기만 지원됩니다. 새 탭에서 브라우저로 열리며,
+                그곳에서 다운로드할 수 있습니다.
               </div>
             </div>
           )}
@@ -318,7 +313,7 @@ export default function DownloadVideoModal({
             >
               영상 URL
             </label>
-            <div style={{ display: "flex", gap: "8px" }}>
+            <div style={{ display: "flex", gap: "12px" }}>
               <input
                 type="text"
                 value={input}
@@ -361,10 +356,13 @@ export default function DownloadVideoModal({
                 style={{
                   padding: "12px 16px",
                   border: "none",
-                  background: isDownloading || isLoading || !input.trim() ? "rgba(0, 229, 115, 0.3)" : "linear-gradient(135deg, #00E573 0%, #00B85C 100%)",
+                  background:
+                    isDownloading || isLoading || !input.trim()
+                      ? "rgba(0, 229, 115, 0.3)"
+                      : "linear-gradient(135deg, #00E573 0%, #00B85C 100%)",
                   borderRadius: "8px",
                   fontSize: "13px",
-                  fontWeight: "600",
+                  fontWeight: "700",
                   cursor: isDownloading || isLoading || !input.trim() ? "not-allowed" : "pointer",
                   color: "#000",
                   display: "flex",
@@ -428,7 +426,7 @@ export default function DownloadVideoModal({
           )}
 
           {/* 버튼 */}
-          <div style={{ display: "flex", gap: "10px" }}>
+          <div style={{ display: "flex", gap: "12px" }}>
             <button
               onClick={onClose}
               disabled={isDownloading || isLoading}
@@ -439,7 +437,7 @@ export default function DownloadVideoModal({
                 backgroundColor: "rgba(37, 37, 48, 0.4)",
                 borderRadius: "8px",
                 fontSize: "13px",
-                fontWeight: "600",
+                fontWeight: "700",
                 cursor: isDownloading || isLoading ? "not-allowed" : "pointer",
                 color: "rgba(255, 255, 255, 0.75)",
                 transition: "all 0.2s",
@@ -447,12 +445,14 @@ export default function DownloadVideoModal({
               onMouseEnter={(e) =>
                 !isDownloading &&
                 !isLoading &&
-                ((e.currentTarget.style.backgroundColor = "rgba(37, 37, 48, 0.7)"), (e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)"))
+                ((e.currentTarget.style.backgroundColor = "rgba(37, 37, 48, 0.7)"),
+                (e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)"))
               }
               onMouseLeave={(e) =>
                 !isDownloading &&
                 !isLoading &&
-                ((e.currentTarget.style.backgroundColor = "rgba(37, 37, 48, 0.4)"), (e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)"))
+                ((e.currentTarget.style.backgroundColor = "rgba(37, 37, 48, 0.4)"),
+                (e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)"))
               }
             >
               닫기

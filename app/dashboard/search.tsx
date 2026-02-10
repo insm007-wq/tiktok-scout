@@ -519,7 +519,7 @@ export default function Search() {
 
     setIsLoading(true);
     setError("");
-    setVideos([]);
+    // setVideos([]);  // ← 주석 처리: 이전 결과 유지로 UX 개선
 
     try {
       // 새로운 비동기 큐 API 호출
@@ -1498,7 +1498,7 @@ export default function Search() {
                       border: "1px solid rgba(157, 78, 221, 0.25)",
                       borderRadius: "10px",
                       textAlign: "center",
-                      color: "#C77DFF",
+                      color: "rgba(255, 255, 255, 0.85)",
                       fontSize: "13px",
                       fontWeight: "600",
                     }}

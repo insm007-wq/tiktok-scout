@@ -80,12 +80,10 @@ export async function fetchSingleVideoUrl(
     // Step 1: Start the actor run
     const runRes = await fetchPostWithRetry(
       `https://api.apify.com/v2/acts/${config.actorId}/runs?token=${apiKey}`,
-      platform === 'douyin'
-        ? { video_urls: [{ url: webVideoUrl }] }
-        : {
-            startUrls: [webVideoUrl],
-            proxy: { useApifyProxy: true },  // Required for epctex TikTok actor
-          },
+      {
+        startUrls: [webVideoUrl],
+        proxy: { useApifyProxy: true },  // Required for epctex TikTok actor
+      },
       {},
       { maxRetries: 3, initialDelayMs: 1000 }
     );
