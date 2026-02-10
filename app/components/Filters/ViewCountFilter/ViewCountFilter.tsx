@@ -44,22 +44,24 @@ export default function ViewCountFilter({
             style={{
               padding: "6px 8px",
               borderRadius: "6px",
-              border: selectedQuick?.label === option.label ? "2px solid #000000" : "1px solid #d1d5db",
-              backgroundColor: selectedQuick?.label === option.label ? "rgba(0, 0, 0, 0.05)" : "#fff",
-              color: selectedQuick?.label === option.label ? "#000000" : "#6b6b6b",
+              border: selectedQuick?.label === option.label ? "2px solid #00E573" : "1px solid rgba(255, 255, 255, 0.08)",
+              backgroundColor: selectedQuick?.label === option.label ? "rgba(0, 229, 115, 0.15)" : "rgba(37, 37, 48, 0.4)",
+              color: selectedQuick?.label === option.label ? "#00FF7F" : "rgba(255, 255, 255, 0.5)",
               fontSize: "12px",
               fontWeight: selectedQuick?.label === option.label ? "600" : "500",
               cursor: "pointer",
-              transition: "all 0.2s",
+              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
             }}
             onMouseEnter={(e) => {
               if (selectedQuick?.label !== option.label) {
-                e.currentTarget.style.backgroundColor = "#f5f5f5";
+                e.currentTarget.style.backgroundColor = "rgba(37, 37, 48, 0.7)";
+                e.currentTarget.style.borderColor = "rgba(0, 229, 115, 0.3)";
               }
             }}
             onMouseLeave={(e) => {
               if (selectedQuick?.label !== option.label) {
-                e.currentTarget.style.backgroundColor = "#fff";
+                e.currentTarget.style.backgroundColor = "rgba(37, 37, 48, 0.4)";
+                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.08)";
               }
             }}
           >

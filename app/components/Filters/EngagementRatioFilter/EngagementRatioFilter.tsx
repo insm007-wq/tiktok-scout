@@ -57,12 +57,12 @@ export default function EngagementRatioFilter({
               padding: "6px 8px",
               borderRadius: "6px",
               cursor: "pointer",
-              backgroundColor: selectedValues.includes(option.value) ? "rgba(0, 0, 0, 0.05)" : "transparent",
-              border: selectedValues.includes(option.value) ? "1px solid rgba(0, 0, 0, 0.12)" : "1px solid transparent",
-              transition: "all 0.2s",
+              backgroundColor: selectedValues.includes(option.value) ? "rgba(0, 229, 115, 0.15)" : "transparent",
+              border: selectedValues.includes(option.value) ? "1px solid rgba(0, 229, 115, 0.3)" : "1px solid transparent",
+              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
               fontSize: "13px",
               fontWeight: selectedValues.includes(option.value) ? "600" : "500",
-              color: selectedValues.includes(option.value) ? "#000000" : "#6b6b6b",
+              color: selectedValues.includes(option.value) ? "#00E573" : "rgba(255, 255, 255, 0.5)",
             }}
           >
             <input
@@ -77,15 +77,15 @@ export default function EngagementRatioFilter({
               width: "16px",
               height: "16px",
               borderRadius: "4px",
-              border: selectedValues.includes(option.value) ? "3px solid #000000" : "2px solid #d1d5db",
+              border: selectedValues.includes(option.value) ? "3px solid #00E573" : "2px solid rgba(255, 255, 255, 0.1)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               marginRight: "8px",
-              backgroundColor: selectedValues.includes(option.value) ? "#000000" : "transparent",
+              backgroundColor: selectedValues.includes(option.value) ? "#00E573" : "transparent",
             }}>
               {selectedValues.includes(option.value) && (
-                <span style={{ width: "3px", height: "6px", backgroundColor: "white", transform: "rotate(45deg)" }} />
+                <span style={{ width: "3px", height: "6px", backgroundColor: "#000000", transform: "rotate(45deg)" }} />
               )}
             </span>
             <span>{option.label}</span>
@@ -96,7 +96,7 @@ export default function EngagementRatioFilter({
       <style jsx>{`
         .engagement-subtitle {
           font-size: 12px;
-          color: var(--text-secondary, #666);
+          color: rgba(255, 255, 255, 0.5);
           margin-top: 0;
           margin-bottom: 8px;
           font-weight: 400;

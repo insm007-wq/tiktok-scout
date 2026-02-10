@@ -37,29 +37,30 @@ const getIcon = (type: ToastType) => {
 const getIconColor = (type: ToastType): string => {
   switch (type) {
     case 'error':
+      return '#ff6b6b'
     case 'warning':
-      return '#ef4444'
+      return '#ffa500'
     case 'success':
-      return '#10b981'
+      return '#00E573'
     case 'info':
-      return '#3b82f6'
+      return '#9D4EDD'
     default:
-      return '#6b7280'
+      return 'rgba(255, 255, 255, 0.6)'
   }
 }
 
 const getBackgroundColor = (type: ToastType): string => {
   switch (type) {
     case 'error':
-      return '#fecaca'
+      return 'rgba(239, 68, 68, 0.15)'
     case 'warning':
-      return '#fcd34d'
+      return 'rgba(245, 158, 11, 0.15)'
     case 'success':
-      return '#a7f3d0'
+      return 'rgba(0, 229, 115, 0.15)'
     case 'info':
-      return '#bfdbfe'
+      return 'rgba(157, 78, 221, 0.15)'
     default:
-      return '#f3f4f6'
+      return 'rgba(255, 255, 255, 0.08)'
   }
 }
 

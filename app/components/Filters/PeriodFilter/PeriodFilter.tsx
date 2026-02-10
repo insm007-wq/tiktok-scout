@@ -55,12 +55,12 @@ export default function PeriodFilter({ value, onChange, platform }: PeriodFilter
             padding: "6px 8px",
             borderRadius: "6px",
             cursor: "pointer",
-            backgroundColor: value === option.value ? "rgba(0, 0, 0, 0.05)" : "transparent",
-            border: value === option.value ? "1px solid rgba(0, 0, 0, 0.12)" : "1px solid transparent",
-            transition: "all 0.2s",
+            backgroundColor: value === option.value ? "rgba(0, 229, 115, 0.15)" : "transparent",
+            border: value === option.value ? "1px solid rgba(0, 229, 115, 0.3)" : "1px solid transparent",
+            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
             fontSize: "13px",
             fontWeight: value === option.value ? "600" : "500",
-            color: value === option.value ? "#000000" : "#6b6b6b",
+            color: value === option.value ? "#00E573" : "rgba(255, 255, 255, 0.5)",
           }}
         >
           <input
@@ -75,14 +75,14 @@ export default function PeriodFilter({ value, onChange, platform }: PeriodFilter
             width: "16px",
             height: "16px",
             borderRadius: "50%",
-            border: value === option.value ? "3px solid #000000" : "2px solid #d1d5db",
+            border: value === option.value ? "3px solid #00E573" : "2px solid rgba(255, 255, 255, 0.1)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             marginRight: "8px",
-            backgroundColor: value === option.value ? "#000000" : "transparent",
+            backgroundColor: value === option.value ? "#00E573" : "transparent",
           }}>
-            {value === option.value && <span style={{ width: "4px", height: "4px", backgroundColor: "white", borderRadius: "50%" }} />}
+            {value === option.value && <span style={{ width: "4px", height: "4px", backgroundColor: "#000000", borderRadius: "50%" }} />}
           </span>
           <span>{option.label}</span>
         </label>

@@ -1331,10 +1331,10 @@ export default function Search() {
                 style={{
                   marginTop: "16px",
                   padding: "14px",
-                  background: "linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 249, 250, 0.95) 100%)",
-                  border: "1px solid rgba(0, 0, 0, 0.12)",
+                  background: "linear-gradient(135deg, rgba(37, 37, 48, 0.6) 0%, rgba(26, 26, 36, 0.6) 100%)",
+                  border: "1px solid rgba(0, 229, 115, 0.2)",
                   borderRadius: "12px",
-                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
+                  boxShadow: "0 4px 12px rgba(0, 229, 115, 0.1)",
                   minHeight: "80px",
                 }}
               >
@@ -1346,15 +1346,15 @@ export default function Search() {
                     gap: "8px",
                     marginBottom: translatedQuery || isTranslating ? "14px" : "0",
                     padding: "12px",
-                    background: "rgba(248, 249, 250, 0.8)",
+                    background: "rgba(37, 37, 48, 0.8)",
                     borderRadius: "10px",
-                    border: "1px solid rgba(0, 0, 0, 0.06)",
+                    border: "1px solid rgba(255, 255, 255, 0.08)",
                   }}
                 >
                   <div
                     style={{
                       fontSize: "11px",
-                      color: "#6b7280",
+                      color: "rgba(255, 255, 255, 0.5)",
                       fontWeight: "700",
                       textTransform: "uppercase",
                       letterSpacing: "0.5px",
@@ -1366,7 +1366,7 @@ export default function Search() {
                     style={{
                       fontSize: "14px",
                       fontWeight: "600",
-                      color: "#1a1a1a",
+                      color: "#FFFFFF",
                       lineHeight: "1.5",
                     }}
                   >
@@ -1379,11 +1379,11 @@ export default function Search() {
                   <div
                     style={{
                       padding: "14px",
-                      background: "linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.04) 100%)",
-                      border: "1px solid rgba(59, 130, 246, 0.25)",
+                      background: "linear-gradient(135deg, rgba(0, 229, 115, 0.1) 0%, rgba(0, 229, 115, 0.05) 100%)",
+                      border: "1px solid rgba(0, 229, 115, 0.25)",
                       borderRadius: "10px",
                       textAlign: "center",
-                      color: "#3b82f6",
+                      color: "#00E573",
                       fontSize: "13px",
                       fontWeight: "600",
                     }}
@@ -1399,7 +1399,7 @@ export default function Search() {
                       style={{
                         textAlign: "center",
                         fontSize: "11px",
-                        color: "#9ca3af",
+                        color: "rgba(255, 255, 255, 0.5)",
                         margin: "6px 0 12px 0",
                         fontWeight: "600",
                       }}
@@ -1412,15 +1412,15 @@ export default function Search() {
                         flexDirection: "column",
                         gap: "8px",
                         padding: "12px",
-                        background: "linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(34, 197, 94, 0.04) 100%)",
-                        border: "1px solid rgba(34, 197, 94, 0.25)",
+                        background: "linear-gradient(135deg, rgba(157, 78, 221, 0.1) 0%, rgba(157, 78, 221, 0.05) 100%)",
+                        border: "1px solid rgba(157, 78, 221, 0.25)",
                         borderRadius: "10px",
                       }}
                     >
                       <div
                         style={{
                           fontSize: "11px",
-                          color: "#16a34a",
+                          color: "#C77DFF",
                           fontWeight: "700",
                           textTransform: "uppercase",
                           letterSpacing: "0.5px",
@@ -1432,7 +1432,7 @@ export default function Search() {
                         style={{
                           fontSize: "14px",
                           fontWeight: "600",
-                          color: "#1a1a1a",
+                          color: "#FFFFFF",
                           lineHeight: "1.5",
                         }}
                       >
@@ -1446,22 +1446,22 @@ export default function Search() {
                         style={{
                           marginTop: "4px",
                           padding: "8px 16px",
-                          background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
-                          color: "white",
+                          background: "linear-gradient(135deg, #00E573 0%, #00B85C 100%)",
+                          color: "#000000",
                           border: "none",
                           borderRadius: "8px",
                           fontSize: "12px",
                           fontWeight: "600",
                           cursor: "pointer",
                           transition: "all 0.3s",
-                          boxShadow: "0 2px 6px rgba(34, 197, 94, 0.2)",
+                          boxShadow: "0 2px 6px rgba(0, 229, 115, 0.3)",
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.boxShadow = "0 4px 12px rgba(34, 197, 94, 0.3)";
+                          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 229, 115, 0.5)";
                           e.currentTarget.style.transform = "translateY(-2px)";
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.boxShadow = "0 2px 6px rgba(34, 197, 94, 0.2)";
+                          e.currentTarget.style.boxShadow = "0 2px 6px rgba(0, 229, 115, 0.3)";
                           e.currentTarget.style.transform = "translateY(0)";
                         }}
                       >
@@ -1476,11 +1476,11 @@ export default function Search() {
                   <div
                     style={{
                       padding: "14px",
-                      background: "linear-gradient(135deg, rgba(156, 163, 175, 0.08) 0%, rgba(156, 163, 175, 0.04) 100%)",
-                      border: "1px solid rgba(156, 163, 175, 0.25)",
+                      background: "linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%)",
+                      border: "1px solid rgba(255, 255, 255, 0.15)",
                       borderRadius: "10px",
                       textAlign: "center",
-                      color: "#6b7280",
+                      color: "rgba(255, 255, 255, 0.75)",
                       fontSize: "13px",
                       fontWeight: "500",
                     }}
@@ -1494,11 +1494,11 @@ export default function Search() {
                   <div
                     style={{
                       padding: "14px",
-                      background: "linear-gradient(135deg, rgba(124, 58, 237, 0.08) 0%, rgba(124, 58, 237, 0.04) 100%)",
-                      border: "1px solid rgba(124, 58, 237, 0.25)",
+                      background: "linear-gradient(135deg, rgba(157, 78, 221, 0.1) 0%, rgba(157, 78, 221, 0.05) 100%)",
+                      border: "1px solid rgba(157, 78, 221, 0.25)",
                       borderRadius: "10px",
                       textAlign: "center",
-                      color: "#7c3aed",
+                      color: "#C77DFF",
                       fontSize: "13px",
                       fontWeight: "600",
                     }}
@@ -1605,7 +1605,8 @@ export default function Search() {
                   marginTop: "6px",
                   padding: "8px 10px",
                   backgroundColor:
-                    (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" ? "#f5f5f5" : "transparent",
+                    (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" ? "rgba(0, 229, 115, 0.1)" : "transparent",
+                  border: (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" ? "1px solid rgba(0, 229, 115, 0.2)" : "none",
                   borderRadius: "4px",
                   minHeight: "32px",
                   opacity: (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" ? 1 : 0,
@@ -1615,7 +1616,7 @@ export default function Search() {
                 }}
               >
                 {(platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" && (
-                  <span style={{ color: "#000000", fontWeight: "600" }}>
+                  <span style={{ color: "#00E573", fontWeight: "600" }}>
                     💡 팁: {platform === "douyin" ? "Douyin" : "Xiaohongshu"}은 중국어 검색이 더 정확합니다
                   </span>
                 )}
@@ -1634,7 +1635,7 @@ export default function Search() {
                   fontSize: "13px",
                   fontWeight: "700",
                   marginBottom: "16px",
-                  color: "#000000",
+                  color: "rgba(255, 255, 255, 0.75)",
                   letterSpacing: "0.5px",
                 }}
               >
@@ -1644,16 +1645,17 @@ export default function Search() {
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div
                   style={{
-                    background: "linear-gradient(135deg, #ffffff 0%, #fafafa 100%)",
+                    background: "linear-gradient(135deg, rgba(37, 37, 48, 0.6) 0%, rgba(26, 26, 36, 0.6) 100%)",
                     borderRadius: "8px",
                     padding: "10px 8px",
+                    border: "1px solid rgba(255, 255, 255, 0.08)",
                   }}
                 >
                   <div
                     style={{
                       fontSize: "11px",
                       fontWeight: "600",
-                      color: "#000000",
+                      color: "rgba(255, 255, 255, 0.75)",
                       marginBottom: "6px",
                       textTransform: "uppercase",
                       letterSpacing: "0.4px",
@@ -1671,16 +1673,17 @@ export default function Search() {
                 {platform !== "xiaohongshu" && (
                   <div
                     style={{
-                      background: "linear-gradient(135deg, #ffffff 0%, #fafafa 100%)",
+                      background: "linear-gradient(135deg, rgba(37, 37, 48, 0.6) 0%, rgba(26, 26, 36, 0.6) 100%)",
                       borderRadius: "8px",
                       padding: "10px 8px",
+                      border: "1px solid rgba(255, 255, 255, 0.08)",
                     }}
                   >
                     <div
                       style={{
                         fontSize: "11px",
                         fontWeight: "600",
-                        color: "#000000",
+                        color: "rgba(255, 255, 255, 0.75)",
                         marginBottom: "6px",
                         textTransform: "uppercase",
                         letterSpacing: "0.4px",
@@ -1698,16 +1701,17 @@ export default function Search() {
 
                 <div
                   style={{
-                    background: "linear-gradient(135deg, #ffffff 0%, #fafafa 100%)",
+                    background: "linear-gradient(135deg, rgba(37, 37, 48, 0.6) 0%, rgba(26, 26, 36, 0.6) 100%)",
                     borderRadius: "8px",
                     padding: "10px 8px",
+                    border: "1px solid rgba(255, 255, 255, 0.08)",
                   }}
                 >
                   <div
                     style={{
                       fontSize: "11px",
                       fontWeight: "600",
-                      color: "#000000",
+                      color: "rgba(255, 255, 255, 0.75)",
                       marginBottom: "6px",
                       textTransform: "uppercase",
                       letterSpacing: "0.4px",
@@ -1720,16 +1724,17 @@ export default function Search() {
 
                 <div
                   style={{
-                    background: "linear-gradient(135deg, #ffffff 0%, #fafafa 100%)",
+                    background: "linear-gradient(135deg, rgba(37, 37, 48, 0.6) 0%, rgba(26, 26, 36, 0.6) 100%)",
                     borderRadius: "8px",
                     padding: "10px 8px",
+                    border: "1px solid rgba(255, 255, 255, 0.08)",
                   }}
                 >
                   <div
                     style={{
                       fontSize: "11px",
                       fontWeight: "600",
-                      color: "#000000",
+                      color: "rgba(255, 255, 255, 0.75)",
                       marginBottom: "6px",
                       textTransform: "uppercase",
                       letterSpacing: "0.4px",
@@ -1849,10 +1854,10 @@ export default function Search() {
                 >
                   🔍
                 </div>
-                <p style={{ fontSize: "16px", fontWeight: "600", marginBottom: "8px", color: "#1a1a1a", textAlign: "center" }}>
+                <p style={{ fontSize: "16px", fontWeight: "600", marginBottom: "8px", color: "#FFFFFF", textAlign: "center" }}>
                   {error ? "검색 결과가 없습니다" : "검색어를 입력하여 시작하세요"}
                 </p>
-                <p style={{ fontSize: "13px", color: "#6b6b6b", textAlign: "center", maxWidth: "300px" }}>
+                <p style={{ fontSize: "13px", color: "#999999", textAlign: "center", maxWidth: "300px" }}>
                   {error ? "다른 키워드나 필터로 다시 시도해보세요" : "관심있는 콘텐츠를 찾아보세요"}
                 </p>
               </div>

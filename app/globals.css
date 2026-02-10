@@ -52,4 +52,31 @@
   .gold-glow {
     box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
   }
+
+  /* Chzzk Dark Theme Colors */
+  :root {
+    --chzzk-green: #00E573;
+    --chzzk-green-dark: #00B85C;
+    --chzzk-green-glow: rgba(0, 229, 115, 0.3);
+    --chzzk-green-bright: #00FF7F;
+
+    --chzzk-purple: #9D4EDD;
+    --chzzk-purple-light: #C77DFF;
+
+    /* Dark Theme Base */
+    --bg-primary: #0A0A0F;
+    --bg-secondary: #121218;
+    --bg-tertiary: #1A1A24;
+    --bg-card: #252530;
+    --bg-card-hover: #2D2D3A;
+
+    /* Text Colors */
+    --text-primary: #FFFFFF;
+    --text-secondary: rgba(255, 255, 255, 0.75);
+    --text-tertiary: rgba(255, 255, 255, 0.5);
+
+    /* Border Colors */
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-medium: rgba(255, 255, 255, 0.15);
+  }
 }

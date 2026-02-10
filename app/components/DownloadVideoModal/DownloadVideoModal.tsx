@@ -159,7 +159,8 @@ export default function DownloadVideoModal({
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          backgroundColor: "rgba(10, 10, 15, 0.85)",
+          backdropFilter: "blur(12px)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -170,15 +171,16 @@ export default function DownloadVideoModal({
           className="download-modal-content"
           onClick={(e) => e.stopPropagation()}
           style={{
-            backgroundColor: "white",
+            background: "linear-gradient(135deg, rgba(37, 37, 48, 0.98) 0%, rgba(26, 26, 36, 0.98) 100%)",
             borderRadius: "12px",
             padding: "32px",
             maxWidth: "600px",
             width: "90%",
             maxHeight: "80vh",
             overflowY: "auto",
-            boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+            boxShadow: "0 24px 80px rgba(0, 0, 0, 0.7)",
             animation: "slideUp 0.3s ease-out",
+            border: "1px solid rgba(0, 229, 115, 0.2)",
           }}
         >
           {/* 헤더 */}
@@ -194,7 +196,7 @@ export default function DownloadVideoModal({
               style={{
                 fontSize: "20px",
                 fontWeight: "700",
-                color: "#000",
+                color: "#FFFFFF",
                 margin: 0,
                 display: "flex",
                 alignItems: "center",
@@ -212,7 +214,7 @@ export default function DownloadVideoModal({
                 border: "none",
                 fontSize: "24px",
                 cursor: isLoading || isDownloading ? "not-allowed" : "pointer",
-                color: "#999",
+                color: "rgba(255, 255, 255, 0.5)",
                 padding: "0",
                 width: "32px",
                 height: "32px",
@@ -221,8 +223,8 @@ export default function DownloadVideoModal({
                 justifyContent: "center",
                 transition: "color 0.2s",
               }}
-              onMouseEnter={(e) => !(isLoading || isDownloading) && (e.currentTarget.style.color = "#000")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#999")}
+              onMouseEnter={(e) => !(isLoading || isDownloading) && (e.currentTarget.style.color = "#00E573")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255, 255, 255, 0.5)")}
             >
               <X size={20} />
             </button>
@@ -232,12 +234,12 @@ export default function DownloadVideoModal({
           <div
             style={{
               padding: "12px",
-              backgroundColor: "#f0f4ff",
-              border: "1px solid #d0deff",
+              backgroundColor: "rgba(0, 229, 115, 0.1)",
+              border: "1px solid rgba(0, 229, 115, 0.3)",
               borderRadius: "8px",
               marginBottom: "20px",
               fontSize: "13px",
-              color: "#3b5bdb",
+              color: "#00E573",
               display: "flex",
               gap: "8px",
               alignItems: "flex-start",
@@ -254,12 +256,12 @@ export default function DownloadVideoModal({
             <div
               style={{
                 padding: "12px",
-                backgroundColor: "#fff3cd",
-                border: "1px solid #ffc107",
+                backgroundColor: "rgba(157, 78, 221, 0.1)",
+                border: "1px solid rgba(157, 78, 221, 0.3)",
                 borderRadius: "8px",
                 marginBottom: "20px",
                 fontSize: "13px",
-                color: "#856404",
+                color: "#C77DFF",
                 display: "flex",
                 gap: "8px",
                 alignItems: "flex-start",
@@ -278,11 +280,11 @@ export default function DownloadVideoModal({
               style={{
                 marginBottom: "20px",
                 padding: "12px",
-                backgroundColor: "#f0f7ff",
-                border: "1px solid #b3d9ff",
+                backgroundColor: "rgba(0, 229, 115, 0.1)",
+                border: "1px solid rgba(0, 229, 115, 0.3)",
                 borderRadius: "8px",
                 fontSize: "13px",
-                color: "#0056cc",
+                color: "#00E573",
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
@@ -293,8 +295,8 @@ export default function DownloadVideoModal({
                   display: "inline-block",
                   width: "12px",
                   height: "12px",
-                  border: "2px solid rgba(0, 86, 204, 0.3)",
-                  borderTop: "2px solid #0056cc",
+                  border: "2px solid rgba(0, 229, 115, 0.2)",
+                  borderTop: "2px solid #00E573",
                   borderRadius: "50%",
                   animation: "spin 0.8s linear infinite",
                 }}
@@ -310,7 +312,7 @@ export default function DownloadVideoModal({
                 display: "block",
                 fontSize: "13px",
                 fontWeight: "600",
-                color: "#000",
+                color: "rgba(255, 255, 255, 0.75)",
                 marginBottom: "8px",
               }}
             >
@@ -333,23 +335,24 @@ export default function DownloadVideoModal({
                 style={{
                   flex: 1,
                   padding: "12px",
-                  border: error ? "2px solid #ff6b6b" : "1px solid #ddd",
+                  border: error ? "2px solid #ff6b6b" : "1px solid rgba(255, 255, 255, 0.08)",
                   borderRadius: "8px",
                   fontSize: "13px",
                   fontFamily: "inherit",
                   boxSizing: "border-box",
-                  backgroundColor: isDownloading || isLoading ? "#f5f5f5" : "#fff",
-                  color: "#000",
+                  backgroundColor: isDownloading || isLoading ? "rgba(37, 37, 48, 0.4)" : "rgba(37, 37, 48, 0.6)",
+                  color: "#FFFFFF",
                   outline: "none",
                   transition: "border-color 0.2s",
                 }}
+                className="download-modal-input"
                 onFocus={(e) => {
                   if (!error) {
-                    e.currentTarget.style.borderColor = "#000";
+                    e.currentTarget.style.borderColor = "#00E573";
                   }
                 }}
                 onBlur={(e) => {
-                  e.currentTarget.style.borderColor = error ? "#ff6b6b" : "#ddd";
+                  e.currentTarget.style.borderColor = error ? "#ff6b6b" : "rgba(255, 255, 255, 0.08)";
                 }}
               />
               <button
@@ -358,27 +361,27 @@ export default function DownloadVideoModal({
                 style={{
                   padding: "12px 16px",
                   border: "none",
-                  backgroundColor: isDownloading || isLoading || !input.trim() ? "#ccc" : "#000",
+                  background: isDownloading || isLoading || !input.trim() ? "rgba(0, 229, 115, 0.3)" : "linear-gradient(135deg, #00E573 0%, #00B85C 100%)",
                   borderRadius: "8px",
                   fontSize: "13px",
                   fontWeight: "600",
                   cursor: isDownloading || isLoading || !input.trim() ? "not-allowed" : "pointer",
-                  color: "#fff",
+                  color: "#000",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   gap: "6px",
-                  transition: "all 0.2s",
+                  transition: "all 0.3s",
                   whiteSpace: "nowrap",
                 }}
                 onMouseEnter={(e) => {
                   if (!isDownloading && !isLoading && input.trim()) {
-                    e.currentTarget.style.backgroundColor = "#333";
+                    e.currentTarget.style.background = "linear-gradient(135deg, #00FF7F 0%, #00E573 100%)";
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!isDownloading && !isLoading && input.trim()) {
-                    e.currentTarget.style.backgroundColor = "#000";
+                    e.currentTarget.style.background = "linear-gradient(135deg, #00E573 0%, #00B85C 100%)";
                   }
                 }}
               >
@@ -413,10 +416,10 @@ export default function DownloadVideoModal({
               style={{
                 marginBottom: "20px",
                 padding: "12px",
-                backgroundColor: "#ffe0e0",
-                border: "1px solid #ffb3b3",
+                backgroundColor: "rgba(255, 107, 107, 0.1)",
+                border: "1px solid rgba(255, 107, 107, 0.3)",
                 borderRadius: "8px",
-                color: "#d32f2f",
+                color: "#ff6b6b",
                 fontSize: "13px",
               }}
             >
@@ -432,24 +435,24 @@ export default function DownloadVideoModal({
               style={{
                 flex: 1,
                 padding: "12px",
-                border: "1px solid #ddd",
-                backgroundColor: "#f5f5f5",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                backgroundColor: "rgba(37, 37, 48, 0.4)",
                 borderRadius: "8px",
                 fontSize: "13px",
                 fontWeight: "600",
                 cursor: isDownloading || isLoading ? "not-allowed" : "pointer",
-                color: "#666",
+                color: "rgba(255, 255, 255, 0.75)",
                 transition: "all 0.2s",
               }}
               onMouseEnter={(e) =>
                 !isDownloading &&
                 !isLoading &&
-                ((e.currentTarget.style.backgroundColor = "#efefef"), (e.currentTarget.style.borderColor = "#999"))
+                ((e.currentTarget.style.backgroundColor = "rgba(37, 37, 48, 0.7)"), (e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)"))
               }
               onMouseLeave={(e) =>
                 !isDownloading &&
                 !isLoading &&
-                ((e.currentTarget.style.backgroundColor = "#f5f5f5"), (e.currentTarget.style.borderColor = "#ddd"))
+                ((e.currentTarget.style.backgroundColor = "rgba(37, 37, 48, 0.4)"), (e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)"))
               }
             >
               닫기

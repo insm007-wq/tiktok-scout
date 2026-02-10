@@ -130,22 +130,22 @@ export function SearchProgress({
         .search-progress-container {
           margin: 24px 0;
           padding: 32px;
-          background: #ffffff;
-          border: 1px solid rgba(0, 0, 0, 0.08);
+          background: linear-gradient(135deg, rgba(37, 37, 48, 0.9) 0%, rgba(26, 26, 36, 0.9) 100%);
+          border: 1px solid rgba(0, 229, 115, 0.2);
           border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+          box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
           /* animation: fadeInUp 0.4s ease-out;  <-- 제거: 상태 업데이트 시 깜박임 원인 */
           transition: all 0.3s ease; /* 부드러운 전환 추가 */
         }
 
         .search-progress-container.queued {
-          border-color: rgba(59, 130, 246, 0.2);
-          background: linear-gradient(135deg, rgba(59, 130, 246, 0.02) 0%, rgba(255, 255, 255, 0.98) 100%);
+          border-color: rgba(0, 229, 115, 0.3);
+          background: linear-gradient(135deg, rgba(37, 37, 48, 0.9) 0%, rgba(26, 26, 36, 0.9) 100%);
         }
 
         .search-progress-container.active {
-          border-color: rgba(59, 130, 246, 0.2);
-          background: linear-gradient(135deg, rgba(59, 130, 246, 0.02) 0%, rgba(255, 255, 255, 0.98) 100%);
+          border-color: rgba(0, 229, 115, 0.3);
+          background: linear-gradient(135deg, rgba(37, 37, 48, 0.9) 0%, rgba(26, 26, 36, 0.9) 100%);
         }
 
         .progress-content {
@@ -157,8 +157,8 @@ export function SearchProgress({
         .queue-position-display {
           margin-bottom: 20px;
           padding: 20px;
-          background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0.02) 100%);
-          border: 1px solid rgba(59, 130, 246, 0.1);
+          background: linear-gradient(135deg, rgba(0, 229, 115, 0.1) 0%, rgba(157, 78, 221, 0.08) 100%);
+          border: 1px solid rgba(0, 229, 115, 0.2);
           border-radius: 16px;
           /* animation: slideDown 0.4s ease-out; <-- 제거 */
         }
@@ -166,15 +166,16 @@ export function SearchProgress({
         .queue-number {
           font-size: 48px;
           font-weight: 700;
-          color: #3b82f6;
+          color: #00E573;
           line-height: 1;
           letter-spacing: -0.02em;
           animation: queuePulse 1.5s ease-in-out infinite; /* Pulse는 무한 반복이라 괜찮음 */
+          text-shadow: 0 0 20px rgba(0, 229, 115, 0.5);
         }
 
         .queue-total {
           font-size: 14px;
-          color: #6b7280;
+          color: rgba(255, 255, 255, 0.5);
           margin-top: 6px;
           font-weight: 600;
           letter-spacing: 0.5px;
@@ -183,7 +184,7 @@ export function SearchProgress({
         .queue-message {
           font-size: 13px;
           font-weight: 600;
-          color: #3b82f6;
+          color: #00E573;
           margin-bottom: 10px;
           margin-top: 12px;
           letter-spacing: 0.04em;
@@ -192,7 +193,7 @@ export function SearchProgress({
 
         .estimated-wait {
           font-size: 12px;
-          color: #9ca3af;
+          color: rgba(255, 255, 255, 0.5);
           margin: 0;
           margin-top: 8px;
           font-weight: 500;
@@ -210,21 +211,21 @@ export function SearchProgress({
         .spinner-icon {
           width: 24px;
           height: 24px;
-          color: #3b82f6;
-          opacity: 0.8;
+          color: #00E573;
+          opacity: 0.9;
         }
 
         .elapsed-time {
           font-size: 28px;
           font-weight: 700;
-          color: #1a1a1a;
+          color: #00FF7F;
           letter-spacing: -0.02em;
         }
 
         .status-message {
           font-size: 13px;
           font-weight: 600;
-          color: #6b6b6b;
+          color: rgba(255, 255, 255, 0.75);
           margin-bottom: 24px;
           margin-top: 16px;
           letter-spacing: 0.04em;
@@ -234,7 +235,7 @@ export function SearchProgress({
         .progress-bar-container {
           width: 100%;
           height: 6px;
-          background-color: rgba(59, 130, 246, 0.1);
+          background-color: rgba(0, 229, 115, 0.1);
           border-radius: 9999px;
           overflow: hidden;
           margin-bottom: 28px;
@@ -244,17 +245,17 @@ export function SearchProgress({
           height: 100%;
           border-radius: 9999px;
           transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); /* 너비 변경은 부드럽게 유지 */
-          box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 0 20px rgba(0, 229, 115, 0.5);
         }
 
         .progress-bar-fill.queued {
-          background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 50%, #3b82f6 100%);
+          background: linear-gradient(90deg, #00E573 0%, #9D4EDD 50%, #00E573 100%);
           background-size: 200% 100%;
           animation: shimmer 3s ease-in-out infinite;
         }
 
         .progress-bar-fill.active {
-          background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 50%, #3b82f6 100%);
+          background: linear-gradient(90deg, #00E573 0%, #9D4EDD 50%, #00E573 100%);
           background-size: 200% 100%;
           animation: shimmer 2s ease-in-out infinite;
         }
@@ -262,13 +263,13 @@ export function SearchProgress({
         .cancel-button {
           margin-top: 8px;
           padding: 8px 18px;
-          background-color: #ffffff;
-          border: 1px solid rgba(0, 0, 0, 0.12);
+          background: rgba(0, 229, 115, 0.15);
+          border: 1px solid rgba(0, 229, 115, 0.3);
           border-radius: 6px;
           cursor: pointer;
           font-size: 13px;
           font-weight: 600;
-          color: #1a1a1a;
+          color: #00E573;
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -277,15 +278,15 @@ export function SearchProgress({
         }
 
         .cancel-button:hover {
-          background: linear-gradient(135deg, #f5f5f5 0%, #fafafa 100%);
-          border-color: rgba(0, 0, 0, 0.2);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+          background: rgba(0, 229, 115, 0.25);
+          border-color: #00E573;
+          box-shadow: 0 4px 12px rgba(0, 229, 115, 0.3);
           transform: translateY(-2px);
         }
 
         .cancel-button:active {
           transform: translateY(0);
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+          box-shadow: 0 2px 6px rgba(0, 229, 115, 0.2);
         }
 
         @media (max-width: 640px) {
