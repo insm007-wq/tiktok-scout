@@ -59,24 +59,21 @@ export async function fetchSingleVideoUrl(
       };
     }
 
-    // TikTok & Douyin: Use dedicated download actors
+    // TikTok: Use epctex download actor
+    // Only TikTok download is supported
+    if (platform !== 'tiktok') {
+      return { platform, webVideoUrl, error: `${platform}은 다운로드를 지원하지 않습니다. TikTok만 다운로드 가능합니다.` };
+    }
+
     const actorConfig = {
       'tiktok': {
-        actorId: 'epctex/tiktok-video-downloader',  // Highest-rated: 4.9★ 643 reviews
+        actorId: 'epctex~tiktok-video-downloader',
         paramName: 'startUrls',
-        urlField: 'videoUrl',
-      },
-      'douyin': {
-        actorId: 'scrapearchitect/douyin-video-downloader',
-        paramName: 'video_urls',
-        urlField: 'videourl',  // Note: lowercase in scrapearchitect response
+        urlField: 'downloadUrl',
       },
     };
 
-    const config = actorConfig[platform];
-    if (!config) {
-      return { platform, error: `Unsupported platform: ${platform}` };
-    }
+    const config = actorConfig['tiktok'];
 
     console.log(`[fetchSingleVideoUrl] Using ${platform} download actor: ${config.actorId}`);
 
@@ -85,7 +82,10 @@ export async function fetchSingleVideoUrl(
       `https://api.apify.com/v2/acts/${config.actorId}/runs?token=${apiKey}`,
       platform === 'douyin'
         ? { video_urls: [{ url: webVideoUrl }] }
-        : { startUrls: [webVideoUrl] },  // TikTok epctex actor expects startUrls
+        : {
+            startUrls: [webVideoUrl],
+            proxy: { useApifyProxy: true },  // Required for epctex TikTok actor
+          },
       {},
       { maxRetries: 3, initialDelayMs: 1000 }
     );
@@ -148,17 +148,19 @@ export async function fetchSingleVideoUrl(
 
     const dataset = await datasetRes.json();
     if (!Array.isArray(dataset) || dataset.length === 0) {
-      console.error(`[fetchSingleVideoUrl] No results from actor`);
+      console.error(`[fetchSingleVideoUrl] ❌ No results from actor`);
+      console.error(`[fetchSingleVideoUrl] Dataset response:`, JSON.stringify(dataset));
       return { platform, webVideoUrl, error: `비디오를 찾을 수 없습니다. URL이 올바른지 확인해주세요.` };
     }
 
     const result = dataset[0];
-    console.log(`[fetchSingleVideoUrl] Full response:`, JSON.stringify(result, null, 2));
+    console.log(`[fetchSingleVideoUrl] ✅ Full response:`, JSON.stringify(result, null, 2));
+    console.log(`[fetchSingleVideoUrl] All available keys:`, Object.keys(result));
     console.log(`[fetchSingleVideoUrl] Looking for field: ${config.urlField}`);
     console.log(`[fetchSingleVideoUrl] Result[${config.urlField}]:`, result[config.urlField]);
+    console.log(`[fetchSingleVideoUrl] result.downloadUrl:`, result.downloadUrl);
     console.log(`[fetchSingleVideoUrl] result.videoUrl:`, result.videoUrl);
     console.log(`[fetchSingleVideoUrl] result.videourl:`, result.videourl);
-    console.log(`[fetchSingleVideoUrl] result.downloadUrl:`, result.downloadUrl);
     console.log(`[fetchSingleVideoUrl] result.downloadAddress:`, result.downloadAddress);
 
     // Enhanced videoUrl extraction with multiple fallbacks for different actor response formats

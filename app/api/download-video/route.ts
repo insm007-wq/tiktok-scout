@@ -3,36 +3,44 @@ import { fetchSingleVideoUrl } from '@/lib/utils/fetch-single-video-url';
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('[Download] ========== POST request received ==========');
     const { videoUrl, videoId, platform = 'tiktok', webVideoUrl } = await req.json();
+    console.log('[Download] Request body:', { videoUrl, videoId, platform, webVideoUrl });
 
     let finalVideoUrl = videoUrl;
 
     // Handle on-demand video URL fetching for all platforms when videoUrl is not provided
     if (!videoUrl && webVideoUrl) {
-      console.log(`[Download] ${platform}: Fetching video URL from web URL...`);
+      console.log(`[Download] 🚀 ${platform}: Fetching video URL from web URL: ${webVideoUrl}`);
 
       try {
+        console.log('[Download] 📍 Checking APIFY_API_KEY...');
         const apiKey = process.env.APIFY_API_KEY;
         if (!apiKey) {
           throw new Error('APIFY_API_KEY not configured');
         }
+        console.log('[Download] ✓ API key found');
 
         // Use Apify to fetch the actual CDN video URL from the web page
+        console.log(`[Download] 📡 Calling fetchSingleVideoUrl for ${platform}...`);
         const result = await fetchSingleVideoUrl(webVideoUrl, platform as any, apiKey);
+        console.log('[Download] 📥 fetchSingleVideoUrl result:', JSON.stringify(result));
 
         if (result.error) {
+          console.error(`[Download] ❌ fetchSingleVideoUrl returned error:`, result.error);
           throw new Error(result.error);
         }
 
         if (!result.videoUrl) {
+          console.error(`[Download] ❌ No videoUrl in result:`, result);
           throw new Error('Could not extract video URL from page');
         }
 
         finalVideoUrl = result.videoUrl;
-        console.log(`[Download] ✅ ${platform} video URL extracted from web page`);
+        console.log(`[Download] ✅ ${platform} video URL extracted successfully:`, finalVideoUrl.substring(0, 100));
 
       } catch (error) {
-        console.error(`[Download] ${platform} video URL fetch failed:`, error);
+        console.error(`[Download] ❌ ${platform} video URL fetch failed:`, error);
         throw new Error(
           error instanceof Error
             ? error.message
