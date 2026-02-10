@@ -1,9 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchSingleVideoUrl } from '@/lib/utils/fetch-single-video-url';
+import { auth } from '@/lib/auth';
+import { checkApiUsage, incrementApiUsage } from '@/lib/apiUsage';
 
 export async function POST(req: NextRequest) {
   try {
     console.log('[Download] ========== POST request received ==========');
+
+    // 1. 세션 확인
+    const session = await auth();
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { error: '인증이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
+    // 2. 할당량 체크 (관리자는 제외)
+    if (!session.user.isAdmin) {
+      const usageCheck = await checkApiUsage(session.user.email);
+      if (!usageCheck.allowed) {
+        return NextResponse.json({
+          error: '일일 다운로드 한도를 초과했습니다.',
+          details: {
+            used: usageCheck.used,
+            limit: usageCheck.limit,
+            remaining: usageCheck.remaining,
+            resetTime: usageCheck.resetTime
+          }
+        }, { status: 429 });
+      }
+
+      // 3. 사용량 증가 (다운로드 요청 시 차감)
+      await incrementApiUsage(session.user.email, 'download-video');
+    }
+
     const { videoUrl, videoId, platform = 'tiktok', webVideoUrl } = await req.json();
     console.log('[Download] Request body:', { videoUrl, videoId, platform, webVideoUrl });
 

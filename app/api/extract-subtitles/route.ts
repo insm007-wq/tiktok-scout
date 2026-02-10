@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchWithRetry } from '@/lib/utils/fetch-with-retry';
+import { auth } from '@/lib/auth';
+import { checkApiUsage, incrementApiUsage } from '@/lib/apiUsage';
 
 // SRT를 순수 텍스트로 변환 (시간, 씬 번호 제거)
 function parseSrtToText(srtContent: string): string {
@@ -20,6 +22,34 @@ function parseSrtToText(srtContent: string): string {
 
 export async function POST(req: NextRequest) {
   try {
+    // 1. 세션 확인
+    const session = await auth();
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { error: '인증이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
+    // 2. 할당량 체크 (관리자는 제외)
+    if (!session.user.isAdmin) {
+      const usageCheck = await checkApiUsage(session.user.email);
+      if (!usageCheck.allowed) {
+        return NextResponse.json({
+          error: '일일 자막 추출 한도를 초과했습니다.',
+          details: {
+            used: usageCheck.used,
+            limit: usageCheck.limit,
+            remaining: usageCheck.remaining,
+            resetTime: usageCheck.resetTime
+          }
+        }, { status: 429 });
+      }
+
+      // 3. 사용량 증가 (자막 추출 요청 시 차감)
+      await incrementApiUsage(session.user.email, 'extract-subtitles');
+    }
+
     const { videoUrl, videoId, platform = 'tiktok', webVideoUrl, format = 'text' } = await req.json();
 
     // TikTok과 Douyin만 지원 (Xiaohongshu는 향후 추가)
