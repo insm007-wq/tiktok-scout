@@ -53,30 +53,89 @@
     box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
   }
 
-  /* Chzzk Dark Theme Colors */
+  /* Chzzk Dark Theme Colors & Design Tokens */
   :root {
+    /* ===== SPACING (8px base unit) ===== */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 12px;
+    --spacing-lg: 16px;
+    --spacing-xl: 20px;
+    --spacing-2xl: 24px;
+    --spacing-3xl: 30px;
+    --spacing-4xl: 40px;
+
+    /* ===== BORDER RADIUS ===== */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
+    --radius-2xl: 16px;
+    --radius-full: 50%;
+
+    /* ===== FONT WEIGHT ===== */
+    --font-weight-normal: 400;
+    --font-weight-medium: 600;
+    --font-weight-bold: 700;
+
+    /* ===== FONT SIZE ===== */
+    --font-size-xs: 11px;
+    --font-size-sm: 12px;
+    --font-size-base: 13px;
+    --font-size-lg: 14px;
+    --font-size-xl: 16px;
+    --font-size-2xl: 18px;
+    --font-size-3xl: 20px;
+
+    /* ===== LINE HEIGHT ===== */
+    --line-height-tight: 1.4;
+    --line-height-normal: 1.6;
+    --line-height-relaxed: 1.8;
+
+    /* ===== TRANSITIONS ===== */
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* ===== SHADOW ===== */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
+    --shadow-xl: 0 24px 80px rgba(0, 0, 0, 0.7);
+
+    /* ===== Chzzk Green (Primary) ===== */
     --chzzk-green: #00E573;
     --chzzk-green-dark: #00B85C;
     --chzzk-green-glow: rgba(0, 229, 115, 0.3);
     --chzzk-green-bright: #00FF7F;
 
+    /* ===== Chzzk Purple (Secondary) ===== */
     --chzzk-purple: #9D4EDD;
     --chzzk-purple-light: #C77DFF;
 
-    /* Dark Theme Base */
+    /* ===== Dark Theme Base ===== */
     --bg-primary: #0A0A0F;
     --bg-secondary: #121218;
     --bg-tertiary: #1A1A24;
     --bg-card: #252530;
     --bg-card-hover: #2D2D3A;
+    --bg-card-overlay: rgba(37, 37, 48, 0.6);
+    --bg-card-overlay-hover: rgba(45, 45, 58, 0.8);
+    --bg-disabled: rgba(0, 229, 115, 0.3);
 
-    /* Text Colors */
+    /* ===== Text Colors ===== */
     --text-primary: #FFFFFF;
     --text-secondary: rgba(255, 255, 255, 0.75);
     --text-tertiary: rgba(255, 255, 255, 0.5);
+    --text-quaternary: rgba(255, 255, 255, 0.25);
 
-    /* Border Colors */
+    /* ===== Border Colors ===== */
     --border-subtle: rgba(255, 255, 255, 0.08);
     --border-medium: rgba(255, 255, 255, 0.15);
+    --border-accent: rgba(0, 229, 115, 0.2);
+
+    /* ===== TOUCHSCREEN (Mobile) ===== */
+    --touch-target: 44px;
+    --touch-icon: 18px;
   }
 }

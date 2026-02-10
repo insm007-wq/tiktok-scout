@@ -206,6 +206,7 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   background: rgba(37, 37, 48, 0.4);
   user-select: none;
+  will-change: transform, border-color, background;
 }
 
 .platform-option:hover {
@@ -249,6 +250,7 @@
   min-width: 68px;
   white-space: nowrap;
   box-shadow: 0 4px 16px rgba(0, 229, 115, 0.3);
+  will-change: transform, box-shadow;
 }
 
 .btn-search:hover:not(:disabled) {
@@ -311,6 +313,7 @@
   font-weight: 600;
   color: rgba(255, 255, 255, 0.5);
   transition: all 0.2s ease;
+  will-change: background-color, color;
 }
 
 .view-btn.active {
@@ -345,6 +348,7 @@
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 16px rgba(0, 229, 115, 0.3);
+  will-change: transform, box-shadow;
 }
 
 .btn-excel:hover {
@@ -370,6 +374,7 @@
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 16px rgba(0, 229, 115, 0.3);
+  will-change: transform, box-shadow;
 }
 
 .btn-video-download:hover {
@@ -419,6 +424,7 @@
   height: auto;
   position: relative;
   aspect-ratio: 9 / 16;
+  will-change: transform, box-shadow;
 }
 
 .result-card:hover {
@@ -450,6 +456,7 @@
   position: relative;
   z-index: 0;
   transition: opacity 0.2s ease;
+  will-change: transform;
 }
 
 /* 비디오 프리뷰 */
@@ -608,6 +615,7 @@
   padding: 0;
   z-index: 3;
   color: #000000;
+  will-change: transform, box-shadow;
 }
 
 .card-action-btn:hover {
@@ -744,6 +752,7 @@
   border-radius: 4px;
   cursor: pointer;
   transition: transform 0.2s ease;
+  will-change: transform;
 }
 
 .table-thumbnail:hover {
