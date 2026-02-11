@@ -1,24 +1,33 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 export default function PricingPage() {
   const router = useRouter();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const emailRef = useRef<HTMLButtonElement>(null);
+
+  const handleCopyEmail = async () => {
+    try {
+      await navigator.clipboard.writeText('aiyumisejong@gmail.com');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   const plans = [
     {
       id: 'light',
       name: '라이트',
       price: 19800,
-      searches: 20,
+      total: 20,
       description: '시작하기 좋은 기본 플랜',
       features: [
-        '일일 검색 20회',
-        '기본 분석 기능',
-        '표준 처리 속도',
-        '이메일 지원'
+        '일일 20회 (검색+다운로드+자막)'
       ],
       highlighted: false
     },
@@ -26,14 +35,10 @@ export default function PricingPage() {
       id: 'pro',
       name: '프로',
       price: 29800,
-      searches: 40,
+      total: 40,
       description: '가장 인기있는 플랜',
       features: [
-        '일일 검색 40회',
-        '고급 분석 기능',
-        '우선 처리',
-        '우선 이메일 지원',
-        '월간 리포트'
+        '일일 40회 (검색+다운로드+자막)'
       ],
       highlighted: true
     },
@@ -41,15 +46,10 @@ export default function PricingPage() {
       id: 'pro-plus',
       name: '프로+',
       price: 39800,
-      searches: 50,
+      total: 50,
       description: '전문가용 플랜',
       features: [
-        '일일 검색 50회',
-        '모든 분석 기능',
-        '최우선 처리',
-        '24시간 우선 지원',
-        '월간 리포트 + 인사이트',
-        '팀 협업 (3명)'
+        '일일 50회 (검색+다운로드+자막)'
       ],
       highlighted: false
     },
@@ -57,16 +57,10 @@ export default function PricingPage() {
       id: 'ultra',
       name: '울트라',
       price: 49800,
-      searches: -1,
+      total: 100,
       description: '최고의 모든 기능',
       features: [
-        '일일 검색 무제한',
-        '모든 분석 기능',
-        '최우선 처리',
-        '24시간 전담 지원',
-        '주간 리포트 + 심화 분석',
-        '팀 협업 (무제한)',
-        'API 연동 지원'
+        '일일 100회 (검색+다운로드+자막)'
       ],
       highlighted: false
     }
@@ -88,6 +82,16 @@ export default function PricingPage() {
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 py-16">
+        {/* Navigation */}
+        <div className="mb-8">
+          <button
+            onClick={() => router.push('/')}
+            className="px-6 py-2 text-white/70 hover:text-white border border-white/20 hover:border-white/40 rounded-lg transition-all text-sm font-medium"
+          >
+            ← 메인으로
+          </button>
+        </div>
+
         {/* Header */}
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold mb-4">
@@ -106,7 +110,7 @@ export default function PricingPage() {
             <div
               key={plan.id}
               onClick={() => setSelectedPlan(plan.id)}
-              className="relative group rounded-2xl transition-all duration-300 cursor-pointer h-full"
+              className="relative group rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer h-full"
             >
               {/* Card background */}
               <div
@@ -159,14 +163,15 @@ export default function PricingPage() {
                   </div>
                 </div>
 
-                {/* Searches */}
+                {/* Daily Limit */}
                 <div className="mb-8 pb-8 border-b border-white/10">
                   <p className="text-white/80">
                     <span className="font-semibold text-cyan-400">
-                      {plan.searches === -1 ? '무제한' : `${plan.searches}회`}
+                      {plan.total === -1 ? '무제한' : `${plan.total}회`}
                     </span>
-                    <span className="text-white/60"> 일일 검색</span>
+                    <span className="text-white/60"> 일일 사용</span>
                   </p>
+                  <p className="text-xs text-white/50 mt-2">(검색+다운로드+자막 합산)</p>
                 </div>
 
                 {/* Features - flex-1 to grow and push button down */}
@@ -235,12 +240,20 @@ export default function PricingPage() {
         {/* CTA Section */}
         <div className="mt-16 text-center">
           <p className="text-white/70 mb-4">궁금한 점이 있으신가요?</p>
-          <a
-            href="mailto:contact@tiktalk-killa.com"
-            className="inline-block px-8 py-3 bg-gradient-to-r from-cyan-500 to-pink-400 text-black rounded-lg font-semibold hover:shadow-[0_0_20px_rgba(34,211,238,0.5)] transition-all"
+          <p className="text-white/60 mb-6">아래 이메일로 문의해주세요</p>
+          <button
+            ref={emailRef}
+            onClick={handleCopyEmail}
+            className="inline-block px-8 py-3 bg-gradient-to-r from-cyan-500 to-pink-400 text-black rounded-lg font-semibold hover:shadow-[0_0_20px_rgba(34,211,238,0.5)] transition-all cursor-pointer group relative"
           >
-            문의하기
-          </a>
+            <span className="flex items-center gap-2">
+              📧 aiyumisejong@gmail.com
+              <span className={`text-sm ml-2 transition-opacity duration-300 ${copied ? 'opacity-100' : 'opacity-0'}`}>
+                ✓ 복사됨
+              </span>
+            </span>
+          </button>
+          <p className="text-white/50 text-sm mt-3">클릭하면 이메일 주소가 복사됩니다</p>
         </div>
       </div>
     </div>

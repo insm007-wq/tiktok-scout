@@ -31,28 +31,28 @@ export default function SubscriptionCard({
       id: "light",
       name: "라이트",
       price: 19800,
-      searches: 20,
+      total: 20,
       description: "시작하기 좋은 기본 플랜",
     },
     {
       id: "pro",
       name: "프로",
       price: 29800,
-      searches: 40,
+      total: 40,
       description: "가장 인기있는 플랜",
     },
     {
       id: "pro-plus",
       name: "프로+",
       price: 39800,
-      searches: 50,
+      total: 50,
       description: "전문가용 플랜",
     },
     {
       id: "ultra",
       name: "울트라",
       price: 49800,
-      searches: -1,
+      total: 100,
       description: "최고의 모든 기능",
     },
   ];
@@ -81,24 +81,32 @@ export default function SubscriptionCard({
       {currentPlan ? (
         // 구독 중인 경우
         <div className="bg-gradient-to-r from-cyan-500/10 to-pink-500/10 border border-cyan-400/30 rounded-2xl p-6 md:p-8 backdrop-blur-md">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-6">
-            <div>
-              <h2 className="text-2xl font-bold text-white mb-2">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-6">
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-white mb-3">
                 {getPlanName(currentPlan)} 구독 중 ✓
               </h2>
-              <div className="space-y-1 text-sm text-white/70">
+              <div className="space-y-2 text-sm text-white/70 mb-4">
                 <p>📧 {userEmail}</p>
                 {nextBillingDate && <p>📅 다음 결제일: {nextBillingDate}</p>}
               </div>
+              <div className="bg-white/5 border border-white/10 rounded-lg p-3 space-y-1">
+                <p className="text-xs text-white/60 mb-2 font-semibold">일일 사용 한도</p>
+                {plans.find(p => p.id === currentPlan) && (
+                  <p className="text-sm text-cyan-400">
+                    검색 + 다운로드 + 자막 <span className="font-bold">{plans.find(p => p.id === currentPlan)?.total === -1 ? "무제한" : `${plans.find(p => p.id === currentPlan)?.total}회`}</span>
+                  </p>
+                )}
+              </div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 md:flex-col">
               <button
                 onClick={() => setShowPlans(true)}
-                className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-pink-400 text-black rounded-lg font-semibold hover:shadow-[0_0_20px_rgba(34,211,238,0.5)] transition-all"
+                className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-pink-400 text-black rounded-lg font-semibold hover:shadow-[0_0_20px_rgba(34,211,238,0.5)] transition-all whitespace-nowrap"
               >
                 플랜 변경
               </button>
-              <button className="px-6 py-2 bg-white/10 text-white border border-white/20 rounded-lg font-semibold hover:bg-white/20 transition-all">
+              <button className="px-6 py-2 bg-white/10 text-white border border-white/20 rounded-lg font-semibold hover:bg-white/20 transition-all whitespace-nowrap">
                 구독 취소
               </button>
             </div>
@@ -161,13 +169,17 @@ export default function SubscriptionCard({
                     </p>
                     <p className="text-xs text-white/60">/월</p>
                   </div>
-                  <p className="text-sm text-white/80 mb-4">
-                    일일{" "}
-                    <span className="font-bold text-cyan-400">
-                      {plan.searches === -1 ? "무제한" : `${plan.searches}회`}
-                    </span>
-                    검색
-                  </p>
+                  <div className="bg-white/5 border border-white/10 rounded-lg p-2.5 mb-4">
+                    <p className="text-sm text-cyan-400">
+                      📊 일일 사용:{" "}
+                      <span className="font-bold">
+                        {plan.total === -1 ? "무제한" : `${plan.total}회`}
+                      </span>
+                    </p>
+                    <p className="text-xs text-white/60 mt-1">
+                      (검색 + 다운로드 + 자막 합산)
+                    </p>
+                  </div>
                   <button
                     onClick={handleSubscribe}
                     className={`w-full py-2 rounded-lg text-sm font-semibold transition-all ${

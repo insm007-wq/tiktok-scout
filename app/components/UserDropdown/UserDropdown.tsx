@@ -144,13 +144,13 @@ export default function UserDropdown() {
 
       {/* 구독 모달 */}
       {showSubscriptionModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-gray-200 rounded-2xl p-8 max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gradient-to-b from-slate-800 to-slate-900 border border-white/10 rounded-2xl p-8 max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-8">
-              <h3 className="text-2xl font-bold text-gray-900">요금제 선택</h3>
+              <h3 className="text-2xl font-bold text-white">요금제 선택</h3>
               <button
                 onClick={() => setShowSubscriptionModal(false)}
-                className="text-gray-500 hover:text-gray-900 text-2xl"
+                className="text-white/60 hover:text-white text-2xl"
               >
                 ✕
               </button>
@@ -163,55 +163,59 @@ export default function UserDropdown() {
                   id: 'light',
                   name: '라이트',
                   price: 19800,
-                  searches: 20,
+                  total: 20,
                   description: '시작하기 좋은 기본 플랜',
                 },
                 {
                   id: 'pro',
                   name: '프로',
                   price: 29800,
-                  searches: 40,
+                  total: 40,
                   description: '가장 인기있는 플랜',
                 },
                 {
                   id: 'pro-plus',
                   name: '프로+',
                   price: 39800,
-                  searches: 50,
+                  total: 50,
                   description: '전문가용 플랜',
                 },
                 {
                   id: 'ultra',
                   name: '울트라',
                   price: 49800,
-                  searches: -1,
+                  total: 100,
                   description: '최고의 모든 기능',
                 },
               ].map((plan) => (
                 <div
                   key={plan.id}
-                  className="rounded-lg p-4 border border-gray-200 bg-gray-50 hover:border-cyan-400 hover:bg-cyan-50 transition-all cursor-pointer"
+                  className="rounded-lg p-4 border border-white/10 bg-white/10 hover:border-white/30 hover:bg-white/15 transition-all cursor-pointer"
                 >
-                  <h4 className="text-lg font-bold text-gray-900 mb-2">
+                  <h4 className="text-lg font-bold text-white mb-2">
                     {plan.name}
                   </h4>
-                  <p className="text-sm text-gray-600 mb-3">{plan.description}</p>
+                  <p className="text-sm text-white/60 mb-3">{plan.description}</p>
                   <div className="mb-4">
-                    <p className="text-2xl font-bold text-cyan-600">
+                    <p className="text-2xl font-bold text-pink-400">
                       ₩{plan.price.toLocaleString()}
                     </p>
-                    <p className="text-xs text-gray-600">/월</p>
+                    <p className="text-xs text-white/60">/월</p>
                   </div>
-                  <p className="text-sm text-gray-800 mb-4">
-                    일일{' '}
-                    <span className="font-bold text-cyan-600">
-                      {plan.searches === -1 ? '무제한' : `${plan.searches}회`}
-                    </span>
-                    검색
-                  </p>
+                  <div className="bg-white/10 border border-white/20 rounded-lg p-2.5 mb-4">
+                    <p className="text-sm text-cyan-400">
+                      📊 일일 사용:{' '}
+                      <span className="font-bold">
+                        {plan.total === -1 ? '무제한' : `${plan.total}회`}
+                      </span>
+                    </p>
+                    <p className="text-xs text-white/60 mt-1">
+                      (검색 + 다운로드 + 자막 합산)
+                    </p>
+                  </div>
                   <button
                     onClick={() => setShowSubscriptionModal(false)}
-                    className="w-full py-2 rounded-lg text-sm font-semibold transition-all bg-cyan-600 text-white hover:bg-cyan-700"
+                    className="w-full py-2 rounded-lg text-sm font-semibold transition-all bg-gradient-to-r from-cyan-500 to-pink-400 text-black hover:shadow-[0_0_20px_rgba(34,211,238,0.5)]"
                   >
                     선택
                   </button>
@@ -220,7 +224,7 @@ export default function UserDropdown() {
             </div>
 
             {/* 안내 메시지 */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
+            <div className="bg-white/10 border border-white/20 rounded-lg p-4 text-sm text-white/70">
               <p>
                 💳 결제 기능은 준비 중입니다. 곧 토스 페이먼츠를 통해 결제 가능하게 됩니다.
               </p>
