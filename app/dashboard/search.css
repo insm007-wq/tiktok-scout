@@ -80,22 +80,12 @@
 }
 
 .search-input::placeholder {
-  color: #999999;
+  color: #999;
   opacity: 1;
 }
 
 .search-input::-webkit-input-placeholder {
-  color: #999999;
-  opacity: 1;
-}
-
-.search-input::-moz-placeholder {
-  color: #999999;
-  opacity: 1;
-}
-
-.search-input:-ms-input-placeholder {
-  color: #999999;
+  color: #999;
 }
 
 .search-input:focus {
@@ -104,24 +94,13 @@
   background: rgba(37, 37, 48, 0.9);
 }
 
-/* 모달 입력 필드 Placeholder */
 .download-modal-input::placeholder {
-  color: #999999;
+  color: #999;
   opacity: 1;
 }
 
 .download-modal-input::-webkit-input-placeholder {
-  color: #999999;
-  opacity: 1;
-}
-
-.download-modal-input::-moz-placeholder {
-  color: #999999;
-  opacity: 1;
-}
-
-.download-modal-input:-ms-input-placeholder {
-  color: #999999;
+  color: #999;
 }
 
 .search-container-with-button {
@@ -203,10 +182,9 @@
   border: 2px solid rgba(255, 255, 255, 0.08);
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
   background: rgba(37, 37, 48, 0.4);
   user-select: none;
-  will-change: transform, border-color, background;
 }
 
 .platform-option:hover {
@@ -250,7 +228,6 @@
   min-width: 68px;
   white-space: nowrap;
   box-shadow: 0 4px 16px rgba(0, 229, 115, 0.3);
-  will-change: transform, box-shadow;
 }
 
 .btn-search:hover:not(:disabled) {
@@ -312,8 +289,7 @@
   font-size: 12px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.5);
-  transition: all 0.2s ease;
-  will-change: background-color, color;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .view-btn.active {
@@ -348,7 +324,6 @@
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 16px rgba(0, 229, 115, 0.3);
-  will-change: transform, box-shadow;
 }
 
 .btn-excel:hover {
@@ -374,7 +349,6 @@
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 16px rgba(0, 229, 115, 0.3);
-  will-change: transform, box-shadow;
 }
 
 .btn-video-download:hover {
@@ -548,15 +522,9 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(
-    to top,
-    rgba(0, 0, 0, 0.85) 0%,
-    rgba(0, 0, 0, 0.6) 40%,
-    rgba(0, 0, 0, 0.3) 70%,
-    transparent 100%
-  );
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.3) 70%, transparent 100%);
   padding: 16px 12px 12px;
-  color: #ffffff;
+  color: #fff;
   pointer-events: none;
   z-index: 1;
 }
@@ -634,13 +602,12 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   padding: 0;
   z-index: 3;
-  color: #000000;
-  will-change: transform, box-shadow;
+  color: #000;
 }
 
 .card-action-btn:hover {
-  background: #FFFFFF;
-  border-color: #FFFFFF;
+  background: #fff;
+  border-color: #fff;
   transform: scale(1.15);
   box-shadow: 0 4px 20px rgba(255, 255, 255, 0.8);
 }
@@ -659,60 +626,24 @@
 .card-action-icon {
   width: 18px;
   height: 18px;
-  color: #000000;
+  color: #000;
 }
 
 .card-action-label {
   font-size: 9px;
   font-weight: 700;
-  color: #000000;
+  color: #000;
   margin-top: 2px;
   letter-spacing: 0.3px;
 }
 
-/* 호버 애니메이션 */
-@keyframes pulse-gentle {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-}
-
-.card-action-btn:hover {
-  animation: pulse-gentle 0.5s ease-in-out;
-}
-
-/* 로딩 애니메이션 */
 @keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .animate-spin {
   animation: spin 1s linear infinite;
-}
-
-/* 예전 스타일 - 하위 호환성 (사용 안 함) */
-.card-content {
-  display: none;
-}
-
-.card-title {
-  display: none;
-}
-
-.card-author {
-  display: none;
-}
-
-.card-stats {
-  display: none;
 }
 
 /* 테이블 뷰 */
@@ -772,7 +703,6 @@
   border-radius: 4px;
   cursor: pointer;
   transition: transform 0.2s ease;
-  will-change: transform;
 }
 
 .table-thumbnail:hover {
@@ -1118,18 +1048,15 @@
 /* 비디오 로딩 스피너 */
 .card-video-loading {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(10, 10, 15, 0.85);
-  backdrop-filter: blur(4px);
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  background: rgba(10, 10, 15, 0.85);
+  backdrop-filter: blur(4px);
   z-index: 2;
-  border-radius: 8px;
+  border-radius: 14px;
 }
 
 .card-video-loading .spinner {
@@ -1148,30 +1075,6 @@
   margin: 0;
 }
 
-/* Chzzk Dark Theme Animations */
-
-/* Glow Pulse Effect */
-@keyframes glowPulse {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(0, 229, 115, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 40px rgba(0, 229, 115, 0.6), 0 0 60px rgba(157, 78, 221, 0.3);
-  }
-}
-
-/* Fade In Up Smooth */
-@keyframes fadeInUpSmooth {
-  from {
-    opacity: 0;
-    transform: translateY(30px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
 /* Reduced Motion Support */
 @media (prefers-reduced-motion: reduce) {
   * {
@@ -1179,9 +1082,4 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
 }

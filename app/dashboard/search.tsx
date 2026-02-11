@@ -16,6 +16,20 @@ import { SearchProgress } from "@/components/SearchProgress";
 import { validateKeyword } from "@/lib/utils/validateKeyword";
 import "./search.css";
 
+const STORAGE_KEYS = {
+  sidebarWidth: "tik-tok-scout-sidebar-width",
+  searchHistory: "tik-tok-scout-search-history",
+  language: "tik-tok-scout-language-preference",
+} as const;
+
+const SEARCH_TIMING = {
+  hoverPlayDelayMs: 200,
+  debounceMs: 300,
+  pollIntervalMs: 2000,
+  warningTimeoutMs: 150000,
+  searchTimeoutMs: 180000,
+} as const;
+
 type Platform = "tiktok" | "douyin" | "xiaohongshu";
 type Language = "ko" | "zh" | "en";
 
@@ -145,7 +159,7 @@ export default function Search() {
     setFailedThumbnails(prev => new Set(prev).add(video.id));
     e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect fill="%23f0f0f0" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" font-size="50" fill="%23999"%3E🎬%3C/text%3E%3C/svg%3E';
     e.currentTarget.alt = '썸네일을 불러올 수 없습니다';
-  }, [failedThumbnails.size, platform]);
+  }, [platform]);
 
   const handleTitleClick = () => {
     setIsTitleRefreshing(true);
@@ -155,19 +169,13 @@ export default function Search() {
     }, 600);
   };
 
-  // 비디오 카드 마우스 오버 핸들러 (TikTok만 즉시 재생, Douyin/Xiaohongshu는 프리뷰 미제공)
   const handleVideoCardMouseEnter = useCallback((video: Video) => {
     setHoveredVideoId(video.id);
-
-    // 0.2초 후 즉시 재생 (TikTok만 프리뷰 제공)
-    const delay = 200;
-
     hoverTimeoutRef.current = setTimeout(() => {
-      // Douyin/Xiaohongshu는 프리뷰 미제공 (썸네일만 표시)
-      if (video.videoUrl && platform !== 'douyin' && platform !== 'xiaohongshu') {
+      if (video.videoUrl && platform !== "douyin" && platform !== "xiaohongshu") {
         setPlayingVideoId(video.id);
       }
-    }, delay);
+    }, SEARCH_TIMING.hoverPlayDelayMs);
   }, [platform]);
 
   // 비디오 카드 마우스 아웃 핸들러
@@ -201,50 +209,54 @@ export default function Search() {
     return "en";
   };
 
-  // 컴포넌트 언마운트 시 타이머 정리
   useEffect(() => {
     return () => {
-      clearSearchTimeout();    // 추가
-
+      clearSearchTimeout();
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = null;
+      }
       if (hoverTimeoutRef.current) {
         clearTimeout(hoverTimeoutRef.current);
+        hoverTimeoutRef.current = null;
       }
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
       }
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
+        abortControllerRef.current = null;
       }
     };
   }, [clearSearchTimeout]);
 
-  // 저장된 너비 복원
   useEffect(() => {
-    const savedWidth = localStorage.getItem("titok killa-sidebar-width");
-    if (savedWidth) {
-      setSidebarWidth(parseInt(savedWidth, 10));
+    const saved = localStorage.getItem(STORAGE_KEYS.sidebarWidth);
+    if (saved) {
+      const n = parseInt(saved, 10);
+      if (!Number.isNaN(n)) setSidebarWidth(n);
     }
   }, []);
 
-  // 검색 히스토리 로드
   useEffect(() => {
-    const savedHistory = localStorage.getItem("titok killa-search-history");
-    if (savedHistory) {
-      setSearchHistory(JSON.parse(savedHistory));
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.searchHistory);
+      if (saved) setSearchHistory(JSON.parse(saved));
+    } catch {
+      // ignore invalid JSON
     }
   }, []);
 
-  // 저장된 언어 설정 복원
   useEffect(() => {
-    const savedLanguage = localStorage.getItem("titok killa-language-preference");
-    if (savedLanguage) {
-      setTargetLanguage(savedLanguage as Language);
+    const saved = localStorage.getItem(STORAGE_KEYS.language);
+    if (saved && (saved === "ko" || saved === "zh" || saved === "en")) {
+      setTargetLanguage(saved);
     }
   }, []);
 
-  // 언어 변경 시 localStorage에 저장
   useEffect(() => {
-    localStorage.setItem("titok killa-language-preference", targetLanguage);
+    localStorage.setItem(STORAGE_KEYS.language, targetLanguage);
   }, [targetLanguage]);
 
   // 검색어 입력 시 자동으로 언어 감지 및 번역 패널 표시
@@ -291,15 +303,12 @@ export default function Search() {
     };
   }, [isResizing]);
 
-  // 너비 변경 시 localStorage에 저장
   useEffect(() => {
-    localStorage.setItem("titok killa-sidebar-width", sidebarWidth.toString());
+    localStorage.setItem(STORAGE_KEYS.sidebarWidth, String(sidebarWidth));
   }, [sidebarWidth]);
 
-  // 플랫폼 변경 시 기간 필터 초기화 (플랫폼별로 지원하는 옵션이 다르므로)
   useEffect(() => {
-    setFilters({ ...filters, uploadPeriod: "all" });
-    // 비디오 결과는 유지하고, 필터만 초기화
+    setFilters((prev) => ({ ...prev, uploadPeriod: "all" }));
   }, [platform]);
 
   // 영상 필터링 함수
@@ -512,7 +521,7 @@ export default function Search() {
     // 검색 히스토리 저장
     const newHistory = [searchInput, ...searchHistory.filter((item) => item !== searchInput)].slice(0, 10);
     setSearchHistory(newHistory);
-    localStorage.setItem("titok killa-search-history", JSON.stringify(newHistory));
+    localStorage.setItem(STORAGE_KEYS.searchHistory, JSON.stringify(newHistory));
 
     // AbortController 생성
     abortControllerRef.current = new AbortController();
@@ -553,7 +562,6 @@ export default function Search() {
         setIsLoading(false);
 
         if (data.data && data.data.length > 0) {
-          // ✅ NEW: 수신한 데이터 URL 타입 검증
           const urlStats = data.data.reduce((acc: any, video: Video) => {
             const thumbnailUrl = video.thumbnail;
             if (thumbnailUrl?.includes('.r2.dev')) acc.r2++;
@@ -588,26 +596,23 @@ export default function Search() {
 
         // ========== 타임아웃 타이머 시작 (추가) ==========
 
-        // 1) 2분 30초 경고
         warningTimeoutRef.current = setTimeout(() => {
           if (isLoading) {
             addToast(
-              'info',
-              '검색이 오래 걸리고 있습니다.\n30초 후 자동으로 취소됩니다.',
-              '⏳ 잠시만요',
+              "info",
+              "검색이 오래 걸리고 있습니다.\n30초 후 자동으로 취소됩니다.",
+              "⏳ 잠시만요",
               5000
             );
           }
-        }, 150000); // 2분 30초 = 150000ms
+        }, SEARCH_TIMING.warningTimeoutMs);
 
-        // 2) 3분 타임아웃
         timeoutRef.current = setTimeout(() => {
           handleAutoTimeout();
-        }, 180000); // 3분 = 180000ms
+        }, SEARCH_TIMING.searchTimeoutMs);
 
         // ================================================
 
-        // 폴링 시작: 2초마다 상태 확인
         const pollInterval = setInterval(async () => {
           try {
             const statusRes = await fetch(`/api/search/${data.jobId}`, {
@@ -632,14 +637,13 @@ export default function Search() {
             }
 
             if (statusData.status === "completed") {
-              clearSearchTimeout(); // 추가
+              clearSearchTimeout();
               setIsLoading(false);
               setError("");
               setJobStatus(null);
               clearInterval(pollInterval);
 
               if (statusData.data && statusData.data.length > 0) {
-                // ✅ NEW: 폴링으로 수신한 데이터 URL 타입 검증
                 const urlStats = statusData.data.reduce((acc: any, video: Video) => {
                   const thumbnailUrl = video.thumbnail;
                   if (thumbnailUrl?.includes('.r2.dev')) acc.r2++;
@@ -664,7 +668,7 @@ export default function Search() {
                 addToast("info", "결과 없음", "다른 키워드나 필터로 다시 시도해보세요");
               }
             } else if (statusData.status === "failed") {
-              clearSearchTimeout(); // 추가
+              clearSearchTimeout();
               // 에러 타입에 따라 다른 처리
               const errorMessage = statusData.error || "검색 중 오류가 발생했습니다";
               const errorType = statusData.errorType || "UNKNOWN_ERROR";
@@ -690,10 +694,9 @@ export default function Search() {
               }
             }
           } catch (err) {
-            // 폴링 중 에러는 무시
             console.error("[Poll] Error:", err);
           }
-        }, 2000);
+        }, SEARCH_TIMING.pollIntervalMs);
 
         pollIntervalRef.current = pollInterval;
 
@@ -747,17 +750,15 @@ export default function Search() {
     handleAutoTimeout
   ]);
 
-  // 디바운싱된 검색 함수
   const debouncedSearch = useCallback(() => {
-    // 디바운싱 (300ms)
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
+      searchTimeoutRef.current = null;
     }
-
     searchTimeoutRef.current = setTimeout(() => {
       handleSearch();
-    }, 300);
-  }, [searchInput, platform, targetLanguage, handleSearch, isLoading, filters.uploadPeriod]);
+    }, SEARCH_TIMING.debounceMs);
+  }, [handleSearch]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !isLoading && !isTranslating) {
@@ -770,13 +771,14 @@ export default function Search() {
     setSearchInput(keyword);
   }, []);
 
-  // 히스토리 항목 삭제
-  const handleDeleteHistory = (e: React.MouseEvent, keyword: string) => {
+  const handleDeleteHistory = useCallback((e: React.MouseEvent, keyword: string) => {
     e.stopPropagation();
-    const newHistory = searchHistory.filter((item) => item !== keyword);
-    setSearchHistory(newHistory);
-    localStorage.setItem("titok killa-search-history", JSON.stringify(newHistory));
-  };
+    setSearchHistory((prev) => {
+      const next = prev.filter((item) => item !== keyword);
+      localStorage.setItem(STORAGE_KEYS.searchHistory, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   const handleVideoDownload = () => {
     setIsDownloadModalOpen(true);
@@ -882,14 +884,15 @@ export default function Search() {
     const blob = new Blob(["\uFEFF" + csv], {
       type: "text/csv;charset=utf-8;",
     });
-    const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `${platform}-videos-${new Date().toISOString().split("T")[0]}.csv`);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${platform}-videos-${new Date().toISOString().split("T")[0]}.csv`;
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // 🆕 재크롤링 트리거 및 완료 대기 (CDN URL 만료 시 자동 데이터 갱신)

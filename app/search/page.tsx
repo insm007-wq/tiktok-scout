@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, Loader2, MoreVertical } from "lucide-react";
 
+const POLL_INTERVAL_MS = 1000;
+
 type Platform = "tiktok" | "douyin" | "xiaohongshu";
 
 interface SearchResult {
@@ -30,16 +32,14 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
-  const [jobMessage, setJobMessage] = useState(""); // 상태 메시지만 따로 관리
-  const [queuePosition, setQueuePosition] = useState<number | null>(null); // 큐 위치만 따로 관리
-  const [progress, setProgress] = useState(0); // 진행도
-  const prevProgressRef = useRef(0); // 이전 진행도를 추적하기 위한 ref
+  const [jobMessage, setJobMessage] = useState("");
+  const [queuePosition, setQueuePosition] = useState<number | null>(null);
+  const [progress, setProgress] = useState(0);
+  const prevProgressRef = useRef(0);
 
-  // Job 상태 폴링 (HTTP)
   useEffect(() => {
     if (!jobId) return;
 
-    // 폴링 간격: 1초 (너무 자주 요청하지 않음)
     const interval = setInterval(async () => {
       try {
         const response = await fetch(`/api/search/${jobId}`);
@@ -62,20 +62,18 @@ export default function SearchPage() {
           prevProgressRef.current = 0;
           setProgress(0);
         } else {
-          // 진행 중 - 진행도만 업데이트 (리렌더링 최소화)
           const newProgress = data.progress || 0;
           if (newProgress !== prevProgressRef.current) {
             prevProgressRef.current = newProgress;
             setProgress(newProgress);
           }
-          // 메시지와 큐 위치는 필요할 때만 업데이트
           if (data.message) setJobMessage(data.message);
           if (data.queuePosition) setQueuePosition(data.queuePosition);
         }
       } catch (err) {
         console.error("Failed to fetch job status:", err);
       }
-    }, 1000); // 1초마다 폴링
+    }, POLL_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, [jobId]);

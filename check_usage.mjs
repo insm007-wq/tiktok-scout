@@ -1,6 +1,10 @@
 import { MongoClient } from "mongodb";
 
-const MONGODB_URI = "mongodb+srv://insm007_db_user:8FSMNz7XdNLMqD8Y@youtube-search-cluster.wo6t609.mongodb.net/?appName=youtube-search-cluster";
+const MONGODB_URI = process.env.MONGODB_URI;
+if (!MONGODB_URI) {
+  console.error("MONGODB_URI 환경 변수가 설정되지 않았습니다. .env 또는 .env.local을 확인하세요.");
+  process.exit(1);
+}
 
 async function checkUsage() {
   const client = new MongoClient(MONGODB_URI);
