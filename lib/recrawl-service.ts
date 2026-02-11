@@ -1,6 +1,6 @@
 /**
- * 자동 재크롤링 서비스
- * - CDN URL 403 에러 시 자동으로 재크롤링 트리거
+ * 자동 링크 갱신 서비스
+ * - CDN URL 403 에러 시 자동으로 링크 갱신 트리거
  * - Redis 기반 중복 방지 (Deduplication)
  * - Rate Limiting (시간당 3회)
  * - Queue 기반 비동기 처리
@@ -12,7 +12,7 @@ import { clearSearchCache } from './cache';
 import { getRedisClient } from './queue/redis-client';
 
 /**
- * 재크롤링 상태 저장소
+ * 링크 갱신 상태 저장소
  */
 interface RecrawlState {
   jobId: string;
@@ -21,8 +21,8 @@ interface RecrawlState {
 }
 
 /**
- * 재크롤링 진행 중인지 확인 (Redis 기반)
- * 동일한 query/platform/dateRange에 대한 중복 재크롤링 방지
+ * 링크 갱신 진행 중인지 확인 (Redis 기반)
+ * 동일한 query/platform/dateRange에 대한 중복 갱신 방지
  */
 async function isRecrawlInProgress(cacheKey: string): Promise<string | null> {
   try {
@@ -35,7 +35,7 @@ async function isRecrawlInProgress(cacheKey: string): Promise<string | null> {
 }
 
 /**
- * 재크롤링 진행 중 표시 (5분 TTL)
+ * 링크 갱신 진행 중 표시 (5분 TTL)
  */
 async function setRecrawlInProgress(
   cacheKey: string,
@@ -51,7 +51,7 @@ async function setRecrawlInProgress(
 
 /**
  * Rate Limiting 체크 (시간당 3회 제한)
- * 동일한 query/platform 조합으로 재크롤링하는 빈도 제한
+ * 동일한 query/platform 조합으로 갱신하는 빈도 제한
  * @returns true if allowed, false if rate limit exceeded
  */
 async function checkRateLimitAndRecord(
@@ -86,7 +86,7 @@ async function checkRateLimitAndRecord(
 }
 
 /**
- * 재크롤링 트리거 (중복 방지 및 Rate Limiting 포함)
+ * 링크 갱신 트리거 (중복 방지 및 Rate Limiting 포함)
  *
  * @param query - 검색어
  * @param platform - 플랫폼 (tiktok, douyin, xiaohongshu)
@@ -107,15 +107,15 @@ export async function triggerRecrawl(
   dateRange?: string
 ): Promise<RecrawlState> {
   try {
-    // 재크롤링 설정이 비활성화된 경우
+    // 링크 갱신 설정이 비활성화된 경우
     if (process.env.RECRAWL_ENABLE_AUTO !== 'true') {
-      throw new Error('자동 재크롤링이 비활성화되었습니다');
+      throw new Error('자동 링크 갱신이 비활성화되었습니다');
     }
 
     // 캐시 키 생성 (L1/L2 캐시 키 형식)
     const cacheKey = `${platform}:${query}:${dateRange || 'all'}`;
 
-    // 1단계: 재크롤링 진행 중인지 확인 (중복 방지)
+    // 1단계: 갱신 진행 중인지 확인 (중복 방지)
     const existingJobId = await isRecrawlInProgress(cacheKey);
     if (existingJobId) {
       // 기존 job이 진행 중이면, 그 job의 상태를 확인
@@ -145,8 +145,8 @@ export async function triggerRecrawl(
     // 2단계: Rate Limiting 체크
     const rateLimitPassed = await checkRateLimitAndRecord(query, platform);
     if (!rateLimitPassed) {
-      throw new Error(
-        `시간당 재크롤링 한도 초과 (${process.env.RECRAWL_RATE_LIMIT_PER_HOUR || 3}회). 1시간 후 다시 시도해주세요.`
+          throw new Error(
+        `시간당 링크 갱신 한도 초과 (${process.env.RECRAWL_RATE_LIMIT_PER_HOUR || 3}회). 1시간 후 다시 시도해주세요.`
       );
     }
 
@@ -177,19 +177,19 @@ export async function triggerRecrawl(
       // Continue even if cancellation fails
     }
 
-    // 4단계: Queue에 재크롤링 Job 추가
+    // 4단계: Queue에 링크 갱신 Job 추가
     const job = await searchQueue.add('recrawl', {
       query,
       platform,
       dateRange,
-      isRecrawl: true, // 재크롤링 플래그
+      isRecrawl: true, // 내부 플래그(호환 유지)
     });
 
     if (!job.id) {
       throw new Error('Job ID 생성 실패');
     }
 
-    // 5단계: Redis에 재크롤링 진행 중 표시 (5분 잠금)
+    // 5단계: Redis에 갱신 진행 중 표시 (5분 잠금)
     await setRecrawlInProgress(cacheKey, job.id);
 
     console.log(

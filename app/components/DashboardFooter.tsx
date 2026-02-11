@@ -1,9 +1,34 @@
 "use client";
 
+import Link from "next/link";
+
 export default function DashboardFooter() {
   return (
     <footer className="border-t border-green-500/20 bg-gradient-to-b from-slate-900 via-slate-950 to-black">
       <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Quick links */}
+        <div className="flex flex-wrap gap-2 items-center mb-6 text-sm leading-tight justify-center">
+          <Link href="/pricing" className="text-white/60 hover:text-cyan-400 transition-colors">
+            요금제
+          </Link>
+          <span className="text-white/30">|</span>
+          <Link href="/refund-policy" className="text-white/60 hover:text-cyan-400 transition-colors">
+            환불정책
+          </Link>
+          <span className="text-white/30">|</span>
+          <Link href="/terms" className="text-white/60 hover:text-cyan-400 transition-colors">
+            이용약관
+          </Link>
+          <span className="text-white/30">|</span>
+          <Link href="/privacy" className="text-white/60 hover:text-cyan-400 transition-colors">
+            개인정보처리방침
+          </Link>
+          <span className="text-white/30">|</span>
+          <Link href="/contact" className="text-white/60 hover:text-cyan-400 transition-colors">
+            고객센터
+          </Link>
+        </div>
+
         {/* Business Information */}
         <div className="mb-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-xs mb-4">

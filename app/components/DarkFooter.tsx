@@ -19,14 +19,14 @@ export default function DarkFooter() {
           </Link>
           <span className="text-white/30">|</span>
 
-          <a href="mailto:sinmok84@hanmil.net" className="text-white/60 hover:text-cyan-400 transition-colors">
-            고객문의
-          </a>
+          <Link href="/contact" className="text-white/60 hover:text-cyan-400 transition-colors">
+            고객센터
+          </Link>
           <span className="text-white/30">|</span>
 
           {/* 회사 */}
-          <Link href="/" className="text-white/60 hover:text-cyan-400 transition-colors">
-            제휴/입점
+          <Link href="/contact" className="text-white/60 hover:text-cyan-400 transition-colors">
+            사업자정보
           </Link>
           <span className="text-white/30">|</span>
 
@@ -43,12 +43,6 @@ export default function DarkFooter() {
 
           <Link href="/refund-policy" className="text-white/60 hover:text-cyan-400 transition-colors">
             환불정책
-          </Link>
-          <span className="text-white/30">|</span>
-
-          {/* 기타 */}
-          <Link href="/" className="text-white/60 hover:text-cyan-400 transition-colors">
-            공지사항
           </Link>
         </div>
 

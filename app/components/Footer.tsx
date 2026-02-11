@@ -19,7 +19,7 @@ export default function Footer() {
           </Link>
           <span className="text-white/30">|</span>
 
-          <a href="mailto:sinmok84@hanmil.net" className="text-white/60 hover:text-cyan-400 transition-colors">
+          <a href="mailto:aiyumisejong@gmail.com" className="text-white/60 hover:text-cyan-400 transition-colors">
             고객문의
           </a>
           <span className="text-white/30">|</span>

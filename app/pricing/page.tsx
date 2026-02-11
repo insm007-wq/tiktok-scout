@@ -8,10 +8,12 @@ export default function PricingPage() {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const emailRef = useRef<HTMLButtonElement>(null);
+  const LAST_UPDATED = "2026-02-11";
+  const SUPPORT_EMAIL = "aiyumisejong@gmail.com";
 
   const handleCopyEmail = async () => {
     try {
-      await navigator.clipboard.writeText('aiyumisejong@gmail.com');
+      await navigator.clipboard.writeText(SUPPORT_EMAIL);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -68,9 +70,8 @@ export default function PricingPage() {
 
   const handleSubscribe = (planId: string) => {
     setSelectedPlan(planId);
-    // 향후 결제 페이지로 이동
-    // router.push(`/checkout/${planId}`);
-    alert(`${plans.find(p => p.id === planId)?.name} 플랜 구매가 준비 중입니다.`);
+    // 토스페이먼츠 심사/오픈 준비 중: 결제 대신 고객센터로 안내
+    router.push(`/contact?plan=${planId}`);
   };
 
   return (
@@ -101,6 +102,9 @@ export default function PricingPage() {
           </h1>
           <p className="text-white/70 text-lg max-w-2xl mx-auto">
             당신의 필요에 맞는 완벽한 플랜을 선택하세요
+          </p>
+          <p className="text-white/50 text-sm mt-4">
+            최근 수정일: {LAST_UPDATED} · 결제는 토스페이먼츠 연동/심사 진행 중이며, 현재는 구독 문의로 접수됩니다.
           </p>
         </div>
 
@@ -203,11 +207,38 @@ export default function PricingPage() {
                       : 'bg-white/10 text-white border border-white/20 hover:bg-white/20 hover:border-white/40'
                   }`}
                 >
-                  {selectedPlan === plan.id ? '✓ 선택됨' : '구독 시작'}
+                  {selectedPlan === plan.id ? '✓ 선택됨' : '구독 문의'}
                 </button>
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Product / Service Details (심사 제출용) */}
+        <div className="max-w-4xl mx-auto bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-md mb-12">
+          <h2 className="text-2xl font-bold text-white mb-4">상품/서비스 상세</h2>
+          <div className="space-y-4 text-white/70 text-sm leading-relaxed">
+            <p>
+              <strong className="text-white">서비스명:</strong> TikTalk Killa (틱톡킬라)
+            </p>
+            <p>
+              <strong className="text-white">상품 형태:</strong> 월간 구독형 디지털 서비스 (웹 기반)
+            </p>
+            <p>
+              <strong className="text-white">제공 내용:</strong> TikTok / Douyin / 샤오홍슈 영상 검색 및 분석 기능과
+              다운로드·자막 추출 기능(플랜별 일일 사용량 제한)
+            </p>
+            <p>
+              <strong className="text-white">이용 방식:</strong> 회원 가입 후 대시보드에서 검색/다운로드/자막 추출 기능 사용
+            </p>
+            <p className="text-white/60">
+              환불/해지 기준은{" "}
+              <a href="/refund-policy" className="text-cyan-400 hover:text-cyan-300 underline underline-offset-4">
+                환불정책
+              </a>
+              에서 확인하실 수 있습니다.
+            </p>
+          </div>
         </div>
 
         {/* FAQ Section */}
@@ -247,7 +278,7 @@ export default function PricingPage() {
             className="inline-block px-8 py-3 bg-gradient-to-r from-cyan-500 to-pink-400 text-black rounded-lg font-semibold hover:shadow-[0_0_20px_rgba(34,211,238,0.5)] transition-all cursor-pointer group relative"
           >
             <span className="flex items-center gap-2">
-              📧 aiyumisejong@gmail.com
+              📧 {SUPPORT_EMAIL}
               <span className={`text-sm ml-2 transition-opacity duration-300 ${copied ? 'opacity-100' : 'opacity-0'}`}>
                 ✓ 복사됨
               </span>

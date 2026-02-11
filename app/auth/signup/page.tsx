@@ -7,6 +7,8 @@ export const metadata = {
 };
 
 export default function SignupPage() {
+  const SUPPORT_EMAIL = "aiyumisejong@gmail.com";
+
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-black via-gray-950 to-black flex items-center justify-center p-4">
       {/* 배경 Orbs */}
@@ -71,7 +73,7 @@ export default function SignupPage() {
         <div className="text-center mt-6 text-sm text-white/50">
           <p>
             문제가 있으신가요?{" "}
-            <a href="mailto:aiyumisejong@gmail.com" className="text-cyan-400 hover:text-cyan-300 transition-colors">
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-cyan-400 hover:text-cyan-300 transition-colors">
               고객 지원
             </a>
           </p>

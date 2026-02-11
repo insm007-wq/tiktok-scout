@@ -19,14 +19,14 @@ export default function LightFooter() {
           </Link>
           <span className="text-gray-300">|</span>
 
-          <a href="mailto:sinmok84@hanmil.net" className="text-gray-600 hover:text-cyan-600 transition-colors">
-            고객문의
-          </a>
+          <Link href="/contact" className="text-gray-600 hover:text-cyan-600 transition-colors">
+            고객센터
+          </Link>
           <span className="text-gray-300">|</span>
 
           {/* 회사 */}
-          <Link href="/" className="text-gray-600 hover:text-cyan-600 transition-colors">
-            제휴/입점
+          <Link href="/contact" className="text-gray-600 hover:text-cyan-600 transition-colors">
+            사업자정보
           </Link>
           <span className="text-gray-300">|</span>
 
@@ -43,12 +43,6 @@ export default function LightFooter() {
 
           <Link href="/refund-policy" className="text-gray-600 hover:text-cyan-600 transition-colors">
             환불정책
-          </Link>
-          <span className="text-gray-300">|</span>
-
-          {/* 기타 */}
-          <Link href="/" className="text-gray-600 hover:text-cyan-600 transition-colors">
-            공지사항
           </Link>
         </div>
 

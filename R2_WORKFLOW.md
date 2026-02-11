@@ -223,6 +223,8 @@ createIndex({ cacheKey: 1 }); // 조회 최적화
 
 ### 제거됨 (R2 관련)
 
+이 앱은 **R2에 더 이상 업로드하지 않습니다**. 스크래퍼는 CDN URL만 반환합니다.
+
 ```env
 ❌ R2_ENDPOINT
 ❌ R2_ACCESS_KEY_ID
@@ -230,6 +232,40 @@ createIndex({ cacheKey: 1 }); // 조회 최적화
 ❌ R2_BUCKET_NAME
 ❌ R2_PUBLIC_DOMAIN
 ```
+
+기존 R2 버킷에 썸네일/영상이 쌓여 있다면:
+- **원인**: 예전 업로드분 또는 Apify/Railway 등 외부에서 R2에 쓰는 경우.
+- **정리 방법** (아래 "R2 버킷 정리" 참고).
+
+### R2 버킷 정리 (선택)
+
+썸네일·영상 파일이 R2에 계속 쌓일 때 사용합니다.
+
+**1) Cloudflare 대시보드 Lifecycle 규칙 (권장)**
+
+- R2 버킷 → **Settings** → **Lifecycle rules**
+- 예: "객체 생성 후 30일 지나면 삭제" 규칙 추가 → 새로 쌓이는 데이터도 자동 정리.
+
+**2) 수동 스크립트 (이 레포)**
+
+필요 시에만 `.env`에 R2 정보를 넣고 실행:
+
+```env
+R2_ACCOUNT_ID=your-cloudflare-account-id
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_BUCKET_NAME=your-bucket-name
+```
+
+```bash
+# 목록만 확인 (최대 1000개)
+npm run r2:list
+
+# 30일 지난 객체 삭제 (실행 전 확인 프롬프트)
+npm run r2:clean
+```
+
+상세 옵션은 `scripts/clean-r2.ts` 주석 참고.
 
 ### 더 이상 필요 없음 (크론 완전 제거)
 

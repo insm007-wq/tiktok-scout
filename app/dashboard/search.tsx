@@ -109,7 +109,7 @@ export default function Search() {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 재크롤링 cooldown 관리 (같은 query에 대해 5분 이내 재크롤링 방지)
+  // 링크 갱신 cooldown 관리 (같은 query에 대해 짧은 시간 내 중복 갱신 방지)
   const recrawlCooldownRef = useRef<Map<string, number>>(new Map());
 
   /**
@@ -895,17 +895,17 @@ export default function Search() {
     URL.revokeObjectURL(url);
   };
 
-  // 🆕 재크롤링 트리거 및 완료 대기 (CDN URL 만료 시 자동 데이터 갱신)
+  // 🆕 링크 갱신 트리거 및 완료 대기 (CDN URL 만료 시 자동 갱신)
   const handleRecrawl = async (
     query: string,
     platform: Platform,
     dateRange: string
   ): Promise<{ success: boolean; videos?: Video[] }> => {
     try {
-      console.log("[Recrawl] Starting recrawl for:", query, platform, dateRange);
-      addToast("info", "새로운 영상 데이터를 가져오는 중...", "⏳ 잠시만 기다려주세요", 5000);
+      console.log("[Refresh] Starting refresh for:", query, platform, dateRange);
+      addToast("info", "링크를 갱신하는 중입니다...", "⏳ 잠시만 기다려주세요", 5000);
 
-      // 재크롤링 API 호출
+      // 갱신 API 호출
       const response = await fetch("/api/recrawl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -914,14 +914,14 @@ export default function Search() {
 
       if (!response.ok) {
         const error = await response.json();
-        console.error("[Recrawl] API error:", error);
-        throw new Error(error.error || "재크롤링 실패");
+        console.error("[Refresh] API error:", error);
+        throw new Error(error.error || "링크 갱신에 실패했습니다");
       }
 
       const data = await response.json();
       const jobId = data.jobId;
 
-      console.log("[Recrawl] Job started:", jobId);
+      console.log("[Refresh] Job started:", jobId);
 
       // Job 상태 폴링 (최대 30초 - Railway 타임아웃 120초 고려)
       const maxAttempts = 15;  // 2초 × 15 = 30초
@@ -934,17 +934,17 @@ export default function Search() {
         const statusData = await statusRes.json();
 
         console.log(
-          `[Recrawl] Poll attempt ${attempt + 1}/${maxAttempts}, status:`,
+          `[Refresh] Poll attempt ${attempt + 1}/${maxAttempts}, status:`,
           statusData.status
         );
 
         if (statusData.status === "completed") {
-          console.log("[Recrawl] ✅ Completed");
+          console.log("[Refresh] ✅ Completed");
 
           // ✅ 새로운: 최신 비디오 데이터 가져오기
           const freshVideos = statusData.data || [];
-          console.log("[Recrawl] Fresh videos count:", freshVideos.length);
-          console.log("[Recrawl] DEBUG: statusData structure:", {
+          console.log("[Refresh] Fresh videos count:", freshVideos.length);
+          console.log("[Refresh] DEBUG: statusData structure:", {
             hasData: !!statusData.data,
             isArray: Array.isArray(freshVideos),
             length: freshVideos.length,
@@ -952,13 +952,13 @@ export default function Search() {
             firstVideoTitle: freshVideos[0]?.title?.substring(0, 50),
           });
 
-          addToast("success", "새로운 데이터를 가져왔습니다!", "✅ 완료", 3000);
+          addToast("success", "최신 링크로 갱신되었습니다!", "✅ 완료", 3000);
 
           return { success: true, videos: freshVideos };
         }
 
         if (statusData.status === "failed") {
-          console.error("[Recrawl] Failed:", statusData.error);
+          console.error("[Refresh] Failed:", statusData.error);
           addToast(
             "error",
             statusData.error || "데이터를 가져오는데 실패했습니다",
@@ -972,16 +972,16 @@ export default function Search() {
       }
 
       // 타임아웃
-      console.warn("[Recrawl] Timeout after 30 seconds");
+      console.warn("[Refresh] Timeout after 30 seconds");
       addToast(
         "warning",
-        "검색 서버가 느리게 응답하고 있습니다. 페이지를 새로고침하고 다시 시도해주세요.",
+        "서버가 느리게 응답하고 있습니다. 잠시 후 다시 시도해주세요.",
         "⏱️ 타임아웃",
         5000
       );
       return { success: false };
     } catch (error) {
-      console.error("[Recrawl] Error:", error);
+      console.error("[Refresh] Error:", error);
       const errorMsg = error instanceof Error ? error.message : "알 수 없는 오류";
       addToast("error", errorMsg, "❌ 오류", 5000);
       return { success: false };
@@ -1018,25 +1018,25 @@ export default function Search() {
         }),
       });
 
-      // 🆕 403 에러 시 자동 재크롤링
+      // 🆕 403 에러 시 자동 링크 갱신 후 1회 재시도
       if (response.status === 403) {
         const errorData = await response.json();
 
         if (errorData.needsRecrawl) {
-          console.log("[Download] 403 detected, triggering auto-recrawl");
+          console.log("[Download] 403 detected, triggering auto-refresh");
 
-          // ✅ 재크롤링 cooldown 확인 (같은 검색에 대한 중복 재크롤링 방지)
+          // ✅ 갱신 cooldown 확인 (같은 검색에 대한 중복 갱신 방지)
           const cacheKey = `${platform}:${searchInput}:${filters.uploadPeriod}`;
           const lastRecrawlTime = recrawlCooldownRef.current.get(cacheKey);
           const now = Date.now();
-          const COOLDOWN_MS = 1 * 60 * 1000;  // 1분 (재크롤링 완료 후 중복 방지용)
+          const COOLDOWN_MS = 1 * 60 * 1000;  // 1분 (갱신 완료 후 중복 방지용)
 
           if (lastRecrawlTime && (now - lastRecrawlTime) < COOLDOWN_MS) {
             const waitSeconds = Math.ceil((COOLDOWN_MS - (now - lastRecrawlTime)) / 1000);
-            console.log(`[Download] Recrawl cooldown active, wait ${waitSeconds}s more`);
+            console.log(`[Download] Refresh cooldown active, wait ${waitSeconds}s more`);
             addToast(
               "warning",
-              `최근에 재크롤링을 시도했습니다. ${waitSeconds}초 후 다시 시도해주세요.`,
+              `방금 링크 갱신을 시도했습니다. ${waitSeconds}초 후 다시 시도해주세요.`,
               "⏳ 재시도 필요",
               5000
             );
@@ -1046,17 +1046,17 @@ export default function Search() {
 
           addToast(
             "info",
-            "영상 URL이 만료되었습니다. 자동으로 새 데이터를 가져옵니다.",
-            "🔄 재크롤링",
+            "링크가 만료되어 최신 링크로 갱신 중입니다.",
+            "🔄 링크 갱신",
             4000
           );
 
-          // 재크롤링 실행 (현재 검색어와 필터 사용)
+          // 링크 갱신 실행 (현재 검색어와 필터 사용)
           // ⚠️ 중요: setDownloadingVideoId(null) 하지 않음 (즉시 재시도 가능하게)
           const result = await handleRecrawl(searchInput, platform, filters.uploadPeriod);
 
           if (result.success && result.videos) {
-            console.log("[Download] Recrawl completed, searching for fresh video data...");
+            console.log("[Download] Refresh completed, searching for fresh video data...");
             console.log("[Download] DEBUG: Video matching info:", {
               originalVideoId: video.id,
               freshVideosCount: result.videos.length,
@@ -1073,8 +1073,8 @@ export default function Search() {
 
               addToast(
                 "info",
-                "새로운 영상 URL로 다시 다운로드를 시도합니다...",
-                "🔄 재시도",
+                "최신 링크로 다시 다운로드를 시도합니다...",
+                "🔄 다시 시도",
                 2000
               );
 
@@ -1087,20 +1087,20 @@ export default function Search() {
               console.warn("[Download] Video not found in fresh results");
               addToast(
                 "warning",
-                "재크롤링 후 해당 영상을 찾을 수 없습니다.",
+                "링크 갱신 후 해당 영상을 찾을 수 없습니다.",
                 "⚠️ 경고",
                 5000
               );
             }
           } else {
-            // 재크롤링 실패: cooldown 무효화 (더 빨리 재시도 가능하게)
+            // 링크 갱신 실패: cooldown 무효화 (더 빨리 재시도 가능하게)
             recrawlCooldownRef.current.delete(cacheKey);
 
-            console.error("[Download] Recrawl failed");
+            console.error("[Download] Refresh failed");
             addToast(
               "error",
-              "데이터를 가져오지 못했습니다. 나중에 다시 시도해주세요.",
-              "❌ 재크롤링 실패",
+              "링크를 갱신하지 못했습니다. 잠시 후 다시 시도해주세요.",
+              "❌ 링크 갱신 실패",
               5000
             );
           }
@@ -1168,14 +1168,14 @@ export default function Search() {
         }),
       });
 
-      // 🆕 403 에러 시 자동 재크롤링
+      // 🆕 403 에러 시 자동 링크 갱신 후 1회 재시도
       if (response.status === 403) {
         const errorData = await response.json();
 
         if (errorData.needsRecrawl) {
-          console.log("[ExtractSubtitles] 403 detected, triggering auto-recrawl");
+          console.log("[ExtractSubtitles] 403 detected, triggering auto-refresh");
 
-          // ✅ 재크롤링 cooldown 확인 (5분 이내 재크롤링 방지)
+          // ✅ 갱신 cooldown 확인 (5분 이내 중복 갱신 방지)
           const cacheKey = `${platform}:${searchInput}:${filters.uploadPeriod}`;
           const lastRecrawlTime = recrawlCooldownRef.current.get(cacheKey);
           const now = Date.now();
@@ -1183,10 +1183,10 @@ export default function Search() {
 
           if (lastRecrawlTime && (now - lastRecrawlTime) < COOLDOWN_MS) {
             const waitSeconds = Math.ceil((COOLDOWN_MS - (now - lastRecrawlTime)) / 1000);
-            console.log(`[ExtractSubtitles] Recrawl cooldown active, wait ${waitSeconds}s more`);
+            console.log(`[ExtractSubtitles] Refresh cooldown active, wait ${waitSeconds}s more`);
             addToast(
               "warning",
-              `최근에 재크롤링을 시도했습니다. ${waitSeconds}초 후 다시 시도해주세요.`,
+              `방금 링크 갱신을 시도했습니다. ${waitSeconds}초 후 다시 시도해주세요.`,
               "⏳ 재시도 필요",
               5000
             );
@@ -1199,15 +1199,15 @@ export default function Search() {
 
           addToast(
             "info",
-            "영상 URL이 만료되었습니다. 자동으로 새 데이터를 가져옵니다.",
-            "🔄 재크롤링",
+            "링크가 만료되어 최신 링크로 갱신 중입니다.",
+            "🔄 링크 갱신",
             4000
           );
 
           const result = await handleRecrawl(searchInput, platform, filters.uploadPeriod);
 
           if (result.success && result.videos) {
-            console.log("[ExtractSubtitles] Recrawl completed, searching for fresh video data...");
+            console.log("[ExtractSubtitles] Refresh completed, searching for fresh video data...");
 
             // ✅ ID로 새 결과에서 같은 비디오 찾기
             const freshVideo = result.videos.find(v => v.id === video.id);
@@ -1217,8 +1217,8 @@ export default function Search() {
 
               addToast(
                 "info",
-                "새로운 영상 URL로 다시 자막 추출을 시도합니다...",
-                "🔄 재시도",
+                "최신 링크로 다시 자막 추출을 시도합니다...",
+                "🔄 다시 시도",
                 2000
               );
 
@@ -1231,18 +1231,18 @@ export default function Search() {
               console.warn("[ExtractSubtitles] Video not found in fresh results");
               addToast(
                 "warning",
-                "재크롤링 후 해당 영상을 찾을 수 없습니다.",
+                "링크 갱신 후 해당 영상을 찾을 수 없습니다.",
                 "⚠️ 경고",
                 5000
               );
             }
           } else {
-            // 재크롤링 실패
-            console.error("[ExtractSubtitles] Recrawl failed");
+            // 링크 갱신 실패
+            console.error("[ExtractSubtitles] Refresh failed");
             addToast(
               "error",
-              "데이터를 가져오지 못했습니다. 나중에 다시 시도해주세요.",
-              "❌ 재크롤링 실패",
+              "링크를 갱신하지 못했습니다. 잠시 후 다시 시도해주세요.",
+              "❌ 링크 갱신 실패",
               5000
             );
           }

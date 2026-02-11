@@ -1,5 +1,8 @@
 'use client'
 
+const LAST_UPDATED = '2026-02-11'
+const SUPPORT_EMAIL = 'aiyumisejong@gmail.com'
+
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-gray-950 to-black">
@@ -14,7 +17,7 @@ export default function PrivacyPage() {
         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 md:p-12 text-white space-y-8">
           <div>
             <h1 className="text-4xl font-bold gradient-text mb-4">개인정보 처리방침</h1>
-            <p className="text-white/70">최근 수정일: {new Date().toLocaleDateString('ko-KR')}</p>
+            <p className="text-white/70">최근 수정일: {LAST_UPDATED}</p>
           </div>
 
           {/* 1. 개인정보 수집 항목 */}
@@ -206,7 +209,7 @@ export default function PrivacyPage() {
               </p>
               <div className="mt-4 space-y-1 text-white/70 text-sm">
                 <p><strong className="text-white">담당자:</strong> 개인정보 보호책임자</p>
-                <p><strong className="text-white">이메일:</strong> aiyumisejong@gmail.com</p>
+                <p><strong className="text-white">이메일:</strong> {SUPPORT_EMAIL}</p>
               </div>
             </div>
           </section>

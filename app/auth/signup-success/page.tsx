@@ -7,6 +7,8 @@ export const metadata = {
 };
 
 export default function SignupSuccessPage() {
+  const SUPPORT_EMAIL = "aiyumisejong@gmail.com";
+
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-black via-gray-950 to-black flex items-center justify-center p-4">
       {/* 배경 Orbs */}
@@ -98,7 +100,13 @@ export default function SignupSuccessPage() {
           <ul className="text-white/70 text-sm space-y-2">
             <li>• 브라우저에서 비밀번호를 저장하면 다음에 쉽게 로그인할 수 있습니다</li>
             <li>• 로그인 후 프로필 설정에서 정보를 수정할 수 있습니다</li>
-            <li>• 문제가 발생하면 <a href="mailto:aiyumisejong@gmail.com" className="text-cyan-400 hover:text-cyan-300">aiyumisejong@gmail.com</a>으로 연락하세요</li>
+            <li>
+              • 문제가 발생하면{" "}
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="text-cyan-400 hover:text-cyan-300">
+                {SUPPORT_EMAIL}
+              </a>
+              으로 연락하세요
+            </li>
           </ul>
         </div>
 

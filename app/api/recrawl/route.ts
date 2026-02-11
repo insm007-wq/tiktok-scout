@@ -1,8 +1,8 @@
 /**
  * POST /api/recrawl
  *
- * 재크롤링 트리거 엔드포인트
- * 프론트엔드에서 403 에러 감지 후 명시적으로 호출하여 새로운 CDN URL 획득
+ * 링크 갱신 트리거 엔드포인트
+ * 프론트엔드에서 403 에러 감지 후 명시적으로 호출하여 최신 링크로 갱신
  *
  * Request:
  * {
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       `[Recrawl API] Trigger request from ${session.user.email}: ${platform}/${query}/${dateRange || 'all'}`
     );
 
-    // 재크롤링 트리거
+    // 링크 갱신 트리거
     const result = await triggerRecrawl(query, platform as Platform, dateRange);
 
     // 202 Accepted 반환 (비동기 처리 중)
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
         {
           status: 'in_progress',
           jobId: result.jobId,
-          message: '이미 같은 검색어로 재크롤링이 진행 중입니다',
+          message: '이미 같은 검색어로 링크 갱신이 진행 중입니다',
           estimatedWaitSeconds: result.estimatedWaitSeconds || 30,
         },
         { status: 202 }
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
       {
         status: 'queued',
         jobId: result.jobId,
-        message: '재크롤링을 시작했습니다',
+        message: '링크 갱신을 시작했습니다',
         estimatedWaitSeconds: result.estimatedWaitSeconds || 30,
       },
       { status: 202 }
@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 자동 재크롤링 비활성화
+    // 자동 링크 갱신 비활성화
     if (errorMessage.includes('비활성화')) {
       console.warn(`[Recrawl API] Feature disabled: ${errorMessage}`);
       return NextResponse.json(
@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
     // 기타 오류
     console.error('[Recrawl API] Unexpected error:', error);
     return NextResponse.json(
-      { error: '재크롤링 요청 처리 중 오류가 발생했습니다' },
+      { error: '링크 갱신 요청 처리 중 오류가 발생했습니다' },
       { status: 500 }
     );
   }

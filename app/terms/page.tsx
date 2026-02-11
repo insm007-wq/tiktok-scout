@@ -1,5 +1,7 @@
 "use client";
 
+const LAST_UPDATED = "2026-02-11";
+
 export default function TermsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-gray-950 to-black">
@@ -14,7 +16,7 @@ export default function TermsPage() {
         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 md:p-12 text-white space-y-8">
           <div>
             <h1 className="text-4xl font-bold gradient-text mb-4">서비스 이용약관</h1>
-            <p className="text-white/70">최근 수정일: {new Date().toLocaleDateString("ko-KR")}</p>
+            <p className="text-white/70">최근 수정일: {LAST_UPDATED}</p>
           </div>
 
           {/* 1. 총칙 */}

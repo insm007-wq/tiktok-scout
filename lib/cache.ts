@@ -1,6 +1,6 @@
 /**
  * 계층형 캐시 시스템: L1(메모리) + L2(MongoDB)
- * - L1: LRU 메모리 캐시 (24시간 TTL, 최대 10,000 항목)
+ * - L1: LRU 메모리 캐시 (최대 10,000 항목, 최대 24시간 보관)
  * - L2: MongoDB 캐시 (6시간 TTL, On-Demand 스크래핑, CDN URL 만료 대응)
  */
 
@@ -14,6 +14,9 @@ interface CacheEntry<T> {
   data: T;
   expiresAt: number;
 }
+
+// 영상 결과 캐시(L1) TTL: CDN URL 만료 주기에 맞춰 6시간
+const VIDEO_L1_TTL_MS = 6 * 60 * 60 * 1000;
 
 // LRU 캐시 설정: 최대 10,000개 항목, 24시간 TTL
 const cache = new LRUCache<string, CacheEntry<any>>({
@@ -277,8 +280,8 @@ export async function getVideoFromCache(
 
     const filteredCache = { videos: validVideos };
 
-    // L1 캐시 웜업 (메모리에도 저장, 24시간 TTL)
-    const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
+    // L1 캐시 웜업 (메모리에도 저장, 6시간 TTL)
+    const expiresAt = Date.now() + VIDEO_L1_TTL_MS;
     cache.set(memoryKey, {
       data: filteredCache,
       expiresAt,
@@ -327,8 +330,8 @@ export async function setVideoToCache(
   const memoryKey = `video:${platform}:${query}:${dateRange || 'all'}`;
   const data = { videos };
 
-  // L1: 메모리 캐시 (24시간)
-  const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
+  // L1: 메모리 캐시 (6시간)
+  const expiresAt = Date.now() + VIDEO_L1_TTL_MS;
   cache.set(memoryKey, {
     data,
     expiresAt,

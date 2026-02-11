@@ -1,5 +1,8 @@
 "use client";
 
+const LAST_UPDATED = "2026-02-11";
+const SUPPORT_EMAIL = "aiyumisejong@gmail.com";
+
 export default function RefundPolicyPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-gray-950 to-black">
@@ -14,7 +17,7 @@ export default function RefundPolicyPage() {
         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 md:p-12 text-white space-y-8">
           <div>
             <h1 className="text-4xl font-bold gradient-text mb-4">환불정책</h1>
-            <p className="text-white/70">최근 수정일: {new Date().toLocaleDateString("ko-KR")}</p>
+            <p className="text-white/70">최근 수정일: {LAST_UPDATED}</p>
           </div>
 
           {/* 1. 기본 원칙 */}
@@ -22,13 +25,13 @@ export default function RefundPolicyPage() {
             <h2 className="text-2xl font-bold text-cyan-400">1. 기본 원칙</h2>
             <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-3">
               <p className="text-white/80 leading-relaxed">
-                TikTalk Killa(이하 "회사")는 고객의 권리를 보호하기 위해 다음과 같은 환불정책을 시행합니다.
-                본 정책은 구독 서비스의 특성을 고려하여 수립되었습니다.
+                씨너지나노(이하 &quot;회사&quot;)는 TikTalk Killa(이하 &quot;서비스&quot;) 이용자의 권리를 보호하기 위해 다음과 같은 환불정책을 시행합니다.
+                본 정책은 월간 구독형 디지털 서비스의 특성을 고려하여 수립되었습니다.
               </p>
               <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-3">
                 <p className="text-white font-semibold mb-2">📌 구독 서비스 특성 안내</p>
                 <p className="text-white/80 text-sm">
-                  TikTalk Killa는 월간 구독형 디지털 서비스입니다. 서비스 특성상 구독 시작 후
+                  본 서비스는 월간 구독형 디지털 서비스입니다. 서비스 특성상 구독 시작 후
                   일정 기간이 경과한 경우 환불이 제한될 수 있습니다.
                 </p>
               </div>
@@ -65,11 +68,11 @@ export default function RefundPolicyPage() {
                 <ol className="space-y-2 text-white/80 ml-4">
                   <li className="flex gap-3">
                     <span className="text-cyan-400 font-bold flex-shrink-0">1</span>
-                    <span><strong>이메일 신청:</strong> contact@tiktalk-killa.com으로 "환불 신청"이라는 제목으로 이메일 발송</span>
+                    <span><strong>이메일 신청:</strong> {SUPPORT_EMAIL}로 &quot;환불 신청&quot;이라는 제목으로 이메일 발송</span>
                   </li>
                   <li className="flex gap-3">
                     <span className="text-cyan-400 font-bold flex-shrink-0">2</span>
-                    <span><strong>계정 설정:</strong> 구독 관리 페이지에서 "환불 신청" 버튼 클릭</span>
+                    <span><strong>고객센터:</strong> <a href="/contact" className="text-cyan-400 hover:text-cyan-300 underline underline-offset-4">고객센터 페이지</a> 안내에 따라 접수</span>
                   </li>
                 </ol>
               </div>
@@ -238,7 +241,7 @@ export default function RefundPolicyPage() {
                 <ul className="space-y-2 text-white/80">
                   <li className="flex gap-3">
                     <span className="text-cyan-400">•</span>
-                    <span><strong>이메일:</strong> contact@tiktalk-killa.com</span>
+                    <span><strong>이메일:</strong> {SUPPORT_EMAIL}</span>
                   </li>
                   <li className="flex gap-3">
                     <span className="text-cyan-400">•</span>
@@ -268,7 +271,7 @@ export default function RefundPolicyPage() {
           <div className="bg-cyan-500/20 border border-cyan-500/50 rounded-lg p-6 mt-8 text-center">
             <p className="text-white mb-4">추가 질문이 있으신가요?</p>
             <a
-              href="mailto:contact@tiktalk-killa.com"
+              href={`mailto:${SUPPORT_EMAIL}`}
               className="inline-block px-6 py-2 bg-gradient-to-r from-cyan-500 to-pink-400 text-black rounded-lg hover:shadow-[0_0_20px_rgba(34,211,238,0.5)] transition-all font-semibold"
             >
               문의하기
