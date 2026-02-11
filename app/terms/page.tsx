@@ -207,9 +207,20 @@ export default function TermsPage() {
             </div>
           </section>
 
-          {/* 8. 이용 제한 및 계정 정지 */}
+          {/* 8. 결제 및 환불 */}
           <section className="space-y-3">
-            <h2 className="text-2xl font-bold text-pink-400">8. 이용 제한 및 계정 정지</h2>
+            <h2 className="text-2xl font-bold text-pink-400">8. 결제 및 환불</h2>
+            <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
+              <p className="text-white/80 leading-relaxed">
+                구독 서비스의 결제·환불 조건은 별도 환불정책에 따릅니다. 구독 시작 후 <strong>3일 이내</strong> 전액 환불 가능하며, 상세 내용은{" "}
+                <a href="/refund-policy" className="text-cyan-400 hover:text-cyan-300 underline underline-offset-4">환불정책</a>을 참고하시기 바랍니다.
+              </p>
+            </div>
+          </section>
+
+          {/* 9. 이용 제한 및 계정 정지 */}
+          <section className="space-y-3">
+            <h2 className="text-2xl font-bold text-pink-400">9. 이용 제한 및 계정 정지</h2>
             <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
               <p className="text-white/80 leading-relaxed">회사는 다음의 경우 계정 사용을 제한하거나 탈퇴 조치할 수 있습니다:</p>
               <ul className="space-y-2 text-white/80 ml-4">
@@ -233,9 +244,9 @@ export default function TermsPage() {
             </div>
           </section>
 
-          {/* 9. 회원 탈퇴 */}
+          {/* 10. 회원 탈퇴 */}
           <section className="space-y-3">
-            <h2 className="text-2xl font-bold text-pink-400">9. 회원 탈퇴</h2>
+            <h2 className="text-2xl font-bold text-pink-400">10. 회원 탈퇴</h2>
             <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
               <p className="text-white/80 leading-relaxed">
                 이용자는 언제든지 계정 설정에서 회원 탈퇴를 신청할 수 있습니다. 탈퇴 후 14일 동안 개인정보는 보관되며 이후 완전히
@@ -245,9 +256,9 @@ export default function TermsPage() {
             </div>
           </section>
 
-          {/* 10. 분쟁 해결 */}
+          {/* 11. 분쟁 해결 */}
           <section className="space-y-3">
-            <h2 className="text-2xl font-bold text-pink-400">10. 분쟁 해결</h2>
+            <h2 className="text-2xl font-bold text-pink-400">11. 분쟁 해결</h2>
             <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
               <p className="text-white/80 leading-relaxed">
                 본 약관과 관련된 분쟁이 발생하는 경우 회사와 이용자 간의 협의를 통해 해결하며, 합의가 이루어지지 않을 경우 관할 법원에
@@ -256,9 +267,9 @@ export default function TermsPage() {
             </div>
           </section>
 
-          {/* 11. 준거법 */}
+          {/* 12. 준거법 */}
           <section className="space-y-3">
-            <h2 className="text-2xl font-bold text-pink-400">11. 준거법</h2>
+            <h2 className="text-2xl font-bold text-pink-400">12. 준거법</h2>
             <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
               <p className="text-white/80 leading-relaxed">
                 본 약관은 대한민국 법률에 따라 해석 및 적용되며, 모든 분쟁은 대한민국 법원의 관할에 따릅니다.
@@ -266,9 +277,9 @@ export default function TermsPage() {
             </div>
           </section>
 
-          {/* 12. 약관 변경 */}
+          {/* 13. 약관 변경 */}
           <section className="space-y-3">
-            <h2 className="text-2xl font-bold text-pink-400">12. 약관 변경</h2>
+            <h2 className="text-2xl font-bold text-pink-400">13. 약관 변경</h2>
             <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
               <p className="text-white/80 leading-relaxed">
                 회사는 필요에 따라 본 약관을 변경할 수 있으며, 변경 시 최소 7일 전에 공지합니다. 변경된 약관은 공지일부터 효력이 발생합니다.

@@ -258,7 +258,7 @@ export default function PricingPage() {
 
             <div>
               <h3 className="text-white font-semibold mb-2">환불이 가능한가요?</h3>
-              <p className="text-white/70">구독 시작 후 7일 이내에는 전액 환불이 가능합니다. <a href="/refund-policy" className="text-cyan-400 hover:text-cyan-300">환불정책</a>을 참고하세요.</p>
+              <p className="text-white/70">구독 시작 후 3일 이내에는 전액 환불이 가능합니다. <a href="/refund-policy" className="text-cyan-400 hover:text-cyan-300">환불정책</a>을 참고하세요.</p>
             </div>
 
             <div>

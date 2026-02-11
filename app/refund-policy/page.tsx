@@ -45,14 +45,17 @@ export default function RefundPolicyPage() {
               <div className="border-l-4 border-cyan-400 pl-4">
                 <h3 className="font-semibold text-white mb-2">✅ 전액 환불 가능</h3>
                 <p className="text-white/80">
-                  <strong>구독 시작 후 7일 이내</strong>에 환불 신청 시 결제한 구독료를 전액 환불받을 수 있습니다.
+                  <strong>구독 시작 후 3일 이내</strong>에 환불 신청 시 결제한 구독료를 전액 환불받을 수 있습니다.
+                </p>
+                <p className="text-white/70 text-sm mt-2">
+                  ※ 동일 이용자(동일 계정·결제 수단·연락처 기준)에 대한 3일 전액 환불은 <strong>1회에 한합니다.</strong> 재가입 후 반복적으로 3일 이내 환불을 신청하는 경우 환불이 제한될 수 있습니다.
                 </p>
               </div>
 
               <div className="border-l-4 border-pink-400 pl-4">
                 <h3 className="font-semibold text-white mb-2">❌ 환불 불가</h3>
                 <p className="text-white/80">
-                  <strong>구독 시작 후 8일 이상</strong> 경과한 경우 환불이 불가능합니다.
+                  <strong>구독 시작 후 4일 이상</strong> 경과한 경우 환불이 불가능합니다.
                   대신 언제든지 구독을 취소하면 다음 결제가 발생하지 않습니다.
                 </p>
               </div>
@@ -126,7 +129,11 @@ export default function RefundPolicyPage() {
               <ul className="space-y-2 text-white/80 ml-4">
                 <li className="flex gap-3">
                   <span className="text-pink-400">•</span>
-                  <span>구독 시작 후 7일을 초과한 경우</span>
+                  <span>구독 시작 후 3일을 초과한 경우</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="text-pink-400">•</span>
+                  <span>동일 이용자가 3일 전액 환불을 이미 받은 후 재가입·재결제하여 반복 신청하는 등 악의적·반복적 이용으로 판단되는 경우</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="text-pink-400">•</span>
