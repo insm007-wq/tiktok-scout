@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { handlers } from '@/lib/auth'
 
 const SESSION_COOKIE_NAMES = [
@@ -19,8 +19,8 @@ function isJWTSessionError(error: unknown): boolean {
 }
 
 async function handleWithJwtFallback(
-  handler: (req: Request) => Promise<Response>,
-  req: Request
+  handler: (req: NextRequest) => Promise<Response>,
+  req: NextRequest
 ): Promise<Response> {
   try {
     return await handler(req)
@@ -37,10 +37,10 @@ async function handleWithJwtFallback(
   }
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   return handleWithJwtFallback(handlers.GET, req)
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   return handleWithJwtFallback(handlers.POST, req)
 }
