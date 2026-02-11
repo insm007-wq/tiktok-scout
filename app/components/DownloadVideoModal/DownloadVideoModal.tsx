@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { X, Download, AlertCircle, Loader } from "lucide-react";
+import { useState, useRef } from "react";
+import { X, Download, AlertCircle } from "lucide-react";
 
 interface Video {
   id: string;
@@ -19,13 +19,32 @@ interface DownloadVideoModalProps {
   isLoading?: boolean;
 }
 
+const DOWNLOAD_TIMEOUT_MS = 90_000; // 90초 초과 시 자동 종료
+
 export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoading = false }: DownloadVideoModalProps) {
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
   const [detectedPlatform, setDetectedPlatform] = useState<"tiktok" | "douyin" | "xiaohongshu" | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timeoutTriggeredRef = useRef(false);
 
   if (!isOpen) return null;
+
+  const handleCancelDownload = (closeAfter = false) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setError("다운로드가 취소되었습니다.");
+    setIsDownloading(false);
+    if (closeAfter) onClose();
+  };
 
   const detectPlatformFromUrl = (url: string): "tiktok" | "douyin" | "xiaohongshu" | null => {
     // Detect platform early for warnings
@@ -64,71 +83,75 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
       return;
     }
 
+    const webVideoUrl = input.trim();
+    const platformDetected = detectPlatformFromUrl(webVideoUrl);
+    if (!platformDetected) {
+      setError("지원하지 않는 플랫폼입니다. TikTok, Douyin, 샤오홍슈 URL을 입력해주세요.");
+      return;
+    }
+
+    const videoId = extractVideoIdFromUrl(webVideoUrl) || "video";
     setIsDownloading(true);
+    timeoutTriggeredRef.current = false;
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
+    timeoutRef.current = setTimeout(() => {
+      timeoutRef.current = null;
+      timeoutTriggeredRef.current = true;
+      abortControllerRef.current?.abort();
+    }, DOWNLOAD_TIMEOUT_MS);
 
     try {
-      const webVideoUrl = input.trim();
-
-      // Detect platform from URL
-      const detectedPlatform = detectPlatformFromUrl(webVideoUrl);
-      if (!detectedPlatform) {
-        setError("지원하지 않는 플랫폼입니다. TikTok, Douyin, 샤오홍슈 URL을 입력해주세요.");
-        setIsDownloading(false);
-        return;
-      }
-
-      // Extract video ID for filename
-      const videoId = extractVideoIdFromUrl(webVideoUrl) || "video";
-
-      console.log("[Modal] 다운로드 요청:", {
-        platform: detectedPlatform,
-        webVideoUrl: webVideoUrl.substring(0, 80),
-        videoId,
-      });
-
-      // Call download API directly
       const response = await fetch("/api/download-video", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           webVideoUrl,
           videoId,
-          platform: detectedPlatform,
+          platform: platformDetected,
         }),
+        signal,
       });
 
       if (!response.ok) {
         const data = await response.json();
-
-        // Handle Xiaohongshu fallback: open in browser
         if (data.openInBrowser && data.webVideoUrl) {
-          console.log("[Modal] Opening in browser for Xiaohongshu");
           window.open(data.webVideoUrl, "_blank");
           setError("⚠️ Xiaohongshu는 웹 브라우저에서 직접 다운로드하셔야 합니다. 새 탭을 열었습니다.");
-          setIsDownloading(false);
           return;
         }
-
         throw new Error(data.error || "다운로드 실패");
       }
 
-      // Handle file download
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${detectedPlatform}_${videoId}.mp4`;
+      a.download = `${platformDetected}_${videoId}.mp4`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      // Close modal after successful download
       setInput("");
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "다운로드 중 오류가 발생했습니다.");
+      if (err instanceof Error && err.name === "AbortError") {
+        setError(timeoutTriggeredRef.current
+          ? "다운로드 시간이 초과되었습니다. (90초) 다시 시도해 주세요."
+          : "다운로드가 취소되었습니다.");
+        return;
+      }
+      const message = err instanceof Error ? err.message : "다운로드 중 오류가 발생했습니다.";
+      setError(message);
     } finally {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      timeoutTriggeredRef.current = false;
+      abortControllerRef.current = null;
       setIsDownloading(false);
     }
   };
@@ -201,13 +224,14 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
               영상 다운로드
             </h2>
             <button
-              onClick={onClose}
-              disabled={isLoading || isDownloading}
+              type="button"
+              onClick={() => (isDownloading ? handleCancelDownload(true) : onClose())}
+              disabled={isLoading}
               style={{
                 background: "none",
                 border: "none",
                 fontSize: "24px",
-                cursor: isLoading || isDownloading ? "not-allowed" : "pointer",
+                cursor: isLoading ? "not-allowed" : "pointer",
                 color: "rgba(255, 255, 255, 0.5)",
                 padding: "0",
                 width: "32px",
@@ -217,8 +241,9 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
                 justifyContent: "center",
                 transition: "color 0.2s",
               }}
-              onMouseEnter={(e) => !(isLoading || isDownloading) && (e.currentTarget.style.color = "#00E573")}
+              onMouseEnter={(e) => !isLoading && (e.currentTarget.style.color = "#00E573")}
               onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255, 255, 255, 0.5)")}
+              title={isDownloading ? "다운로드 취소" : "닫기"}
             >
               <X size={20} />
             </button>
@@ -269,7 +294,7 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
             </div>
           )}
 
-          {/* 진행 중 표시 */}
+          {/* 진행 중 표시 + 취소 안내 */}
           {isDownloading && (
             <div
               style={{
@@ -282,21 +307,42 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
                 color: "#00E573",
                 display: "flex",
                 alignItems: "center",
+                justifyContent: "space-between",
                 gap: "8px",
+                flexWrap: "wrap",
               }}
             >
-              <div
+              <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div
+                  style={{
+                    display: "inline-block",
+                    width: "12px",
+                    height: "12px",
+                    border: "2px solid rgba(0, 229, 115, 0.2)",
+                    borderTop: "2px solid #00E573",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite",
+                  }}
+                />
+                비디오를 찾는 중입니다... (90초 초과 시 자동 취소)
+              </span>
+              <button
+                type="button"
+                onClick={() => handleCancelDownload()}
                 style={{
-                  display: "inline-block",
-                  width: "12px",
-                  height: "12px",
-                  border: "2px solid rgba(0, 229, 115, 0.2)",
-                  borderTop: "2px solid #00E573",
-                  borderRadius: "50%",
-                  animation: "spin 0.8s linear infinite",
+                  padding: "6px 12px",
+                  border: "1px solid rgba(255, 255, 255, 0.3)",
+                  background: "rgba(255, 255, 255, 0.08)",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "rgba(255, 255, 255, 0.9)",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
                 }}
-              />
-              <span>비디오를 찾는 중입니다... (약 5-10초 소요)</span>
+              >
+                취소
+              </button>
             </div>
           )}
 
@@ -408,7 +454,7 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
             </div>
           </div>
 
-          {/* 에러 메시지 */}
+          {/* 에러 메시지 + 다시 시도 */}
           {error && (
             <div
               style={{
@@ -421,42 +467,80 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
                 fontSize: "13px",
               }}
             >
-              {error}
+              <div style={{ marginBottom: !error.includes("취소") ? "10px" : 0 }}>{error}</div>
+              {!error.includes("취소") && (
+                <button
+                  type="button"
+                  onClick={() => setError("")}
+                  style={{
+                    padding: "6px 12px",
+                    border: "1px solid rgba(255, 107, 107, 0.5)",
+                    background: "rgba(255, 107, 107, 0.15)",
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    color: "#ff8a8a",
+                    cursor: "pointer",
+                  }}
+                >
+                  다시 시도
+                </button>
+              )}
             </div>
           )}
 
-          {/* 버튼 */}
+          {/* 하단 버튼: 다운로드 중이면 취소만, 아니면 닫기 */}
           <div style={{ display: "flex", gap: "12px" }}>
-            <button
-              onClick={onClose}
-              disabled={isDownloading || isLoading}
-              style={{
-                flex: 1,
-                padding: "12px",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                backgroundColor: "rgba(37, 37, 48, 0.4)",
-                borderRadius: "8px",
-                fontSize: "13px",
-                fontWeight: "700",
-                cursor: isDownloading || isLoading ? "not-allowed" : "pointer",
-                color: "rgba(255, 255, 255, 0.75)",
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) =>
-                !isDownloading &&
-                !isLoading &&
-                ((e.currentTarget.style.backgroundColor = "rgba(37, 37, 48, 0.7)"),
-                (e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)"))
-              }
-              onMouseLeave={(e) =>
-                !isDownloading &&
-                !isLoading &&
-                ((e.currentTarget.style.backgroundColor = "rgba(37, 37, 48, 0.4)"),
-                (e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)"))
-              }
-            >
-              닫기
-            </button>
+            {isDownloading ? (
+              <button
+                type="button"
+                onClick={() => handleCancelDownload()}
+                style={{
+                  flex: 1,
+                  padding: "12px",
+                  border: "1px solid rgba(255, 255, 255, 0.2)",
+                  backgroundColor: "rgba(255, 100, 100, 0.2)",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                  color: "#ff8a8a",
+                  transition: "all 0.2s",
+                }}
+              >
+                취소
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isLoading}
+                style={{
+                  flex: 1,
+                  padding: "12px",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  backgroundColor: "rgba(37, 37, 48, 0.4)",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: "700",
+                  cursor: isLoading ? "not-allowed" : "pointer",
+                  color: "rgba(255, 255, 255, 0.75)",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  if (!isLoading) {
+                    e.currentTarget.style.backgroundColor = "rgba(37, 37, 48, 0.7)";
+                    e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(37, 37, 48, 0.4)";
+                  e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                }}
+              >
+                닫기
+              </button>
+            )}
           </div>
 
           <style>{`
