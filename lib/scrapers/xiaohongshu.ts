@@ -273,7 +273,7 @@ async function searchXiaohongshuVideosKuaima(
 }
 
 /**
- * Xiaohongshu 검색 — test6 전용: kuaima만 사용 (env 없음, easyapi 미사용)
+ * Xiaohongshu 검색 — easyapi RedNote Search Scraper 사용 (noteType=video로 영상만 요청)
  */
 export async function searchXiaohongshuVideosParallel(
   query: string,
@@ -281,7 +281,7 @@ export async function searchXiaohongshuVideosParallel(
   apiKey: string,
   dateRange?: string
 ): Promise<VideoResult[]> {
-  return searchXiaohongshuVideosKuaima(query, limit, apiKey);
+  return searchXiaohongshuVideosEasyapi(query, limit, apiKey);
 }
 
 async function searchXiaohongshuVideosEasyapi(

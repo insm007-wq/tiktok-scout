@@ -25,7 +25,7 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
-  const [detectedPlatform, setDetectedPlatform] = useState<"tiktok" | "douyin" | "xiaohongshu" | null>(null);
+  const [detectedPlatform, setDetectedPlatform] = useState<"tiktok" | "douyin" | "youtube" | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timeoutTriggeredRef = useRef(false);
@@ -46,12 +46,10 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
     if (closeAfter) onClose();
   };
 
-  const detectPlatformFromUrl = (url: string): "tiktok" | "douyin" | "xiaohongshu" | null => {
-    // Detect platform early for warnings
-    let platform: "tiktok" | "douyin" | "xiaohongshu" | null = null;
+  const detectPlatformFromUrl = (url: string): "tiktok" | "douyin" | "youtube" | null => {
     if (url.includes("tiktok.com")) return "tiktok";
     if (url.includes("douyin.com")) return "douyin";
-    if (url.includes("xiaohongshu.com")) return "xiaohongshu";
+    if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube";
     return null;
   };
 
@@ -65,8 +63,8 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
       match = url.match(/\/aweme\/detail\/(\d+)/);
       if (match) return match[1];
 
-      // Xiaohongshu: /explore/1234567890?search_id=...
-      match = url.match(/\/explore\/(\d+)/);
+      // YouTube: /watch?v=VIDEO_ID or youtu.be/VIDEO_ID
+      match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
       if (match) return match[1];
 
       return null;
@@ -86,7 +84,7 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
     const webVideoUrl = input.trim();
     const platformDetected = detectPlatformFromUrl(webVideoUrl);
     if (!platformDetected) {
-      setError("지원하지 않는 플랫폼입니다. TikTok, Douyin, 샤오홍슈 URL을 입력해주세요.");
+      setError("지원하지 않는 플랫폼입니다. TikTok, Douyin, YouTube URL을 입력해주세요.");
       return;
     }
 
@@ -118,7 +116,7 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
         const data = await response.json();
         if (data.openInBrowser && data.webVideoUrl) {
           window.open(data.webVideoUrl, "_blank");
-          setError("⚠️ Xiaohongshu는 웹 브라우저에서 직접 다운로드하셔야 합니다. 새 탭을 열었습니다.");
+          setError("⚠️ YouTube는 브라우저에서 보기만 지원됩니다. 새 탭을 열었습니다.");
           return;
         }
         throw new Error(data.error || "다운로드 실패");
@@ -270,17 +268,17 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
             </div>
           </div>
 
-          {/* Xiaohongshu 경고 */}
-          {detectedPlatform === "xiaohongshu" && (
+          {/* YouTube 경고 */}
+          {detectedPlatform === "youtube" && (
             <div
               style={{
                 padding: "12px",
-                backgroundColor: "rgba(157, 78, 221, 0.1)",
-                border: "1px solid rgba(157, 78, 221, 0.3)",
+                backgroundColor: "rgba(255, 0, 0, 0.08)",
+                border: "1px solid rgba(255, 0, 0, 0.25)",
                 borderRadius: "8px",
                 marginBottom: "20px",
                 fontSize: "13px",
-                color: "#C77DFF",
+                color: "#ff6b6b",
                 display: "flex",
                 gap: "8px",
                 alignItems: "flex-start",
@@ -288,8 +286,7 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
             >
               <AlertCircle size={16} style={{ flexShrink: 0, marginTop: "2px" }} />
               <div>
-                <strong>⚠️ 참고:</strong> Xiaohongshu는 앱 기반 보호로 인해 웹에서 직접 보기만 지원됩니다. 새 탭에서 브라우저로 열리며,
-                그곳에서 다운로드할 수 있습니다.
+                <strong>⚠️ 참고:</strong> YouTube는 브라우저에서 보기만 지원됩니다. 다운로드는 YouTube에서 직접 이용해 주세요.
               </div>
             </div>
           )}

@@ -18,7 +18,7 @@ export interface SearchFilter {
 export interface SearchResponse {
   success: boolean;
   query: string;
-  platform: 'tiktok' | 'douyin' | 'xiaohongshu';
+  platform: 'tiktok' | 'douyin' | 'youtube';
   videos: any[];
   count?: {
     videos: number;

@@ -5,7 +5,7 @@ import { Search, Loader2, MoreVertical } from "lucide-react";
 
 const POLL_INTERVAL_MS = 1000;
 
-type Platform = "tiktok" | "douyin" | "xiaohongshu";
+type Platform = "tiktok" | "douyin" | "youtube";
 
 interface SearchResult {
   id: string;
@@ -198,6 +198,17 @@ export default function SearchPage() {
                   }`}
                 >
                   🐉 Douyin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPlatform("youtube")}
+                  className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all duration-200 ${
+                    platform === "youtube"
+                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg scale-105"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  ▶️ YouTube
                 </button>
               </div>
             </div>

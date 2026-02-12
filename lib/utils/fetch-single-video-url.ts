@@ -3,7 +3,7 @@ import { fetchPostWithRetry, fetchGetWithRetry } from '@/lib/utils/fetch-with-re
 interface SingleVideoResult {
   videoUrl?: string;
   webVideoUrl?: string;
-  platform: 'tiktok' | 'douyin' | 'xiaohongshu';
+  platform: 'tiktok' | 'douyin' | 'youtube';
   error?: string;
 }
 
@@ -11,16 +11,16 @@ interface SingleVideoResult {
  * Fetch video URL using Apify Download Actors
  * - TikTok: epctex/tiktok-video-downloader (highest-rated: 4.9★ 643 reviews)
  * - Douyin: scrapearchitect/douyin-video-downloader
- * - Xiaohongshu: fallback to search (web-based protection)
+ * - YouTube: embed URL 반환 (iframe 미리보기)
  *
  * @param webVideoUrl - The web page URL (e.g., https://www.tiktok.com/@user/video/123456)
- * @param platform - The platform (tiktok, douyin, xiaohongshu)
+ * @param platform - The platform (tiktok, douyin, youtube)
  * @param apiKey - Apify API key
  * @returns Object with videoUrl (CDN URL) or error
  */
 export async function fetchSingleVideoUrl(
   webVideoUrl: string,
-  platform: 'tiktok' | 'douyin' | 'xiaohongshu',
+  platform: 'tiktok' | 'douyin' | 'youtube',
   apiKey: string
 ): Promise<SingleVideoResult> {
   if (!apiKey) {
@@ -30,108 +30,26 @@ export async function fetchSingleVideoUrl(
   try {
     console.log(`[fetchSingleVideoUrl] Fetching ${platform} video from URL:`, webVideoUrl);
 
-    // Xiaohongshu: Video Downloader 액터로 CDN URL 추출 후 다운로드 가능
-    if (platform === 'xiaohongshu') {
-      // 액터 호환용: explore/ID 형태로 정규화 (쿼리 제거)
-      const exploreMatch = webVideoUrl.match(/xiaohongshu\.com\/explore\/([a-zA-Z0-9]+)/);
-      const canonicalUrl = exploreMatch
-        ? `https://www.xiaohongshu.com/explore/${exploreMatch[1]}`
-        : webVideoUrl;
-      console.log(`[fetchSingleVideoUrl] Xiaohongshu: Using Video Downloader actor for URL:`, canonicalUrl);
-
-      const actorId = 'easyapi~rednote-xiaohongshu-video-downloader';
-      const runRes = await fetch(
-        `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ links: [canonicalUrl] }),
-        }
-      );
-
-      if (!runRes.ok) {
-        const errText = await runRes.text();
-        console.error(`[fetchSingleVideoUrl] Xiaohongshu actor start failed:`, runRes.status, errText);
-        // 402 = Payment/Rental required → 액터 구독(렌탈) 필요
-        if (runRes.status === 402) {
-          return {
-            platform,
-            webVideoUrl,
-            error: '샤오홍슈 다운로드 액터 구독이 필요합니다. Apify에서 "RedNote Xiaohongshu Video Downloader" 액터를 렌탈($19.99/월)해 주세요.',
-          };
-        }
-        let detail = '샤오홍슈 영상 URL을 가져오지 못했습니다.';
-        try {
-          const errJson = JSON.parse(errText);
-          if (errJson.error?.message) detail = errJson.error.message;
-        } catch (_) {}
-        return { platform, webVideoUrl, error: detail };
+    // YouTube: embed URL로 미리보기 (iframe 재생)
+    if (platform === 'youtube') {
+      const videoId =
+        webVideoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/)?.[1] ||
+        webVideoUrl.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/)?.[1];
+      if (!videoId) {
+        return { platform, webVideoUrl, error: '유효한 YouTube 영상 URL이 아닙니다.' };
       }
-
-      const runData = await runRes.json();
-      const runId = runData.data.id;
-
-      let status = 'RUNNING';
-      let attempt = 0;
-      const maxAttempts = 60;
-      let waitTime = 1000;
-
-      while ((status === 'RUNNING' || status === 'READY') && attempt < maxAttempts) {
-        await new Promise((r) => setTimeout(r, waitTime));
-        const statusRes = await fetch(
-          `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
-        );
-        const statusData = await statusRes.json();
-        status = statusData.data?.status || 'UNKNOWN';
-        attempt++;
-        if (status === 'SUCCEEDED') break;
-        if (status === 'FAILED' || status === 'ABORTED') {
-          return { platform, webVideoUrl, error: '샤오홍슈 영상 추출에 실패했습니다.' };
-        }
-        waitTime = Math.min(waitTime + 500, 5000);
-      }
-
-      if (status !== 'SUCCEEDED') {
-        return { platform, webVideoUrl, error: '샤오홍슈 영상 처리 시간이 초과되었습니다.' };
-      }
-
-      const datasetRes = await fetch(
-        `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`
-      );
-      if (!datasetRes.ok) {
-        return { platform, webVideoUrl, error: '샤오홍슈 영상 정보를 가져오지 못했습니다.' };
-      }
-
-      const dataset = await datasetRes.json();
-      const result = Array.isArray(dataset) && dataset.length > 0 ? dataset[0] : null;
-      const medias = result?.result?.medias ?? result?.medias ?? [];
-      if (!Array.isArray(medias) || medias.length === 0) {
-        console.warn('[fetchSingleVideoUrl] Xiaohongshu: no medias in result', result ? Object.keys(result) : 'null');
-        return {
-          platform,
-          webVideoUrl,
-          error: '이 포스트에는 영상이 없을 수 있습니다. 이미지 전용 포스트는 다운로드할 수 없습니다. 샤오홍슈에서 직접 확인해 주세요.',
-        };
-      }
-
-      const videoMedia = medias.find((m: any) => m.type === 'video') ?? medias.find((m: any) => m.url && (m.type !== 'image'));
-      const videoUrl = videoMedia?.url ?? videoMedia?.videoUrl;
-      if (!videoUrl) {
-        return {
-          platform,
-          webVideoUrl,
-          error: '이 포스트에는 영상이 없을 수 있습니다. 이미지 전용 포스트는 다운로드할 수 없습니다.',
-        };
-      }
-
-      console.log(`[fetchSingleVideoUrl] Xiaohongshu video URL extracted`);
-      return { videoUrl, webVideoUrl, platform };
+      const embedUrl = `https://www.youtube.com/embed/${videoId}`;
+      console.log(`[fetchSingleVideoUrl] YouTube: embed URL for preview`);
+      return {
+        videoUrl: embedUrl,
+        webVideoUrl: webVideoUrl.startsWith('http') ? webVideoUrl : `https://www.youtube.com/watch?v=${videoId}`,
+        platform,
+      };
     }
 
     // TikTok: Use epctex download actor
-    // Only TikTok download is supported
     if (platform !== 'tiktok') {
-      return { platform, webVideoUrl, error: `${platform}은 다운로드를 지원하지 않습니다. TikTok만 다운로드 가능합니다.` };
+      return { platform, webVideoUrl, error: `${platform}은 단일 영상 URL 조회를 지원하지 않습니다.` };
     }
 
     const actorConfig = {

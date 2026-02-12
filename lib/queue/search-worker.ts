@@ -3,7 +3,7 @@ import { SearchJobData } from './search-queue'
 import { redisConnection } from './redis'
 import { searchTikTokVideos } from '@/lib/scrapers/tiktok'
 import { searchDouyinVideosParallel } from '@/lib/scrapers/douyin'
-import { searchXiaohongshuVideosParallel } from '@/lib/scrapers/xiaohongshu'
+import { searchYouTubeVideos } from '@/lib/scrapers/youtube'
 import { setVideoToCache } from '@/lib/cache'
 import {
   DEFAULT_WORKER_CONCURRENCY,
@@ -53,7 +53,8 @@ function classifyScrapingError(error: unknown, platform: string): Error {
 const worker = new Worker<SearchJobData>(
   QUEUE_NAME,
   async (job) => {
-    const { query, platform, dateRange } = job.data
+    const { query, platform: rawPlatform, dateRange } = job.data
+    const platform = typeof rawPlatform === 'string' ? rawPlatform.toLowerCase() : rawPlatform
 
     try {
       await job.updateProgress(10)
@@ -85,8 +86,8 @@ const worker = new Worker<SearchJobData>(
         case 'douyin':
           videos = await searchDouyinVideosParallel(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
           break
-        case 'xiaohongshu':
-          videos = await searchXiaohongshuVideosParallel(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
+        case 'youtube':
+          videos = await searchYouTubeVideos(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
           break
         default:
           throw new Error(`Unknown platform: ${platform}`)

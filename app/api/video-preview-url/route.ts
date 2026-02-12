@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth';
 
 /**
  * 미리보기용 비디오 URL만 조회 (다운로드 X, 할당량 차감 X)
- * - Xiaohongshu: Video Downloader 액터로 CDN URL 반환 → 앱 내 재생 가능
+ * - YouTube: embed URL 반환 → iframe 앱 내 재생
  */
 export async function POST(req: NextRequest) {
   try {
@@ -21,9 +21,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (platform !== 'xiaohongshu') {
+    if (platform !== 'youtube') {
       return NextResponse.json(
-        { error: '현재 샤오홍슈만 미리보기 URL 조회를 지원합니다.' },
+        { error: '현재 YouTube만 미리보기 URL 조회를 지원합니다. (TikTok/Douyin은 검색 결과에 URL 포함)' },
         { status: 400 }
       );
     }
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     const result = await fetchSingleVideoUrl(
       webVideoUrl,
-      platform as 'tiktok' | 'douyin' | 'xiaohongshu',
+      platform as 'tiktok' | 'douyin' | 'youtube',
       apiKey
     );
 

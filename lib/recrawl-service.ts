@@ -89,7 +89,7 @@ async function checkRateLimitAndRecord(
  * 링크 갱신 트리거 (중복 방지 및 Rate Limiting 포함)
  *
  * @param query - 검색어
- * @param platform - 플랫폼 (tiktok, douyin, xiaohongshu)
+ * @param platform - 플랫폼 (tiktok, douyin, youtube)
  * @param dateRange - 검색 기간 (optional)
  * @returns { jobId, alreadyInProgress }
  *

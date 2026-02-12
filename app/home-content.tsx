@@ -37,12 +37,12 @@ export default function HomeContent() {
     },
     {
       id: 2,
-      platform: "샤오홍슈",
-      icon: "📕",
-      gradient: "from-[#FF2442] to-[#FFE5E5]",
-      title: "Xiaohongshu",
-      description: "라이프스타일 콘텐츠 탐색",
-      features: ["뷰티 & 패션", "제품 리뷰 분석", "인플루언서 발굴"],
+      platform: "YouTube",
+      icon: "▶️",
+      gradient: "from-[#FF0000] to-[#CC0000]",
+      title: "YouTube",
+      description: "영상 검색 및 트렌드 분석",
+      features: ["키워드 검색", "조회수·메타데이터", "쇼츠·롱폼 분석"],
     },
   ];
 
@@ -58,7 +58,7 @@ export default function HomeContent() {
       <div className={styles.platformWatermarks}>
         <div className={`${styles.platformLogo} ${styles.tiktokLogo}`}></div>
         <div className={`${styles.platformLogo} ${styles.douyinLogo}`}></div>
-        <div className={`${styles.platformLogo} ${styles.xiaohongshuLogo}`}></div>
+        <div className={`${styles.platformLogo} ${styles.youtubeLogo}`}></div>
       </div>
 
       {/* 메인 콘텐츠 */}

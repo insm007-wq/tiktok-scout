@@ -80,12 +80,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Handle Xiaohongshu: no videoUrl available, fallback to web view
-    if (!finalVideoUrl && platform === 'xiaohongshu') {
+    // YouTube: embed URL은 다운로드 불가 → 브라우저에서 열기
+    if (platform === 'youtube' && finalVideoUrl?.includes('youtube.com/embed')) {
       return NextResponse.json(
         {
-          error: 'Xiaohongshu는 웹에서 직접 보기만 지원됩니다',
-          webVideoUrl: webVideoUrl,
+          error: 'YouTube는 브라우저에서 보기만 지원됩니다. 다운로드는 YouTube에서 직접 이용해 주세요.',
+          webVideoUrl: webVideoUrl || finalVideoUrl?.replace('/embed/', '/watch?v='),
           openInBrowser: true,
         },
         { status: 400 }
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     const refererMap: Record<string, string> = {
       'tiktok': 'https://www.tiktok.com/',
       'douyin': 'https://www.douyin.com/',
-      'xiaohongshu': 'https://www.xiaohongshu.com/',
+      'youtube': 'https://www.youtube.com/',
     };
 
     // 비디오 URL에서 파일 fetch
@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
 
     // 파일명 생성 (플랫폼별)
     const filePrefix = platform === 'douyin' ? 'douyin' :
-                       platform === 'xiaohongshu' ? 'xiaohongshu' : 'tiktok';
+                       platform === 'youtube' ? 'youtube' : 'tiktok';
     const fileName = `${filePrefix}_${videoId}.mp4`;
 
     // 다운로드 응답 반환

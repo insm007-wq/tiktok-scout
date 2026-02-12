@@ -194,6 +194,16 @@
   content: "📕";
 }
 
+.youtubeLogo {
+  bottom: 15%;
+  left: 50%;
+  animation: orbFloat 30s ease-in-out infinite;
+}
+
+.youtubeLogo::before {
+  content: "▶️";
+}
+
 /* ===== Content Wrapper ===== */
 .contentWrapper {
   position: relative;

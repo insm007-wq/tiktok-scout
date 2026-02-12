@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
 
     const { videoUrl, videoId, platform = 'tiktok', webVideoUrl, format = 'text' } = await req.json();
 
-    // TikTok과 Douyin만 지원 (Xiaohongshu는 향후 추가)
+    // TikTok과 Douyin만 지원 (YouTube는 향후 추가)
     if (platform !== 'tiktok' && platform !== 'douyin') {
       return NextResponse.json(
         { error: `${platform}은(는) 자막 추출을 지원하지 않습니다. (현재 TikTok, Douyin만 지원)` },
@@ -62,25 +62,9 @@ export async function POST(req: NextRequest) {
 
     let finalVideoUrl = videoUrl;
 
-    // Xiaohongshu on-demand video URL fetching (향후 지원)
-    if (platform === 'xiaohongshu' && !videoUrl && webVideoUrl) {
-      try {
-        const fetchRes = await fetch('http://localhost:3000/api/fetch-xiaohongshu-video', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ postUrl: webVideoUrl }),
-        });
-
-        const fetchData = await fetchRes.json();
-        if (!fetchData.success) {
-          throw new Error(fetchData.error || 'Failed to fetch video URL');
-        }
-
-        finalVideoUrl = fetchData.videoUrl;
-      } catch (error) {
-        console.error('[ExtractSubtitles] Xiaohongshu video URL fetch failed:', error);
-        throw new Error(error instanceof Error ? error.message : '영상 URL을 가져올 수 없습니다.');
-      }
+    // YouTube: 자막 추출은 직접 영상 URL이 필요 (향후 지원)
+    if (platform === 'youtube' && !videoUrl) {
+      // YouTube는 embed URL만 있어 직접 스트림 URL 미제공 → 자막 추출 미지원
     }
 
     if (!finalVideoUrl) {
@@ -96,7 +80,7 @@ export async function POST(req: NextRequest) {
     const refererMap: Record<string, string> = {
       'tiktok': 'https://www.tiktok.com/',
       'douyin': 'https://www.douyin.com/',
-      'xiaohongshu': 'https://www.xiaohongshu.com/',
+      'youtube': 'https://www.youtube.com/',
     };
 
     // 비디오 다운로드

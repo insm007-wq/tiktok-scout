@@ -80,7 +80,7 @@ export default function PrivacyPage() {
               <ul className="space-y-2 text-white/80">
                 <li className="flex gap-3">
                   <span className="text-pink-400">•</span>
-                  <span><strong>Apify & Bright Data:</strong> 데이터 수집 API 제공자 (TikTok, Douyin, Xiaohongshu 영상 메타데이터 수집)</span>
+                  <span><strong>Apify & Bright Data:</strong> 데이터 수집 API 제공자 (TikTok, Douyin, YouTube 영상 메타데이터 수집)</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="text-pink-400">•</span>

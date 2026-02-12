@@ -82,7 +82,7 @@ export default function LightFooter() {
         {/* Bottom Copyright */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 text-xs text-gray-500">
           <p>© 2025 TikTalk Killa. All rights reserved.</p>
-          <p>TikTok, Douyin, Xiaohongshu는 각 회사의 상표입니다.</p>
+          <p>TikTok, Douyin, YouTube는 각 회사의 상표입니다.</p>
         </div>
       </div>
     </footer>
