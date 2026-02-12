@@ -32,7 +32,12 @@ export async function fetchSingleVideoUrl(
 
     // Xiaohongshu: Video Downloader 액터로 CDN URL 추출 후 다운로드 가능
     if (platform === 'xiaohongshu') {
-      console.log(`[fetchSingleVideoUrl] Xiaohongshu: Using Video Downloader actor for URL:`, webVideoUrl);
+      // 액터 호환용: explore/ID 형태로 정규화 (쿼리 제거)
+      const exploreMatch = webVideoUrl.match(/xiaohongshu\.com\/explore\/([a-zA-Z0-9]+)/);
+      const canonicalUrl = exploreMatch
+        ? `https://www.xiaohongshu.com/explore/${exploreMatch[1]}`
+        : webVideoUrl;
+      console.log(`[fetchSingleVideoUrl] Xiaohongshu: Using Video Downloader actor for URL:`, canonicalUrl);
 
       const actorId = 'easyapi~rednote-xiaohongshu-video-downloader';
       const runRes = await fetch(
@@ -40,7 +45,7 @@ export async function fetchSingleVideoUrl(
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ links: [webVideoUrl] }),
+          body: JSON.stringify({ links: [canonicalUrl] }),
         }
       );
 

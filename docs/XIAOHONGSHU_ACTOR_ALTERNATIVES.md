@@ -56,3 +56,23 @@
 
 현재 프로젝트에서는 **kuaima** 연동을 추가해 두었습니다.  
 `XIAOHONGSHU_SEARCH_ACTOR=kuaima` 로 두면 kuaima 액터를 사용합니다.
+
+---
+
+## TikTok처럼 프리뷰·다운이 잘 되는 단일 스크래퍼가 있나?
+
+**결론: Apify에는 검색 결과에 비디오 URL을 바로 넣어 주는 RedNote 전용 스크래퍼는 없습니다.**
+
+- **TikTok**: 검색 액터가 포스트 목록 + **비디오 CDN URL**을 함께 주는 경우가 많아서, 프리뷰/다운로드가 별도 액터 없이 가능한 구조입니다.
+- **RedNote(샤오홍슈)**: 검색 액터(easyapi Search, kuaima, All-in-One 등)는 **포스트 링크(href)** 와 메타만 주고, **실제 비디오 URL은 주지 않습니다.**  
+  그래서 **프리뷰/다운로드**를 하려면 포스트 URL마다 **Video Downloader** 액터를 한 번씩 호출해야 합니다.
+
+**현재 구조 (권장)**
+
+| 용도     | 액터 |
+|----------|------|
+| 검색(목록) | kuaima 또는 easyapi Search |
+| 프리뷰/다운로드 | easyapi **RedNote Xiaohongshu Video Downloader** (별도 렌탈 $19.99/월) |
+
+검색만 쓰면 Search 액터 1개, **프리뷰·다운까지 쓰면 Video Downloader를 추가**해야 합니다.  
+한 개 액터로 TikTok처럼 검색+프리뷰+다운까지 되는 RedNote 스크래퍼는 Apify에 없습니다.

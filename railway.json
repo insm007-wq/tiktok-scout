@@ -5,6 +5,6 @@
     "buildCommand": "npm install"
   },
   "deploy": {
-    "startCommand": "NODE_ENV=production npm run worker"
+    "startCommand": "npm run worker"
   }
 }

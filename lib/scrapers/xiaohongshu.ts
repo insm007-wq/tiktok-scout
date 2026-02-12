@@ -264,17 +264,16 @@ async function searchXiaohongshuVideosKuaima(
       createTime,
       videoDuration: 0,
       hashtags: Array.isArray(item.tags) ? item.tags : [],
-      thumbnail: undefined,
+      thumbnail: item.cover_url || item.thumbnail || undefined,
       videoUrl: undefined,
-      webVideoUrl: item.href || undefined,
+      webVideoUrl: item.href || item.link || item.url || item.postUrl || undefined,
     };
   });
   return results;
 }
 
 /**
- * Xiaohongshu 검색 — kuaima 액터 사용 (페이지네이션, 영상 필터)
- * easyapi 쓰려면 XIAOHONGSHU_SEARCH_ACTOR=easyapi 로 설정
+ * Xiaohongshu 검색 — test6 전용: kuaima만 사용 (env 없음, easyapi 미사용)
  */
 export async function searchXiaohongshuVideosParallel(
   query: string,
@@ -282,9 +281,6 @@ export async function searchXiaohongshuVideosParallel(
   apiKey: string,
   dateRange?: string
 ): Promise<VideoResult[]> {
-  if (process.env.XIAOHONGSHU_SEARCH_ACTOR === 'easyapi') {
-    return searchXiaohongshuVideosEasyapi(query, limit, apiKey, dateRange);
-  }
   return searchXiaohongshuVideosKuaima(query, limit, apiKey);
 }
 
