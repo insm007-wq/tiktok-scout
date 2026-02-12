@@ -88,6 +88,9 @@ export default function Search() {
   const [toasts, setToasts] = useState<ToastType[]>([]);
   const [hoveredVideoId, setHoveredVideoId] = useState<string | null>(null);
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+  /** 샤오홍슈 등 미리보기용으로 조회한 비디오 URL (videoId -> url) */
+  const [previewVideoUrls, setPreviewVideoUrls] = useState<Record<string, string>>({});
+  const [loadingPreviewId, setLoadingPreviewId] = useState<string | null>(null);
   const [failedThumbnails, setFailedThumbnails] = useState<Set<string>>(new Set());
   const [showTranslationPanel, setShowTranslationPanel] = useState(true);
   const [jobStatus, setJobStatus] = useState<{
@@ -995,6 +998,43 @@ export default function Search() {
     }
   };
 
+  // 샤오홍슈 미리보기: URL 조회 후 앱 내 재생 (Video Downloader 액터 사용)
+  const handleXiaohongshuPreviewClick = useCallback(
+    async (video: Video) => {
+      if (platform !== "xiaohongshu" || !video.webVideoUrl) return;
+      const resolvedUrl = video.videoUrl || previewVideoUrls[video.id];
+      if (resolvedUrl) {
+        setPlayingVideoId((prev) => (prev === video.id ? null : video.id));
+        return;
+      }
+      setLoadingPreviewId(video.id);
+      try {
+        const res = await fetch("/api/video-preview-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            webVideoUrl: video.webVideoUrl,
+            platform: "xiaohongshu",
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          addToast("error", data.error || "미리보기 URL을 가져오지 못했습니다.", "미리보기");
+          window.open(video.webVideoUrl, "_blank");
+          return;
+        }
+        setPreviewVideoUrls((prev) => ({ ...prev, [video.id]: data.videoUrl }));
+        setPlayingVideoId(video.id);
+      } catch (e) {
+        addToast("error", "미리보기 요청에 실패했습니다.", "미리보기");
+        if (video.webVideoUrl) window.open(video.webVideoUrl, "_blank");
+      } finally {
+        setLoadingPreviewId(null);
+      }
+    },
+    [platform, previewVideoUrls, addToast]
+  );
+
   // 영상 다운로드 (클립보드 복사 + 외부 다운로더 열기)
   const handleDownloadVideo = async (video: Video) => {
     if (!video.videoUrl && !video.webVideoUrl) {
@@ -1540,21 +1580,17 @@ export default function Search() {
                   <span className="platform-icon">🐉</span>
                   <span className="platform-name">Douyin</span>
                 </label>
-                <label
-                  className="platform-option"
-                  style={{ opacity: 0.5, cursor: "not-allowed", pointerEvents: "none" }}
-                  title="현재 사용 불가"
-                >
+                <label className={`platform-option ${platform === "xiaohongshu" ? "active" : ""}`} onClick={() => setPlatform("xiaohongshu")}>
                   <input
                     type="radio"
                     name="platform"
                     value="xiaohongshu"
-                    disabled
+                    checked={platform === "xiaohongshu"}
+                    onChange={() => setPlatform("xiaohongshu")}
                     style={{ display: "none" }}
                   />
                   <span className="platform-icon">❤️</span>
                   <span className="platform-name">Xiaohongshu</span>
-                  <span style={{ fontSize: "10px", marginLeft: "4px", color: "#999" }}>(준비중)</span>
                 </label>
               </div>
             </div>
@@ -1868,6 +1904,11 @@ export default function Search() {
               <>
                 <div style={{ width: "100%" }}>
                   <div className="results-count">총 {results.length}개의 영상</div>
+                  {platform === "xiaohongshu" && results.length <= 3 && results.length > 0 && (
+                    <p style={{ fontSize: "12px", color: "#999", marginTop: "4px", marginBottom: "0" }}>
+                      💡 결과가 적을 때: 검색어를 중국어로 넣거나 더 넓은 키워드(예: 车品, 车载)로 다시 검색해 보세요.
+                    </p>
+                  )}
                   {viewMode === "card" ? (
                     <div className="results-grid">
                       {(results as Video[]).map((video) => (
@@ -1875,6 +1916,10 @@ export default function Search() {
                           <div
                             className="card-thumbnail-container"
                             onClick={() => {
+                              if (platform === "xiaohongshu" && video.webVideoUrl) {
+                                handleXiaohongshuPreviewClick(video);
+                                return;
+                              }
                               if (video.webVideoUrl) {
                                 window.open(video.webVideoUrl, "_blank");
                               }
@@ -1895,9 +1940,23 @@ export default function Search() {
                               <div className="card-thumbnail-fallback">🎬</div>
                             )}
 
-                            {/* 비디오 미리보기 (TikTok만 제공, Douyin/Xiaohongshu는 썸네일만 표시) */}
-                            {video.videoUrl && playingVideoId === video.id && platform !== 'douyin' && platform !== 'xiaohongshu' && (
-                              <video className="card-video-preview" src={video.videoUrl} autoPlay muted loop playsInline preload="auto" />
+                            {/* 비디오 미리보기 (TikTok: 호버 재생, 샤오홍슈: 클릭 시 URL 조회 후 재생) */}
+                            {playingVideoId === video.id && (video.videoUrl || (platform === 'xiaohongshu' && previewVideoUrls[video.id])) && (
+                              <video
+                                className="card-video-preview"
+                                src={video.videoUrl || previewVideoUrls[video.id]}
+                                autoPlay
+                                muted
+                                loop
+                                playsInline
+                                preload="auto"
+                              />
+                            )}
+                            {loadingPreviewId === video.id && (
+                              <div className="card-preview-loading">
+                                <Loader className="card-action-icon animate-spin" style={{ width: 32, height: 32 }} />
+                                <span>미리보기 로딩...</span>
+                              </div>
                             )}
 
                             {/* Duration 뱃지 - 왼쪽 상단 (샤오홍슈 제외) */}

@@ -1,6 +1,4 @@
 import { fetchPostWithRetry, fetchGetWithRetry } from '@/lib/utils/fetch-with-retry';
-import { searchXiaohongshuVideosParallel } from '@/lib/scrapers/xiaohongshu';
-import type { VideoResult } from '@/types/video';
 
 interface SingleVideoResult {
   videoUrl?: string;
@@ -32,31 +30,97 @@ export async function fetchSingleVideoUrl(
   try {
     console.log(`[fetchSingleVideoUrl] Fetching ${platform} video from URL:`, webVideoUrl);
 
-    // Xiaohongshu: Use search-based fallback (web-based protection prevents direct download)
+    // Xiaohongshu: Video Downloader 액터로 CDN URL 추출 후 다운로드 가능
     if (platform === 'xiaohongshu') {
-      console.log(`[fetchSingleVideoUrl] Xiaohongshu: Using search-based approach (web protection)`);
+      console.log(`[fetchSingleVideoUrl] Xiaohongshu: Using Video Downloader actor for URL:`, webVideoUrl);
 
-      const match = webVideoUrl.match(/\/explore\/(\w+)/);
-      const videoId = match ? match[1] : null;
-
-      if (!videoId) {
-        return { platform, webVideoUrl, error: '유효하지 않은 Xiaohongshu URL입니다.' };
-      }
-
-      try {
-        const results = await searchXiaohongshuVideosParallel(videoId, 3, apiKey);
-        if (results.length > 0 && results[0].videoUrl) {
-          return { videoUrl: results[0].videoUrl, webVideoUrl: results[0].webVideoUrl || webVideoUrl, platform };
+      const actorId = 'easyapi~rednote-xiaohongshu-video-downloader';
+      const runRes = await fetch(
+        `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ links: [webVideoUrl] }),
         }
-      } catch (e) {
-        console.warn(`[fetchSingleVideoUrl] Xiaohongshu search failed, returning web fallback`);
+      );
+
+      if (!runRes.ok) {
+        const errText = await runRes.text();
+        console.error(`[fetchSingleVideoUrl] Xiaohongshu actor start failed:`, runRes.status, errText);
+        // 402 = Payment/Rental required → 액터 구독(렌탈) 필요
+        if (runRes.status === 402) {
+          return {
+            platform,
+            webVideoUrl,
+            error: '샤오홍슈 다운로드 액터 구독이 필요합니다. Apify에서 "RedNote Xiaohongshu Video Downloader" 액터를 렌탈($19.99/월)해 주세요.',
+          };
+        }
+        let detail = '샤오홍슈 영상 URL을 가져오지 못했습니다.';
+        try {
+          const errJson = JSON.parse(errText);
+          if (errJson.error?.message) detail = errJson.error.message;
+        } catch (_) {}
+        return { platform, webVideoUrl, error: detail };
       }
 
-      return {
-        platform,
-        webVideoUrl,
-        error: undefined,  // No error - fallback to browser
-      };
+      const runData = await runRes.json();
+      const runId = runData.data.id;
+
+      let status = 'RUNNING';
+      let attempt = 0;
+      const maxAttempts = 60;
+      let waitTime = 1000;
+
+      while ((status === 'RUNNING' || status === 'READY') && attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, waitTime));
+        const statusRes = await fetch(
+          `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
+        );
+        const statusData = await statusRes.json();
+        status = statusData.data?.status || 'UNKNOWN';
+        attempt++;
+        if (status === 'SUCCEEDED') break;
+        if (status === 'FAILED' || status === 'ABORTED') {
+          return { platform, webVideoUrl, error: '샤오홍슈 영상 추출에 실패했습니다.' };
+        }
+        waitTime = Math.min(waitTime + 500, 5000);
+      }
+
+      if (status !== 'SUCCEEDED') {
+        return { platform, webVideoUrl, error: '샤오홍슈 영상 처리 시간이 초과되었습니다.' };
+      }
+
+      const datasetRes = await fetch(
+        `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`
+      );
+      if (!datasetRes.ok) {
+        return { platform, webVideoUrl, error: '샤오홍슈 영상 정보를 가져오지 못했습니다.' };
+      }
+
+      const dataset = await datasetRes.json();
+      const result = Array.isArray(dataset) && dataset.length > 0 ? dataset[0] : null;
+      const medias = result?.result?.medias ?? result?.medias ?? [];
+      if (!Array.isArray(medias) || medias.length === 0) {
+        console.warn('[fetchSingleVideoUrl] Xiaohongshu: no medias in result', result ? Object.keys(result) : 'null');
+        return {
+          platform,
+          webVideoUrl,
+          error: '이 포스트에는 영상이 없을 수 있습니다. 이미지 전용 포스트는 다운로드할 수 없습니다. 샤오홍슈에서 직접 확인해 주세요.',
+        };
+      }
+
+      const videoMedia = medias.find((m: any) => m.type === 'video') ?? medias.find((m: any) => m.url && (m.type !== 'image'));
+      const videoUrl = videoMedia?.url ?? videoMedia?.videoUrl;
+      if (!videoUrl) {
+        return {
+          platform,
+          webVideoUrl,
+          error: '이 포스트에는 영상이 없을 수 있습니다. 이미지 전용 포스트는 다운로드할 수 없습니다.',
+        };
+      }
+
+      console.log(`[fetchSingleVideoUrl] Xiaohongshu video URL extracted`);
+      return { videoUrl, webVideoUrl, platform };
     }
 
     // TikTok: Use epctex download actor
