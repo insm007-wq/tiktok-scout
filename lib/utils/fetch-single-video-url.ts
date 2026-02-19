@@ -3,7 +3,7 @@ import { fetchPostWithRetry, fetchGetWithRetry } from '@/lib/utils/fetch-with-re
 interface SingleVideoResult {
   videoUrl?: string;
   webVideoUrl?: string;
-  platform: 'tiktok' | 'douyin' | 'youtube';
+  platform: 'tiktok' | 'douyin' | 'xiaohongshu';
   error?: string;
 }
 
@@ -11,16 +11,15 @@ interface SingleVideoResult {
  * Fetch video URL using Apify Download Actors
  * - TikTok: epctex/tiktok-video-downloader (highest-rated: 4.9★ 643 reviews)
  * - Douyin: scrapearchitect/douyin-video-downloader
- * - YouTube: embed URL 반환 (iframe 미리보기)
  *
  * @param webVideoUrl - The web page URL (e.g., https://www.tiktok.com/@user/video/123456)
- * @param platform - The platform (tiktok, douyin, youtube)
+ * @param platform - The platform (tiktok, douyin, xiaohongshu)
  * @param apiKey - Apify API key
  * @returns Object with videoUrl (CDN URL) or error
  */
 export async function fetchSingleVideoUrl(
   webVideoUrl: string,
-  platform: 'tiktok' | 'douyin' | 'youtube',
+  platform: 'tiktok' | 'douyin' | 'xiaohongshu',
   apiKey: string
 ): Promise<SingleVideoResult> {
   if (!apiKey) {
@@ -30,69 +29,55 @@ export async function fetchSingleVideoUrl(
   try {
     console.log(`[fetchSingleVideoUrl] Fetching ${platform} video from URL:`, webVideoUrl);
 
-    // YouTube: YOUTUBE_DOWNLOAD_ACTOR 있으면 MP4 다운로드, 없으면 embed URL (프리뷰만)
-    if (platform === 'youtube') {
-      const videoId =
-        webVideoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/)?.[1] ||
-        webVideoUrl.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/)?.[1];
-      if (!videoId) {
-        return { platform, webVideoUrl, error: '유효한 YouTube 영상 URL이 아닙니다.' };
+    // xiaohongshu: easyapi/rednote-xiaohongshu-video-downloader
+    if (platform === 'xiaohongshu') {
+      const actorId = 'easyapi~rednote-xiaohongshu-video-downloader';
+      const runRes = await fetchPostWithRetry(
+        `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
+        {
+          links: [webVideoUrl.startsWith('http') ? webVideoUrl : `https://www.xiaohongshu.com/explore/${webVideoUrl}`],
+          proxyConfiguration: { useApifyProxy: true, apifyProxyGroups: ['RESIDENTIAL'] },
+        },
+        {},
+        { maxRetries: 3, initialDelayMs: 1000 }
+      );
+      const runData = await runRes.json();
+      if (!runRes.ok) {
+        console.warn(`[fetchSingleVideoUrl] Xiaohongshu download actor failed:`, runRes.status, runData);
+        return { platform, webVideoUrl, error: undefined };
+      }
+      const runId = runData.data?.id;
+      if (!runId) return { platform, webVideoUrl, error: undefined };
+
+      let status = 'RUNNING';
+      let attempt = 0;
+      while ((status === 'RUNNING' || status === 'READY') && attempt < 120) {
+        await new Promise(r => setTimeout(r, Math.min(500 * Math.pow(1.5, attempt), 5000)));
+        const statusRes = await fetchGetWithRetry(`https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`, {}, { maxRetries: 2 });
+        const statusData = await statusRes.json();
+        status = statusData.data?.status ?? status;
+        attempt++;
+        if (status === 'SUCCEEDED') break;
+        if (status === 'FAILED' || status === 'ABORTED') return { platform, webVideoUrl, error: undefined };
       }
 
-      const downloadActor = process.env.YOUTUBE_DOWNLOAD_ACTOR; // scrapearchitect | epctex
-      if (downloadActor === 'scrapearchitect' || downloadActor === 'epctex') {
-        const actorId = downloadActor === 'scrapearchitect'
-          ? 'scrapearchitect~youtube-video-downloader'
-          : 'epctex~youtube-video-downloader';
-        const runInput = downloadActor === 'scrapearchitect'
-          ? { video_urls: [{ url: webVideoUrl.startsWith('http') ? webVideoUrl : `https://www.youtube.com/watch?v=${videoId}`, method: 'GET' }], use_key_value_store: false }
-          : { startUrls: [webVideoUrl.startsWith('http') ? webVideoUrl : `https://www.youtube.com/watch?v=${videoId}`], proxy: { useApifyProxy: true } };
+      if (status !== 'SUCCEEDED') return { platform, webVideoUrl, error: undefined };
 
-        const runRes = await fetchPostWithRetry(
-          `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
-          runInput,
-          {},
-          { maxRetries: 3, initialDelayMs: 1000 }
-        );
-        const runData = await runRes.json();
-        if (!runRes.ok) {
-          console.warn(`[fetchSingleVideoUrl] YouTube download actor failed:`, runRes.status, runData);
-          return { platform, webVideoUrl, videoUrl: `https://www.youtube.com/embed/${videoId}`, error: undefined };
-        }
-        const runId = runData.data?.id;
-        if (!runId) return { platform, webVideoUrl, videoUrl: `https://www.youtube.com/embed/${videoId}`, error: undefined };
+      const datasetRes = await fetch(`https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`);
+      if (!datasetRes.ok) return { platform, webVideoUrl, error: undefined };
+      const dataset = await datasetRes.json();
+      const item = Array.isArray(dataset) && dataset.length > 0 ? dataset[0] : null;
+      const result = item?.result ?? item;
+      const medias = result?.medias;
+      const mp4Url = Array.isArray(medias) && medias.length > 0
+        ? medias.find((m: any) => m.type === 'video' && m.url)?.['url'] ?? medias[0]?.url
+        : null;
 
-        let status = 'RUNNING';
-        let attempt = 0;
-        while ((status === 'RUNNING' || status === 'READY') && attempt < 120) {
-          await new Promise(r => setTimeout(r, Math.min(500 * Math.pow(1.5, attempt), 5000)));
-          const statusRes = await fetchGetWithRetry(`https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`, {}, { maxRetries: 2 });
-          const statusData = await statusRes.json();
-          status = statusData.data?.status ?? status;
-          attempt++;
-          if (status === 'SUCCEEDED') break;
-          if (status === 'FAILED' || status === 'ABORTED') break;
-        }
-
-        if (status !== 'SUCCEEDED') {
-          return { platform, webVideoUrl, videoUrl: `https://www.youtube.com/embed/${videoId}`, error: undefined };
-        }
-
-        const datasetRes = await fetch(`https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`);
-        if (!datasetRes.ok) return { platform, webVideoUrl, videoUrl: `https://www.youtube.com/embed/${videoId}`, error: undefined };
-        const dataset = await datasetRes.json();
-        const item = Array.isArray(dataset) && dataset.length > 0 ? dataset[0] : null;
-        const mp4Url = item
-          ? (item.merged_downloadable_link || item.downloadable_video_link || item.downloadUrl)
-          : null;
-        if (mp4Url && typeof mp4Url === 'string' && !mp4Url.includes('youtube.com/embed')) {
-          console.log(`[fetchSingleVideoUrl] YouTube: MP4 URL from ${downloadActor}`);
-          return { videoUrl: mp4Url, webVideoUrl, platform };
-        }
+      if (mp4Url && typeof mp4Url === 'string') {
+        console.log(`[fetchSingleVideoUrl] Xiaohongshu: CDN URL from easyapi`);
+        return { videoUrl: mp4Url, webVideoUrl, platform };
       }
-
-      const embedUrl = `https://www.youtube.com/embed/${videoId}`;
-      return { videoUrl: embedUrl, webVideoUrl: webVideoUrl.startsWith('http') ? webVideoUrl : `https://www.youtube.com/watch?v=${videoId}`, platform };
+      return { platform, webVideoUrl, error: undefined };
     }
 
     // TikTok: Use epctex download actor
@@ -100,21 +85,12 @@ export async function fetchSingleVideoUrl(
       return { platform, webVideoUrl, error: `${platform}은 단일 영상 URL 조회를 지원하지 않습니다.` };
     }
 
-    const actorConfig = {
-      'tiktok': {
-        actorId: 'epctex~tiktok-video-downloader',
-        paramName: 'startUrls',
-        urlField: 'downloadUrl',
-      },
-    };
-
-    const config = actorConfig['tiktok'];
-
-    console.log(`[fetchSingleVideoUrl] Using ${platform} download actor: ${config.actorId}`);
+    const tiktokActorId = 'epctex~tiktok-video-downloader';
+    console.log(`[fetchSingleVideoUrl] Using ${platform} download actor: ${tiktokActorId}`);
 
     // Step 1: Start the actor run
     const runRes = await fetchPostWithRetry(
-      `https://api.apify.com/v2/acts/${config.actorId}/runs?token=${apiKey}`,
+      `https://api.apify.com/v2/acts/${tiktokActorId}/runs?token=${apiKey}`,
       {
         startUrls: [webVideoUrl],
         proxy: { useApifyProxy: true },  // Required for epctex TikTok actor
@@ -187,27 +163,16 @@ export async function fetchSingleVideoUrl(
     }
 
     const result = dataset[0];
-    console.log(`[fetchSingleVideoUrl] ✅ Full response:`, JSON.stringify(result, null, 2));
-    console.log(`[fetchSingleVideoUrl] All available keys:`, Object.keys(result));
-    console.log(`[fetchSingleVideoUrl] Looking for field: ${config.urlField}`);
-    console.log(`[fetchSingleVideoUrl] Result[${config.urlField}]:`, result[config.urlField]);
-    console.log(`[fetchSingleVideoUrl] result.downloadUrl:`, result.downloadUrl);
-    console.log(`[fetchSingleVideoUrl] result.videoUrl:`, result.videoUrl);
-    console.log(`[fetchSingleVideoUrl] result.videourl:`, result.videourl);
-    console.log(`[fetchSingleVideoUrl] result.downloadAddress:`, result.downloadAddress);
 
     // Enhanced videoUrl extraction with multiple fallbacks for different actor response formats
     const videoUrl =
-      result[config.urlField] ||     // Priority 1: configured field
-      result.videoUrl ||              // Priority 2: videoUrl (uppercase)
-      result.videourl ||              // Priority 3: videourl (lowercase for douyin)
-      result.downloadUrl ||           // Priority 4: downloadUrl (epctex fallback)
-      result.downloadAddress;         // Priority 5: downloadAddress (epctex alternative)
+      result.videoUrl ||              // Priority 1: videoUrl (uppercase)
+      result.videourl ||              // Priority 2: videourl (lowercase for douyin)
+      result.downloadUrl ||           // Priority 3: downloadUrl (epctex fallback)
+      result.downloadAddress;         // Priority 4: downloadAddress (epctex alternative)
 
     if (!videoUrl) {
       console.error(`[fetchSingleVideoUrl] No video URL in response`);
-      console.log(`[fetchSingleVideoUrl] Response keys:`, Object.keys(result));
-      console.log(`[fetchSingleVideoUrl] All response values:`, result);
       return { platform, webVideoUrl, error: `비디오 다운로드 링크를 가져올 수 없습니다.` };
     }
 

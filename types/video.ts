@@ -20,4 +20,4 @@ export interface VideoResult {
   webVideoUrl?: string;
 }
 
-export type Platform = 'tiktok' | 'douyin' | 'youtube';
+export type Platform = 'tiktok' | 'douyin' | 'xiaohongshu';

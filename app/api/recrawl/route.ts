@@ -7,7 +7,7 @@
  * Request:
  * {
  *   query: string       // 검색어
- *   platform: string    // tiktok, douyin, youtube
+ *   platform: string    // tiktok, douyin, xiaohongshu
  *   dateRange?: string  // 업로드 시간 범위 (optional)
  * }
  *
@@ -64,11 +64,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Platform 타입 검증
-    const validPlatforms: Platform[] = ['tiktok', 'douyin', 'youtube'];
+    const validPlatforms: Platform[] = ['tiktok', 'douyin', 'xiaohongshu'];
     if (!validPlatforms.includes(platform as Platform)) {
       return NextResponse.json(
         {
-          error: `유효하지 않은 플랫폼: ${platform}. tiktok, douyin, youtube 중 하나여야 합니다.`,
+          error: `유효하지 않은 플랫폼: ${platform}. tiktok, douyin, xiaohongshu 중 하나여야 합니다.`,
         },
         { status: 400 }
       );

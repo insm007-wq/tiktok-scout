@@ -30,7 +30,7 @@ const SEARCH_TIMING = {
   searchTimeoutMs: 180000,
 } as const;
 
-type Platform = "tiktok" | "douyin" | "youtube";
+type Platform = "tiktok" | "douyin" | "xiaohongshu";
 type Language = "ko" | "zh" | "en";
 
 interface Video {
@@ -162,17 +162,11 @@ export default function Search() {
     e.currentTarget.alt = '썸네일을 불러올 수 없습니다';
   }, [platform]);
 
-  /** 표시할 썸네일 URL. API에서 온 썸네일은 그대로 사용(업로더 지정 썸네일), 없을 때만 YouTube 기본 URL */
+  /** 표시할 썸네일 URL. API 썸네일 사용 (xhscdn 등 CDN) */
   const getDisplayThumbnail = useCallback((video: Video, plat: Platform): string | undefined => {
     const raw = video.thumbnail;
     const thumbStr = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && 'url' in raw ? (raw as { url: string }).url : undefined);
-    if (thumbStr) return thumbStr;
-    if (plat !== "youtube") return undefined;
-    const validId = (s: string) => /^[a-zA-Z0-9_-]{11}$/.test(s);
-    const idFromUrl = video.webVideoUrl?.match(/[?&]v=([^&]+)/)?.[1];
-    const candidate = (video.id && validId(String(video.id)) ? video.id : idFromUrl) || idFromUrl;
-    if (candidate && validId(candidate)) return `https://i.ytimg.com/vi/${candidate}/hqdefault.jpg`;
-    return undefined;
+    return thumbStr || undefined;
   }, []);
 
   const handleTitleClick = () => {
@@ -185,25 +179,42 @@ export default function Search() {
 
   const handleVideoCardMouseEnter = useCallback((video: Video) => {
     setHoveredVideoId(video.id);
-    hoverTimeoutRef.current = setTimeout(() => {
-      if (platform === "youtube") {
-        const validId = (s: string) => /^[a-zA-Z0-9_-]{11}$/.test(s);
-        const idFromUrl = video.webVideoUrl?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/)?.[1] || video.webVideoUrl?.match(/[?&]v=([^&]+)/)?.[1];
-        const raw = video.thumbnail;
-        const thumbStr = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && 'url' in raw ? (raw as { url: string }).url : '');
-        const idFromThumb = thumbStr?.match(/ytimg\.com\/vi\/([a-zA-Z0-9_-]{11})/)?.[1];
-        const vid = (video.id && validId(String(video.id)) ? video.id : idFromUrl) || idFromUrl || idFromThumb;
-        if (vid && validId(vid)) {
-          const embedUrl = `https://www.youtube.com/embed/${vid}`;
-          setPreviewVideoUrls((prev) => ({ ...prev, [video.id]: embedUrl }));
-          setPlayingVideoId(video.id);
-        }
-      } else if (video.videoUrl && platform !== "douyin") {
-        // TikTok/샤오홍슈: videoUrl이 있으면 호버 시 재생
+    hoverTimeoutRef.current = setTimeout(async () => {
+      if (platform === "douyin") return;
+
+      if (video.videoUrl) {
+        // TikTok: videoUrl 있으면 바로 재생
         setPlayingVideoId(video.id);
+        return;
+      }
+
+      // 레드노트: videoUrl 없으면 API로 CDN URL 조회 후 재생
+      if (platform === "xiaohongshu" && video.webVideoUrl) {
+        const cached = previewVideoUrls[video.id];
+        if (cached) {
+          setPlayingVideoId(video.id);
+          return;
+        }
+        setLoadingPreviewId(video.id);
+        try {
+          const res = await fetch("/api/video-preview-url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ webVideoUrl: video.webVideoUrl, platform: "xiaohongshu" }),
+          });
+          const data = await res.json();
+          if (res.ok && data.videoUrl) {
+            setPreviewVideoUrls((prev) => ({ ...prev, [video.id]: data.videoUrl }));
+            setPlayingVideoId(video.id);
+          }
+        } catch {
+          // 실패 시 무시 (클릭 시 새 탭 열기)
+        } finally {
+          setLoadingPreviewId(null);
+        }
       }
     }, SEARCH_TIMING.hoverPlayDelayMs);
-  }, [platform]);
+  }, [platform, previewVideoUrls]);
 
   // 비디오 카드 마우스 아웃 핸들러
   const handleVideoCardMouseLeave = useCallback(() => {
@@ -559,7 +570,6 @@ export default function Search() {
 
     try {
       // 새로운 비동기 큐 API 호출
-      // YouTube는 uploadDate 지원 (all/yesterday/7days/1month/6months 등)
       const dateRange = filters.uploadPeriod;
 
       const response = await fetch("/api/search", {
@@ -1020,49 +1030,6 @@ export default function Search() {
     }
   };
 
-  // YouTube 미리보기: embed URL 조회 후 앱 내 iframe 재생
-  const handleYouTubePreviewClick = useCallback(
-    async (video: Video) => {
-      if (platform !== "youtube") return;
-      const webUrl = video.webVideoUrl || (video.id && /^[a-zA-Z0-9_-]{11}$/.test(String(video.id)) ? `https://www.youtube.com/watch?v=${video.id}` : undefined);
-      if (!webUrl) return;
-      const resolvedUrl = video.videoUrl || previewVideoUrls[video.id];
-      if (resolvedUrl) {
-        setPlayingVideoId((prev) => (prev === video.id ? null : video.id));
-        return;
-      }
-      setLoadingPreviewId(video.id);
-      try {
-        const res = await fetch("/api/video-preview-url", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            webVideoUrl: webUrl,
-            platform: "youtube",
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          addToast("error", data.error || "미리보기 URL을 가져오지 못했습니다.", "미리보기");
-          window.open(webUrl, "_blank");
-          return;
-        }
-        if (data.videoUrl) {
-          setPreviewVideoUrls((prev) => ({ ...prev, [video.id]: data.videoUrl }));
-          setPlayingVideoId(video.id);
-        } else {
-          window.open(webUrl, "_blank");
-        }
-      } catch (e) {
-        addToast("error", "미리보기 요청에 실패했습니다.", "미리보기");
-        window.open(webUrl, "_blank");
-      } finally {
-        setLoadingPreviewId(null);
-      }
-    },
-    [platform, previewVideoUrls, addToast]
-  );
-
   // 영상 다운로드 (클립보드 복사 + 외부 다운로더 열기)
   const handleDownloadVideo = async (video: Video) => {
     if (!video.videoUrl && !video.webVideoUrl) {
@@ -1082,7 +1049,7 @@ export default function Search() {
           videoUrl: video.videoUrl,
           videoId: video.id,
           platform,
-          webVideoUrl: video.webVideoUrl, // Pass webVideoUrl for YouTube
+          webVideoUrl: video.webVideoUrl,
         }),
       });
 
@@ -1182,7 +1149,7 @@ export default function Search() {
         const errorData = await response.json();
         if (errorData.openInBrowser && errorData.webVideoUrl) {
           window.open(errorData.webVideoUrl, "_blank");
-          addToast("info", "YouTube는 브라우저에서 보기만 지원됩니다.", "ℹ️ 안내", 3000);
+          addToast("info", "브라우저에서 보기만 지원됩니다.", "ℹ️ 안내", 3000);
           return;
         }
         throw new Error(errorData.error || "다운로드 실패");
@@ -1195,7 +1162,7 @@ export default function Search() {
       link.href = url;
 
       // 플랫폼별 파일명 설정
-      const filePrefix = platform === "douyin" ? "douyin" : platform === "youtube" ? "youtube" : "tiktok";
+      const filePrefix = platform === "douyin" ? "douyin" : platform === "xiaohongshu" ? "xiaohongshu" : "tiktok";
       link.download = `${filePrefix}_${video.id}.mp4`;
 
       document.body.appendChild(link);
@@ -1214,10 +1181,10 @@ export default function Search() {
     }
   };
 
-  // 자막 추출 핸들러 (TikTok, Douyin, YouTube - Whisper AI 사용)
+  // 자막 추출 핸들러 (Whisper AI 사용)
   const handleExtractSubtitles = async (video: Video) => {
-    if (platform !== 'tiktok' && platform !== 'douyin' && platform !== 'youtube') {
-      addToast("info", "자막 추출은 TikTok, Douyin, YouTube만 지원합니다.", "ℹ️ 안내");
+    if (platform !== 'tiktok' && platform !== 'douyin' && platform !== 'xiaohongshu') {
+      addToast("info", "자막 추출은 TikTok, Douyin, 레드노트만 지원합니다.", "ℹ️ 안내");
       return;
     }
 
@@ -1335,7 +1302,7 @@ export default function Search() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      const filePrefix = platform === 'douyin' ? 'douyin' : platform === 'youtube' ? 'youtube' : 'tiktok';
+      const filePrefix = platform === 'douyin' ? 'douyin' : platform === 'xiaohongshu' ? 'xiaohongshu' : 'tiktok';
       link.download = `${filePrefix}_${video.id}_subtitles.txt`;
       document.body.appendChild(link);
       link.click();
@@ -1613,17 +1580,17 @@ export default function Search() {
                   <span className="platform-icon">🐉</span>
                   <span className="platform-name">Douyin</span>
                 </label>
-                <label className={`platform-option ${platform === "youtube" ? "active" : ""}`} onClick={() => setPlatform("youtube")}>
+                <label className={`platform-option ${platform === "xiaohongshu" ? "active" : ""}`} onClick={() => setPlatform("xiaohongshu")}>
                   <input
                     type="radio"
                     name="platform"
-                    value="youtube"
-                    checked={platform === "youtube"}
-                    onChange={() => setPlatform("youtube")}
+                    value="xiaohongshu"
+                    checked={platform === "xiaohongshu"}
+                    onChange={() => setPlatform("xiaohongshu")}
                     style={{ display: "none" }}
                   />
-                  <span className="platform-icon">▶️</span>
-                  <span className="platform-name">YouTube</span>
+                  <span className="platform-icon">📕</span>
+                  <span className="platform-name">Xiaohongshu</span>
                 </label>
               </div>
             </div>
@@ -1677,11 +1644,16 @@ export default function Search() {
                   marginTop: "6px",
                   padding: "8px 10px",
                   backgroundColor:
-                    platform === "douyin" && targetLanguage !== "zh" ? "rgba(0, 229, 115, 0.1)" : "transparent",
-                  border: platform === "douyin" && targetLanguage !== "zh" ? "1px solid rgba(0, 229, 115, 0.2)" : "none",
+                    (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh"
+                      ? "rgba(0, 229, 115, 0.1)"
+                      : "transparent",
+                  border:
+                    (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh"
+                      ? "1px solid rgba(0, 229, 115, 0.2)"
+                      : "none",
                   borderRadius: "4px",
                   minHeight: "32px",
-                  opacity: platform === "douyin" && targetLanguage !== "zh" ? 1 : 0,
+                  opacity: (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" ? 1 : 0,
                   transition: "opacity 0.2s ease, background-color 0.2s ease",
                   display: "flex",
                   alignItems: "center",
@@ -1690,6 +1662,11 @@ export default function Search() {
                 {platform === "douyin" && targetLanguage !== "zh" && (
                   <span style={{ color: "#00E573", fontWeight: "600" }}>
                     💡 팁: Douyin은 중국어 검색이 더 정확합니다
+                  </span>
+                )}
+                {platform === "xiaohongshu" && targetLanguage !== "zh" && (
+                  <span style={{ color: "#00E573", fontWeight: "600" }}>
+                    💡 팁: Xiaohongshu는 중국어 검색이 더 정확합니다
                   </span>
                 )}
               </div>
@@ -1742,7 +1719,7 @@ export default function Search() {
                   />
                 </div>
 
-                {platform !== "youtube" && (
+                {platform !== "xiaohongshu" && (
                   <div
                     style={{
                       background: "linear-gradient(135deg, rgba(37, 37, 48, 0.6) 0%, rgba(26, 26, 36, 0.6) 100%)",
@@ -1937,9 +1914,9 @@ export default function Search() {
               <>
                 <div style={{ width: "100%" }}>
                   <div className="results-count">총 {results.length}개의 영상</div>
-                  {platform === "youtube" && results.length <= 3 && results.length > 0 && (
+                  {platform === "xiaohongshu" && results.length <= 3 && results.length > 0 && (
                     <p style={{ fontSize: "12px", color: "#999", marginTop: "4px", marginBottom: "0" }}>
-                      💡 결과가 적을 때: 검색어를 중국어로 넣거나 더 넓은 키워드(예: 车品, 车载)로 다시 검색해 보세요.
+                      💡 결과가 적을 때: 검색어를 중국어로 넣거나 더 넓은 키워드(예: 护肤, 美妆)로 다시 검색해 보세요.
                     </p>
                   )}
                   {viewMode === "card" ? (
@@ -1949,14 +1926,7 @@ export default function Search() {
                           <div
                             className="card-thumbnail-container"
                             onClick={() => {
-                              let url = video.webVideoUrl;
-                              if (!url && platform === "youtube") {
-                                const raw = video.thumbnail;
-                                const thumbStr = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && 'url' in raw ? (raw as { url: string }).url : '');
-                                const vidFromThumb = thumbStr?.match(/ytimg\.com\/vi\/([a-zA-Z0-9_-]{11})/)?.[1];
-                                const vid = (video.id && /^[a-zA-Z0-9_-]{11}$/.test(String(video.id)) ? video.id : vidFromThumb) || vidFromThumb;
-                                if (vid) url = `https://www.youtube.com/watch?v=${vid}`;
-                              }
+                              const url = video.webVideoUrl;
                               if (url) window.open(url, "_blank");
                             }}
                             onMouseEnter={() => handleVideoCardMouseEnter(video)}
@@ -1976,36 +1946,17 @@ export default function Search() {
                               <div className="card-thumbnail-fallback">🎬</div>
                             )}
 
-                            {/* 비디오 미리보기 (TikTok/Douyin: 호버 재생, YouTube: 클릭 시 embed iframe) */}
-                            {playingVideoId === video.id && (video.videoUrl || (platform === 'youtube' && previewVideoUrls[video.id])) && (
-                              (() => {
-                                const src = video.videoUrl || previewVideoUrls[video.id] || '';
-                                const isYoutubeEmbed = src.includes('youtube.com/embed');
-                                if (isYoutubeEmbed) {
-                                  return (
-                                    <iframe
-                                      key={`yt-preview-${video.id}`}
-                                      className="card-video-preview"
-                                      src={src + (src.includes('?') ? '&' : '?') + 'autoplay=1&mute=1'}
-                                      title="YouTube preview"
-                                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                      allowFullScreen
-                                      style={{ width: '100%', height: '100%', objectFit: 'cover', border: 0 }}
-                                    />
-                                  );
-                                }
-                                return (
-                                  <video
-                                    className="card-video-preview"
-                                    src={src}
-                                    autoPlay
-                                    muted
-                                    loop
-                                    playsInline
-                                    preload="auto"
-                                  />
-                                );
-                              })()
+                            {/* 비디오 미리보기 (TikTok: videoUrl, 레드노트: API로 조회한 URL) */}
+                            {playingVideoId === video.id && (video.videoUrl || previewVideoUrls[video.id]) && (
+                              <video
+                                className="card-video-preview"
+                                src={video.videoUrl || previewVideoUrls[video.id]}
+                                autoPlay
+                                muted
+                                loop
+                                playsInline
+                                preload="auto"
+                              />
                             )}
                             {loadingPreviewId === video.id && (
                               <div className="card-preview-loading">
@@ -2014,8 +1965,8 @@ export default function Search() {
                               </div>
                             )}
 
-                            {/* Duration 뱃지 - 왼쪽 상단 (샤오홍슈 제외) */}
-                            {platform !== "youtube" && (
+                            {/* Duration 뱃지 - 왼쪽 상단 (레드노트는 0일 수 있음) */}
+                            {platform !== "xiaohongshu" && (
                               <div className="card-duration-badge">{formatVideoDuration(video.videoDuration)}</div>
                             )}
 
@@ -2076,8 +2027,8 @@ export default function Search() {
                                 <span className="card-action-label">{downloadingVideoId === video.id ? "준비중" : "다운"}</span>
                               </button>
 
-                              {/* 자막 버튼 - TikTok, Douyin, YouTube */}
-                              {(platform === 'tiktok' || platform === 'douyin' || platform === 'youtube') && (
+                              {/* 자막 버튼 - TikTok, Douyin, Xiaohongshu */}
+                              {(platform === 'tiktok' || platform === 'douyin' || platform === 'xiaohongshu') && (
                                 <button
                                   className="card-action-btn"
                                   onClick={(e) => {
@@ -2154,7 +2105,7 @@ export default function Search() {
                               <td className="table-number" style={{ fontSize: "11px" }}>
                                 {formatDateWithTime(video.createTime)}
                               </td>
-                              {platform !== "youtube" && <td className="table-number">{formatVideoDuration(video.videoDuration)}</td>}
+                              {platform !== "xiaohongshu" && <td className="table-number">{formatVideoDuration(video.videoDuration)}</td>}
                               <td className="table-number">{video.playCount ? formatNumber(video.playCount) : "제공 안 함"}</td>
                               <td className="table-number">{formatNumber(video.likeCount)}</td>
                               <td className="table-number">{formatNumber(video.commentCount)}</td>
@@ -2348,7 +2299,7 @@ export default function Search() {
                   boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
                 }}
               >
-                🔗 {platform === "douyin" ? "도우인" : platform === "youtube" ? "YouTube" : "TikTok"}에서 열기
+                🔗 {platform === "douyin" ? "도우인" : platform === "xiaohongshu" ? "Xiaohongshu" : "TikTok"}에서 열기
               </button>
               <button
                 onClick={() => {
@@ -2374,8 +2325,8 @@ export default function Search() {
                 {selectedVideo && downloadingVideoId === selectedVideo.id ? "⏳ 준비 중..." : "⬇️ 다운로드"}
               </button>
 
-              {/* TikTok, Douyin, YouTube 자막 추출 버튼 */}
-              {(platform === 'tiktok' || platform === 'douyin' || platform === 'youtube') && selectedVideo && (
+              {/* TikTok, Douyin, Xiaohongshu 자막 추출 버튼 */}
+              {(platform === 'tiktok' || platform === 'douyin' || platform === 'xiaohongshu') && selectedVideo && (
                 <button
                   onClick={() => handleExtractSubtitles(selectedVideo)}
                   disabled={extractingSubtitleId === selectedVideo.id}

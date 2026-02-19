@@ -25,7 +25,7 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
-  const [detectedPlatform, setDetectedPlatform] = useState<"tiktok" | "douyin" | "youtube" | null>(null);
+  const [detectedPlatform, setDetectedPlatform] = useState<"tiktok" | "douyin" | "xiaohongshu" | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timeoutTriggeredRef = useRef(false);
@@ -46,10 +46,10 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
     if (closeAfter) onClose();
   };
 
-  const detectPlatformFromUrl = (url: string): "tiktok" | "douyin" | "youtube" | null => {
+  const detectPlatformFromUrl = (url: string): "tiktok" | "douyin" | "xiaohongshu" | null => {
     if (url.includes("tiktok.com")) return "tiktok";
     if (url.includes("douyin.com")) return "douyin";
-    if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube";
+    if (url.includes("xiaohongshu.com") || url.includes("xhslink.com")) return "xiaohongshu";
     return null;
   };
 
@@ -63,8 +63,8 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
       match = url.match(/\/aweme\/detail\/(\d+)/);
       if (match) return match[1];
 
-      // YouTube: /watch?v=VIDEO_ID or youtu.be/VIDEO_ID
-      match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+      // xiaohongshu: /explore/xxx
+      match = url.match(/\/explore\/([a-zA-Z0-9]+)/);
       if (match) return match[1];
 
       return null;
@@ -84,7 +84,7 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
     const webVideoUrl = input.trim();
     const platformDetected = detectPlatformFromUrl(webVideoUrl);
     if (!platformDetected) {
-      setError("지원하지 않는 플랫폼입니다. TikTok, Douyin, YouTube URL을 입력해주세요.");
+      setError("지원하지 않는 플랫폼입니다. TikTok, Douyin, 레드노트 URL을 입력해주세요.");
       return;
     }
 
@@ -116,7 +116,7 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
         const data = await response.json();
         if (data.openInBrowser && data.webVideoUrl) {
           window.open(data.webVideoUrl, "_blank");
-          setError("⚠️ YouTube는 브라우저에서 보기만 지원됩니다. 새 탭을 열었습니다.");
+          setError("⚠️ 레드노트는 브라우저에서 보기만 지원됩니다. 새 탭을 열었습니다.");
           return;
         }
         throw new Error(data.error || "다운로드 실패");
@@ -268,8 +268,8 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
             </div>
           </div>
 
-          {/* YouTube 경고 */}
-          {detectedPlatform === "youtube" && (
+          {/* 레드노트 경고 */}
+          {detectedPlatform === "xiaohongshu" && (
             <div
               style={{
                 padding: "12px",
@@ -286,7 +286,7 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
             >
               <AlertCircle size={16} style={{ flexShrink: 0, marginTop: "2px" }} />
               <div>
-                <strong>⚠️ 참고:</strong> YouTube는 브라우저에서 보기만 지원됩니다. 다운로드는 YouTube에서 직접 이용해 주세요.
+                <strong>⚠️ 참고:</strong> 레드노트는 브라우저에서 보기만 지원됩니다.
               </div>
             </div>
           )}

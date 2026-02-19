@@ -57,35 +57,39 @@ export async function POST(req: NextRequest) {
         const result = await fetchSingleVideoUrl(webVideoUrl, platform as any, apiKey);
         console.log('[Download] 📥 fetchSingleVideoUrl result:', JSON.stringify(result));
 
-        if (result.error) {
+        if (result.error && platform !== 'xiaohongshu') {
           console.error(`[Download] ❌ fetchSingleVideoUrl returned error:`, result.error);
           throw new Error(result.error);
         }
 
-        if (!result.videoUrl) {
-          console.error(`[Download] ❌ No videoUrl in result:`, result);
+        if (result.videoUrl) {
+          finalVideoUrl = result.videoUrl;
+        } else if (platform !== 'xiaohongshu') {
           throw new Error('Could not extract video URL from page');
         }
-
-        finalVideoUrl = result.videoUrl;
         console.log(`[Download] ✅ ${platform} video URL extracted successfully:`, finalVideoUrl.substring(0, 100));
 
       } catch (error) {
-        console.error(`[Download] ❌ ${platform} video URL fetch failed:`, error);
-        throw new Error(
-          error instanceof Error
-            ? error.message
-            : `${platform} URL에서 영상을 가져올 수 없습니다. 올바른 공개 영상 URL인지 확인해주세요.`
-        );
+        if (platform === 'xiaohongshu' && webVideoUrl) {
+          // 레드노트: fetch 실패 시 브라우저에서 열기
+          finalVideoUrl = undefined;
+        } else {
+          console.error(`[Download] ❌ ${platform} video URL fetch failed:`, error);
+          throw new Error(
+            error instanceof Error
+              ? error.message
+              : `${platform} URL에서 영상을 가져올 수 없습니다. 올바른 공개 영상 URL인지 확인해주세요.`
+          );
+        }
       }
     }
 
-    // YouTube: embed URL은 다운로드 불가 → 브라우저에서 열기
-    if (platform === 'youtube' && finalVideoUrl?.includes('youtube.com/embed')) {
+    // 레드노트: CDN URL 없으면 브라우저에서 열기
+    if (platform === 'xiaohongshu' && (!finalVideoUrl || finalVideoUrl.includes('xiaohongshu.com'))) {
       return NextResponse.json(
         {
-          error: 'YouTube는 브라우저에서 보기만 지원됩니다. 다운로드는 YouTube에서 직접 이용해 주세요.',
-          webVideoUrl: webVideoUrl || finalVideoUrl?.replace('/embed/', '/watch?v='),
+          error: '레드노트는 브라우저에서 보기만 지원됩니다.',
+          webVideoUrl: webVideoUrl || finalVideoUrl,
           openInBrowser: true,
         },
         { status: 400 }
@@ -103,7 +107,7 @@ export async function POST(req: NextRequest) {
     const refererMap: Record<string, string> = {
       'tiktok': 'https://www.tiktok.com/',
       'douyin': 'https://www.douyin.com/',
-      'youtube': 'https://www.youtube.com/',
+      'xiaohongshu': 'https://www.xiaohongshu.com/',
     };
 
     // 비디오 URL에서 파일 fetch
@@ -192,7 +196,7 @@ export async function POST(req: NextRequest) {
 
     // 파일명 생성 (플랫폼별)
     const filePrefix = platform === 'douyin' ? 'douyin' :
-                       platform === 'youtube' ? 'youtube' : 'tiktok';
+                       platform === 'xiaohongshu' ? 'xiaohongshu' : 'tiktok';
     const fileName = `${filePrefix}_${videoId}.mp4`;
 
     // 다운로드 응답 반환

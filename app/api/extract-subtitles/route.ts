@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
     const { videoUrl, videoId, platform = 'tiktok', webVideoUrl, format = 'text' } = await req.json();
 
-    if (platform !== 'tiktok' && platform !== 'douyin' && platform !== 'youtube') {
+    if (platform !== 'tiktok' && platform !== 'douyin' && platform !== 'xiaohongshu') {
       return NextResponse.json(
         { error: `${platform}은(는) 자막 추출을 지원하지 않습니다.` },
         { status: 400 }
@@ -62,34 +62,20 @@ export async function POST(req: NextRequest) {
 
     let finalVideoUrl = videoUrl;
 
-    // YouTube: videoUrl 없으면 fetchSingleVideoUrl로 MP4 URL 조회 (YOUTUBE_DOWNLOAD_ACTOR 필요)
-    if (platform === 'youtube' && !finalVideoUrl && webVideoUrl) {
+    // xiaohongshu: videoUrl 없으면 fetchSingleVideoUrl 시도 (다운로드 액터 설정 시)
+    if (platform === 'xiaohongshu' && !finalVideoUrl && webVideoUrl) {
       const apiKey = process.env.APIFY_API_KEY;
-      if (!apiKey) {
-        return NextResponse.json(
-          { error: 'YouTube 자막 추출을 위해 APIFY_API_KEY가 필요합니다.' },
-          { status: 500 }
-        );
-      }
-      const result = await fetchSingleVideoUrl(webVideoUrl, 'youtube', apiKey);
-      if (result.error) {
-        return NextResponse.json(
-          { error: result.error },
-          { status: 400 }
-        );
-      }
-      finalVideoUrl = result.videoUrl;
-      if (!finalVideoUrl || finalVideoUrl.includes('youtube.com/embed')) {
-        return NextResponse.json(
-          { error: 'YouTube 자막 추출을 위해 .env에 YOUTUBE_DOWNLOAD_ACTOR=scrapearchitect 를 설정해 주세요.' },
-          { status: 400 }
-        );
+      if (apiKey) {
+        const result = await fetchSingleVideoUrl(webVideoUrl, 'xiaohongshu', apiKey);
+        if (!result.error && result.videoUrl && !result.videoUrl.includes('xiaohongshu.com')) {
+          finalVideoUrl = result.videoUrl;
+        }
       }
     }
 
     if (!finalVideoUrl) {
       return NextResponse.json(
-        { error: '비디오 URL이 필요합니다. (YouTube는 webVideoUrl 전달 필요)' },
+        { error: '비디오 URL이 필요합니다. (레드노트는 검색 결과에 videoUrl이 없을 수 있습니다)' },
         { status: 400 }
       );
     }
@@ -100,7 +86,7 @@ export async function POST(req: NextRequest) {
     const refererMap: Record<string, string> = {
       'tiktok': 'https://www.tiktok.com/',
       'douyin': 'https://www.douyin.com/',
-      'youtube': 'https://www.youtube.com/',
+      'xiaohongshu': 'https://www.xiaohongshu.com/',
     };
 
     // 비디오 다운로드
@@ -116,7 +102,6 @@ export async function POST(req: NextRequest) {
       const isCDN = finalVideoUrl.includes('tiktokcdn') ||
                     finalVideoUrl.includes('douyinpic') ||
                     finalVideoUrl.includes('xhscdn') ||
-                    finalVideoUrl.includes('googlevideo.com') ||
                     finalVideoUrl.includes('api.apify.com');
 
       if (isCDN) {
@@ -269,7 +254,7 @@ export async function POST(req: NextRequest) {
     console.log('[ExtractSubtitles] ✅ Subtitle extraction successful');
 
     // 포맷에 따라 변환
-    const filePrefix = platform === 'douyin' ? 'douyin' : platform === 'youtube' ? 'youtube' : 'tiktok';
+    const filePrefix = platform === 'douyin' ? 'douyin' : platform === 'xiaohongshu' ? 'xiaohongshu' : 'tiktok';
     let content = srtContent;
     let fileName = `${filePrefix}_${videoId}_subtitles.srt`;
     let fileExt = 'srt';

@@ -3,7 +3,7 @@ import { SearchJobData } from './search-queue'
 import { redisConnection } from './redis'
 import { searchTikTokVideos } from '@/lib/scrapers/tiktok'
 import { searchDouyinVideosParallel } from '@/lib/scrapers/douyin'
-import { searchYouTubeVideos } from '@/lib/scrapers/youtube'
+import { searchXiaohongshuVideosParallel } from '@/lib/scrapers/xiaohongshu'
 import { setVideoToCache } from '@/lib/cache'
 import {
   DEFAULT_WORKER_CONCURRENCY,
@@ -12,7 +12,7 @@ import {
   STALLED_INTERVAL,
   MAX_STALLED_COUNT,
   MAX_VIDEOS_PER_SEARCH,
-  YOUTUBE_MAX_VIDEOS_PER_SEARCH,
+  XIAOHONGSHU_MAX_VIDEOS_PER_SEARCH,
   RATE_LIMITER_MAX,
   RATE_LIMITER_DURATION,
   QUEUE_NAME,
@@ -87,8 +87,8 @@ const worker = new Worker<SearchJobData>(
         case 'douyin':
           videos = await searchDouyinVideosParallel(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
           break
-        case 'youtube':
-          videos = await searchYouTubeVideos(query, YOUTUBE_MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
+        case 'xiaohongshu':
+          videos = await searchXiaohongshuVideosParallel(query, XIAOHONGSHU_MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
           break
         default:
           throw new Error(`Unknown platform: ${platform}`)

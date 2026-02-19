@@ -4,7 +4,6 @@ import { auth } from '@/lib/auth';
 
 /**
  * 미리보기용 비디오 URL만 조회 (다운로드 X, 할당량 차감 X)
- * - YouTube: embed URL 반환 → iframe 앱 내 재생
  */
 export async function POST(req: NextRequest) {
   try {
@@ -21,9 +20,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (platform !== 'youtube') {
+    // 미리보기 URL 조회는 앱 내 embed 미지원 (레드노트는 webVideoUrl로 새 탭 열기)
+    if (platform !== 'xiaohongshu') {
       return NextResponse.json(
-        { error: '현재 YouTube만 미리보기 URL 조회를 지원합니다. (TikTok/Douyin은 검색 결과에 URL 포함)' },
+        { error: '현재 미리보기 URL 조회를 지원하지 않습니다.' },
         { status: 400 }
       );
     }
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     const result = await fetchSingleVideoUrl(
       webVideoUrl,
-      platform as 'tiktok' | 'douyin' | 'youtube',
+      platform as 'tiktok' | 'douyin' | 'xiaohongshu',
       apiKey
     );
 

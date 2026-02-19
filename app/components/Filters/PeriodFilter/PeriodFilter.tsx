@@ -1,6 +1,6 @@
 'use client'
 
-type Platform = 'tiktok' | 'douyin' | 'youtube'
+type Platform = 'tiktok' | 'douyin' | 'xiaohongshu'
 
 interface PeriodFilterProps {
   value: string
@@ -20,13 +20,12 @@ const getPeriodOptions = (platform?: Platform) => {
         { value: '6months', label: '6개월' },
       ]
 
-    case 'youtube':
-      // YouTube: uploadDate (hour, today, week, month, year)
+    case 'xiaohongshu':
+      // 레드노트: kuaima filter 最新/最热 (날짜는 액터가 제한적 지원)
       return [
         { value: 'all', label: '전체' },
-        { value: 'yesterday', label: '오늘' },
+        { value: 'yesterday', label: '어제' },
         { value: '7days', label: '1주일' },
-        { value: '1month', label: '1개월' },
         { value: '6months', label: '6개월' },
       ]
 
