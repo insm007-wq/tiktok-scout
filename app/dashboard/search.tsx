@@ -179,55 +179,75 @@ export default function Search() {
 
   const handleVideoCardMouseEnter = useCallback((video: Video) => {
     setHoveredVideoId(video.id);
+
+    const delayMs = SEARCH_TIMING.hoverPlayDelayMs;
     hoverTimeoutRef.current = setTimeout(async () => {
-      if (platform === "douyin") return;
+      if (platform === "douyin" || platform === "xiaohongshu") return;
 
       if (video.videoUrl) {
-        // TikTok: videoUrl 있으면 바로 재생
         setPlayingVideoId(video.id);
         return;
       }
-
-      // 레드노트: videoUrl 없으면 API로 CDN URL 조회 후 재생
-      if (platform === "xiaohongshu" && video.webVideoUrl) {
-        const cached = previewVideoUrls[video.id];
-        if (cached) {
-          setPlayingVideoId(video.id);
-          return;
-        }
-        setLoadingPreviewId(video.id);
-        try {
-          const res = await fetch("/api/video-preview-url", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ webVideoUrl: video.webVideoUrl, platform: "xiaohongshu" }),
-          });
-          const data = await res.json();
-          if (res.ok && data.videoUrl) {
-            setPreviewVideoUrls((prev) => ({ ...prev, [video.id]: data.videoUrl }));
-            setPlayingVideoId(video.id);
-          }
-        } catch {
-          // 실패 시 무시 (클릭 시 새 탭 열기)
-        } finally {
-          setLoadingPreviewId(null);
-        }
-      }
-    }, SEARCH_TIMING.hoverPlayDelayMs);
-  }, [platform, previewVideoUrls]);
+    }, delayMs);
+  }, [platform]);
 
   // 비디오 카드 마우스 아웃 핸들러
   const handleVideoCardMouseLeave = useCallback(() => {
-    // 타이머 취소
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
       hoverTimeoutRef.current = null;
     }
-
-    // 상태 초기화
     setHoveredVideoId(null);
     setPlayingVideoId(null);
+    setLoadingPreviewId(null);
   }, []);
+
+  // 비디오 카드 클릭 핸들러 (인라인 재생 또는 브라우저 폴백)
+  const handleVideoCardClick = useCallback(async (video: Video) => {
+    // TikTok: videoUrl 이미 있으면 재생 토글
+    if (video.videoUrl) {
+      setPlayingVideoId(prev => prev === video.id ? null : video.id);
+      return;
+    }
+
+    // Xiaohongshu: 캐시된 URL 있으면 즉시 재생
+    if (platform === 'xiaohongshu') {
+      const cached = previewVideoUrls[video.id];
+      if (cached) {
+        setPlayingVideoId(prev => prev === video.id ? null : video.id);
+        return;
+      }
+
+      if (!video.webVideoUrl) return;
+
+      // easyapi Actor로 mp4 URL 추출 시도
+      setLoadingPreviewId(video.id);
+      try {
+        const res = await fetch('/api/video-preview-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ webVideoUrl: video.webVideoUrl, platform: 'xiaohongshu' }),
+        });
+        const data = await res.json();
+        if (res.ok && data.videoUrl) {
+          setPreviewVideoUrls(prev => ({ ...prev, [video.id]: data.videoUrl }));
+          setPlayingVideoId(video.id);
+          return;
+        }
+      } catch {
+        // 실패 시 폴백
+      } finally {
+        setLoadingPreviewId(null);
+      }
+
+      // 폴백: 브라우저에서 열기
+      window.open(video.webVideoUrl, '_blank');
+      return;
+    }
+
+    // Douyin / 기타: 브라우저에서 열기
+    if (video.webVideoUrl) window.open(video.webVideoUrl, '_blank');
+  }, [platform, previewVideoUrls]);
 
   // 언어 감지 함수
   const detectLanguage = (text: string): Language => {
@@ -1925,10 +1945,7 @@ export default function Search() {
                         <div key={video.id} className="result-card">
                           <div
                             className="card-thumbnail-container"
-                            onClick={() => {
-                              const url = video.webVideoUrl;
-                              if (url) window.open(url, "_blank");
-                            }}
+                            onClick={() => handleVideoCardClick(video)}
                             onMouseEnter={() => handleVideoCardMouseEnter(video)}
                             onMouseLeave={handleVideoCardMouseLeave}
                           >

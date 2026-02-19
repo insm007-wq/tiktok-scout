@@ -51,8 +51,12 @@ export async function fetchSingleVideoUrl(
 
       let status = 'RUNNING';
       let attempt = 0;
-      while ((status === 'RUNNING' || status === 'READY') && attempt < 120) {
-        await new Promise(r => setTimeout(r, Math.min(500 * Math.pow(1.5, attempt), 5000)));
+      let firstAttempt = true;
+      while ((status === 'RUNNING' || status === 'READY') && attempt < 60) {
+        if (!firstAttempt) {
+          await new Promise(r => setTimeout(r, Math.min(1000 * Math.pow(1.5, attempt - 1), 5000)));
+        }
+        firstAttempt = false;
         const statusRes = await fetchGetWithRetry(`https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`, {}, { maxRetries: 2 });
         const statusData = await statusRes.json();
         status = statusData.data?.status ?? status;
