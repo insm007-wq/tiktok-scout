@@ -1954,11 +1954,11 @@ export default function Search() {
                             )}
 
                             {/* 비디오 미리보기 (TikTok: videoUrl, 레드노트: API로 조회한 URL) */}
-                            {playingVideoId === video.id && (video.videoUrl || previewVideoUrls[video.id]) && (
+                            {(hoveredVideoId === video.id || playingVideoId === video.id) && (video.videoUrl || previewVideoUrls[video.id]) && (
                               <video
                                 className="card-video-preview"
                                 src={video.videoUrl || previewVideoUrls[video.id]}
-                                autoPlay
+                                autoPlay={hoveredVideoId === video.id}
                                 muted
                                 loop
                                 playsInline
