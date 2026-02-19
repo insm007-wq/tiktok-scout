@@ -180,45 +180,16 @@ export default function Search() {
   const handleVideoCardMouseEnter = useCallback((video: Video) => {
     setHoveredVideoId(video.id);
 
-    if (platform === "xiaohongshu" && video.webVideoUrl && !video.videoUrl && !previewVideoUrls[video.id]) {
-      setLoadingPreviewId(video.id);
-    }
-
-    const delayMs = platform === "xiaohongshu" ? 0 : SEARCH_TIMING.hoverPlayDelayMs;
+    const delayMs = SEARCH_TIMING.hoverPlayDelayMs;
     hoverTimeoutRef.current = setTimeout(async () => {
-      if (platform === "douyin") return;
+      if (platform === "douyin" || platform === "xiaohongshu") return;
 
       if (video.videoUrl) {
         setPlayingVideoId(video.id);
         return;
       }
-
-      if (platform === "xiaohongshu" && video.webVideoUrl) {
-        const cached = previewVideoUrls[video.id];
-        if (cached) {
-          setPlayingVideoId(video.id);
-          setLoadingPreviewId(null);
-          return;
-        }
-        try {
-          const res = await fetch("/api/video-preview-url", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ webVideoUrl: video.webVideoUrl, platform: "xiaohongshu" }),
-          });
-          const data = await res.json();
-          if (res.ok && data.videoUrl) {
-            setPreviewVideoUrls((prev) => ({ ...prev, [video.id]: data.videoUrl }));
-            setPlayingVideoId(video.id);
-          }
-        } catch {
-          // 실패 시 무시
-        } finally {
-          setLoadingPreviewId(null);
-        }
-      }
     }, delayMs);
-  }, [platform, previewVideoUrls]);
+  }, [platform]);
 
   // 비디오 카드 마우스 아웃 핸들러
   const handleVideoCardMouseLeave = useCallback(() => {
@@ -231,11 +202,14 @@ export default function Search() {
     setLoadingPreviewId(null);
   }, []);
 
-  // 비디오 카드 클릭 핸들러 (재생/정지 토글)
+  // 카드/썸네일 클릭: webVideoUrl 있으면 새 탭으로 열기, 없으면 재생/정지 토글
   const handleVideoCardClick = useCallback((video: Video) => {
-    // 이미 로드된 URL이 있으면 재생/정지 토글
+    if (video.webVideoUrl) {
+      window.open(video.webVideoUrl, "_blank");
+      return;
+    }
     if (video.videoUrl || previewVideoUrls[video.id]) {
-      setPlayingVideoId(prev => prev === video.id ? null : video.id);
+      setPlayingVideoId(prev => (prev === video.id ? null : video.id));
     }
   }, [previewVideoUrls]);
 
@@ -1953,19 +1927,20 @@ export default function Search() {
                               <div className="card-thumbnail-fallback">🎬</div>
                             )}
 
-                            {/* 비디오 미리보기 (TikTok: videoUrl, 레드노트: API로 조회한 URL) */}
-                            {(hoveredVideoId === video.id || playingVideoId === video.id) && (video.videoUrl || previewVideoUrls[video.id]) && (
+                            {/* 비디오 미리보기: URL 있으면 재생 (TikTok만, key로 URL 변경 시 재마운트) */}
+                            {platform !== "xiaohongshu" && playingVideoId === video.id && video.videoUrl && (
                               <video
+                                key={video.videoUrl || video.id}
                                 className="card-video-preview"
-                                src={video.videoUrl || previewVideoUrls[video.id]}
-                                autoPlay={hoveredVideoId === video.id}
+                                src={video.videoUrl}
+                                autoPlay
                                 muted
                                 loop
                                 playsInline
                                 preload="auto"
                               />
                             )}
-                            {loadingPreviewId === video.id && (
+                            {platform !== "xiaohongshu" && loadingPreviewId === video.id && (
                               <div className="card-preview-loading">
                                 <Loader className="card-action-icon animate-spin" style={{ width: 32, height: 32 }} />
                                 <span>미리보기 로딩...</span>
