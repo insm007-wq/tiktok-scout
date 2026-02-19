@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 레드노트: CDN URL 없으면 브라우저에서 열기
+    // Xiaohongshu: CDN URL 없으면 브라우저에서 열기
     if (platform === 'xiaohongshu' && (!finalVideoUrl || finalVideoUrl.includes('xiaohongshu.com'))) {
       return NextResponse.json(
         {

@@ -52,7 +52,7 @@ export async function fetchSingleVideoUrl(
       let status = 'RUNNING';
       let attempt = 0;
       let firstAttempt = true;
-      while ((status === 'RUNNING' || status === 'READY') && attempt < 60) {
+      while ((status === 'RUNNING' || status === 'READY') && attempt < 120) {
         if (!firstAttempt) {
           await new Promise(r => setTimeout(r, Math.min(1000 * Math.pow(1.5, attempt - 1), 5000)));
         }
@@ -74,7 +74,7 @@ export async function fetchSingleVideoUrl(
       const result = item?.result ?? item;
       const medias = result?.medias;
       const mp4Url = Array.isArray(medias) && medias.length > 0
-        ? medias.find((m: any) => m.type === 'video' && m.url)?.['url'] ?? medias[0]?.url
+        ? (medias.find((m: any) => m.type === 'video' && m.url) ?? medias[0])?.url
         : null;
 
       if (mp4Url && typeof mp4Url === 'string') {
