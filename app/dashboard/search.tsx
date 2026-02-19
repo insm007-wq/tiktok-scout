@@ -180,16 +180,45 @@ export default function Search() {
   const handleVideoCardMouseEnter = useCallback((video: Video) => {
     setHoveredVideoId(video.id);
 
-    const delayMs = SEARCH_TIMING.hoverPlayDelayMs;
+    if (platform === "xiaohongshu" && video.webVideoUrl && !video.videoUrl && !previewVideoUrls[video.id]) {
+      setLoadingPreviewId(video.id);
+    }
+
+    const delayMs = platform === "xiaohongshu" ? 0 : SEARCH_TIMING.hoverPlayDelayMs;
     hoverTimeoutRef.current = setTimeout(async () => {
-      if (platform === "douyin" || platform === "xiaohongshu") return;
+      if (platform === "douyin") return;
 
       if (video.videoUrl) {
         setPlayingVideoId(video.id);
         return;
       }
+
+      if (platform === "xiaohongshu" && video.webVideoUrl) {
+        const cached = previewVideoUrls[video.id];
+        if (cached) {
+          setPlayingVideoId(video.id);
+          setLoadingPreviewId(null);
+          return;
+        }
+        try {
+          const res = await fetch("/api/video-preview-url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ webVideoUrl: video.webVideoUrl, platform: "xiaohongshu" }),
+          });
+          const data = await res.json();
+          if (res.ok && data.videoUrl) {
+            setPreviewVideoUrls((prev) => ({ ...prev, [video.id]: data.videoUrl }));
+            setPlayingVideoId(video.id);
+          }
+        } catch {
+          // 실패 시 무시
+        } finally {
+          setLoadingPreviewId(null);
+        }
+      }
     }, delayMs);
-  }, [platform]);
+  }, [platform, previewVideoUrls]);
 
   // 비디오 카드 마우스 아웃 핸들러
   const handleVideoCardMouseLeave = useCallback(() => {
@@ -202,46 +231,13 @@ export default function Search() {
     setLoadingPreviewId(null);
   }, []);
 
-  // 비디오 카드 클릭 핸들러 (인라인 재생 또는 브라우저 폴백)
-  const handleVideoCardClick = useCallback(async (video: Video) => {
-    // TikTok: videoUrl 이미 있으면 재생 토글
-    if (video.videoUrl) {
+  // 비디오 카드 클릭 핸들러 (재생/정지 토글)
+  const handleVideoCardClick = useCallback((video: Video) => {
+    // 이미 로드된 URL이 있으면 재생/정지 토글
+    if (video.videoUrl || previewVideoUrls[video.id]) {
       setPlayingVideoId(prev => prev === video.id ? null : video.id);
-      return;
     }
-
-    // Xiaohongshu: 캐시된 URL 있으면 즉시 재생
-    if (platform === 'xiaohongshu') {
-      const cached = previewVideoUrls[video.id];
-      if (cached) {
-        setPlayingVideoId(prev => prev === video.id ? null : video.id);
-        return;
-      }
-
-      if (!video.webVideoUrl) return;
-
-      // easyapi Actor로 mp4 URL 추출 시도
-      setLoadingPreviewId(video.id);
-      try {
-        const res = await fetch('/api/video-preview-url', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ webVideoUrl: video.webVideoUrl, platform: 'xiaohongshu' }),
-        });
-        const data = await res.json();
-        if (res.ok && data.videoUrl) {
-          setPreviewVideoUrls(prev => ({ ...prev, [video.id]: data.videoUrl }));
-          setPlayingVideoId(video.id);
-        }
-      } catch {
-        // 실패 시 무시
-      } finally {
-        setLoadingPreviewId(null);
-      }
-      return;
-    }
-
-  }, [platform, previewVideoUrls]);
+  }, [previewVideoUrls]);
 
   // 언어 감지 함수
   const detectLanguage = (text: string): Language => {
