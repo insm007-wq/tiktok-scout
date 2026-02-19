@@ -302,6 +302,19 @@ export async function setVideoToCache(
   videos: VideoResult[],
   dateRange?: string
 ): Promise<void> {
+  // ✅ DEBUG: 첫 번째 비디오의 thumbnail 필드 확인
+  if (videos.length > 0) {
+    const firstVideo = videos[0];
+    console.log(`[Cache] 📊 First video thumbnail check:`, {
+      platform,
+      videoId: firstVideo.id,
+      title: firstVideo.title.substring(0, 50),
+      hasThumbnail: !!firstVideo.thumbnail,
+      thumbnailValue: firstVideo.thumbnail ? firstVideo.thumbnail.substring(0, 80) : 'UNDEFINED',
+      thumbnailType: typeof firstVideo.thumbnail,
+    });
+  }
+
   // ✅ NEW: 저장 전 URL 타입 통계
   const urlStats = videos.reduce((acc, video) => {
     if (isR2Url(video.thumbnail)) acc.r2++;
@@ -314,6 +327,7 @@ export async function setVideoToCache(
     platform,
     query: query.substring(0, 30),
     videoCount: videos.length,
+    thumbnailCount: videos.filter(v => !!v.thumbnail).length,
     urlStats,
   });
 

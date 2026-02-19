@@ -12,6 +12,7 @@ import {
   STALLED_INTERVAL,
   MAX_STALLED_COUNT,
   MAX_VIDEOS_PER_SEARCH,
+  YOUTUBE_MAX_VIDEOS_PER_SEARCH,
   RATE_LIMITER_MAX,
   RATE_LIMITER_DURATION,
   QUEUE_NAME,
@@ -87,7 +88,7 @@ const worker = new Worker<SearchJobData>(
           videos = await searchDouyinVideosParallel(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
           break
         case 'youtube':
-          videos = await searchYouTubeVideos(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
+          videos = await searchYouTubeVideos(query, YOUTUBE_MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
           break
         default:
           throw new Error(`Unknown platform: ${platform}`)

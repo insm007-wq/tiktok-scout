@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchWithRetry } from '@/lib/utils/fetch-with-retry';
 import { auth } from '@/lib/auth';
 import { checkApiUsage, incrementApiUsage } from '@/lib/apiUsage';
+import { fetchSingleVideoUrl } from '@/lib/utils/fetch-single-video-url';
 
 // SRT를 순수 텍스트로 변환 (시간, 씬 번호 제거)
 function parseSrtToText(srtContent: string): string {
@@ -52,24 +53,43 @@ export async function POST(req: NextRequest) {
 
     const { videoUrl, videoId, platform = 'tiktok', webVideoUrl, format = 'text' } = await req.json();
 
-    // TikTok과 Douyin만 지원 (YouTube는 향후 추가)
-    if (platform !== 'tiktok' && platform !== 'douyin') {
+    if (platform !== 'tiktok' && platform !== 'douyin' && platform !== 'youtube') {
       return NextResponse.json(
-        { error: `${platform}은(는) 자막 추출을 지원하지 않습니다. (현재 TikTok, Douyin만 지원)` },
+        { error: `${platform}은(는) 자막 추출을 지원하지 않습니다.` },
         { status: 400 }
       );
     }
 
     let finalVideoUrl = videoUrl;
 
-    // YouTube: 자막 추출은 직접 영상 URL이 필요 (향후 지원)
-    if (platform === 'youtube' && !videoUrl) {
-      // YouTube는 embed URL만 있어 직접 스트림 URL 미제공 → 자막 추출 미지원
+    // YouTube: videoUrl 없으면 fetchSingleVideoUrl로 MP4 URL 조회 (YOUTUBE_DOWNLOAD_ACTOR 필요)
+    if (platform === 'youtube' && !finalVideoUrl && webVideoUrl) {
+      const apiKey = process.env.APIFY_API_KEY;
+      if (!apiKey) {
+        return NextResponse.json(
+          { error: 'YouTube 자막 추출을 위해 APIFY_API_KEY가 필요합니다.' },
+          { status: 500 }
+        );
+      }
+      const result = await fetchSingleVideoUrl(webVideoUrl, 'youtube', apiKey);
+      if (result.error) {
+        return NextResponse.json(
+          { error: result.error },
+          { status: 400 }
+        );
+      }
+      finalVideoUrl = result.videoUrl;
+      if (!finalVideoUrl || finalVideoUrl.includes('youtube.com/embed')) {
+        return NextResponse.json(
+          { error: 'YouTube 자막 추출을 위해 .env에 YOUTUBE_DOWNLOAD_ACTOR=scrapearchitect 를 설정해 주세요.' },
+          { status: 400 }
+        );
+      }
     }
 
     if (!finalVideoUrl) {
       return NextResponse.json(
-        { error: '비디오 URL이 필요합니다.' },
+        { error: '비디오 URL이 필요합니다. (YouTube는 webVideoUrl 전달 필요)' },
         { status: 400 }
       );
     }
@@ -95,7 +115,9 @@ export async function POST(req: NextRequest) {
     if (!videoResponse.ok && finalVideoUrl.includes('?')) {
       const isCDN = finalVideoUrl.includes('tiktokcdn') ||
                     finalVideoUrl.includes('douyinpic') ||
-                    finalVideoUrl.includes('xhscdn');
+                    finalVideoUrl.includes('xhscdn') ||
+                    finalVideoUrl.includes('googlevideo.com') ||
+                    finalVideoUrl.includes('api.apify.com');
 
       if (isCDN) {
         console.warn('[ExtractSubtitles] Retrying without query parameters...');
@@ -247,7 +269,7 @@ export async function POST(req: NextRequest) {
     console.log('[ExtractSubtitles] ✅ Subtitle extraction successful');
 
     // 포맷에 따라 변환
-    const filePrefix = platform === 'douyin' ? 'douyin' : 'tiktok';
+    const filePrefix = platform === 'douyin' ? 'douyin' : platform === 'youtube' ? 'youtube' : 'tiktok';
     let content = srtContent;
     let fileName = `${filePrefix}_${videoId}_subtitles.srt`;
     let fileExt = 'srt';

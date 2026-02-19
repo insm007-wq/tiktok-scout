@@ -141,19 +141,17 @@ export default function Search() {
     }, duration);
   }, []);
 
-  // 썸네일 로드 실패 처리
+  // 썸네일 로드 실패 처리 (thumbnail이 객체로 올 수 있어 문자열로만 다룸)
   const handleThumbnailError = useCallback(async (video: Video, e: React.SyntheticEvent<HTMLImageElement>) => {
-    // ✅ ENHANCED: 상세 로깅
-    const thumbnailUrl = video.thumbnail;
-    const urlType = thumbnailUrl?.includes('.r2.dev') ? 'R2' :
-                    (thumbnailUrl?.includes('tiktokcdn') ||
-                     thumbnailUrl?.includes('douyinpic') ||
-                     thumbnailUrl?.includes('xhscdn') ? 'CDN' : 'Unknown');
+    const raw = video.thumbnail;
+    const thumbnailUrl = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && 'url' in raw ? (raw as { url: string }).url : '');
+    const urlType = thumbnailUrl.includes('.r2.dev') ? 'R2' :
+                    (thumbnailUrl.includes('tiktokcdn') || thumbnailUrl.includes('douyinpic') || thumbnailUrl.includes('xhscdn') ? 'CDN' : 'Unknown');
 
     console.error(`[Frontend] ❌ Thumbnail load failed`, {
       videoId: video.id,
       urlType,
-      thumbnailPreview: thumbnailUrl?.substring(0, 60),
+      thumbnailPreview: thumbnailUrl ? thumbnailUrl.substring(0, 60) : '',
       platform,
       creator: video.creator,
     });
@@ -163,6 +161,19 @@ export default function Search() {
     e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect fill="%23f0f0f0" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" font-size="50" fill="%23999"%3E🎬%3C/text%3E%3C/svg%3E';
     e.currentTarget.alt = '썸네일을 불러올 수 없습니다';
   }, [platform]);
+
+  /** 표시할 썸네일 URL. API에서 온 썸네일은 그대로 사용(업로더 지정 썸네일), 없을 때만 YouTube 기본 URL */
+  const getDisplayThumbnail = useCallback((video: Video, plat: Platform): string | undefined => {
+    const raw = video.thumbnail;
+    const thumbStr = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && 'url' in raw ? (raw as { url: string }).url : undefined);
+    if (thumbStr) return thumbStr;
+    if (plat !== "youtube") return undefined;
+    const validId = (s: string) => /^[a-zA-Z0-9_-]{11}$/.test(s);
+    const idFromUrl = video.webVideoUrl?.match(/[?&]v=([^&]+)/)?.[1];
+    const candidate = (video.id && validId(String(video.id)) ? video.id : idFromUrl) || idFromUrl;
+    if (candidate && validId(candidate)) return `https://i.ytimg.com/vi/${candidate}/hqdefault.jpg`;
+    return undefined;
+  }, []);
 
   const handleTitleClick = () => {
     setIsTitleRefreshing(true);
@@ -175,7 +186,20 @@ export default function Search() {
   const handleVideoCardMouseEnter = useCallback((video: Video) => {
     setHoveredVideoId(video.id);
     hoverTimeoutRef.current = setTimeout(() => {
-      if (video.videoUrl && platform !== "douyin" && platform !== "youtube") {
+      if (platform === "youtube") {
+        const validId = (s: string) => /^[a-zA-Z0-9_-]{11}$/.test(s);
+        const idFromUrl = video.webVideoUrl?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/)?.[1] || video.webVideoUrl?.match(/[?&]v=([^&]+)/)?.[1];
+        const raw = video.thumbnail;
+        const thumbStr = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && 'url' in raw ? (raw as { url: string }).url : '');
+        const idFromThumb = thumbStr?.match(/ytimg\.com\/vi\/([a-zA-Z0-9_-]{11})/)?.[1];
+        const vid = (video.id && validId(String(video.id)) ? video.id : idFromUrl) || idFromUrl || idFromThumb;
+        if (vid && validId(vid)) {
+          const embedUrl = `https://www.youtube.com/embed/${vid}`;
+          setPreviewVideoUrls((prev) => ({ ...prev, [video.id]: embedUrl }));
+          setPlayingVideoId(video.id);
+        }
+      } else if (video.videoUrl && platform !== "douyin") {
+        // TikTok/샤오홍슈: videoUrl이 있으면 호버 시 재생
         setPlayingVideoId(video.id);
       }
     }, SEARCH_TIMING.hoverPlayDelayMs);
@@ -566,11 +590,10 @@ export default function Search() {
 
         if (data.data && data.data.length > 0) {
           const urlStats = data.data.reduce((acc: any, video: Video) => {
-            const thumbnailUrl = video.thumbnail;
-            if (thumbnailUrl?.includes('.r2.dev')) acc.r2++;
-            else if (thumbnailUrl?.includes('tiktokcdn') ||
-                     thumbnailUrl?.includes('douyinpic') ||
-                     thumbnailUrl?.includes('xhscdn')) acc.cdn++;
+            const raw = video.thumbnail;
+            const thumbnailUrl = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && 'url' in raw ? (raw as { url: string }).url : '');
+            if (thumbnailUrl.includes('.r2.dev')) acc.r2++;
+            else if (thumbnailUrl.includes('tiktokcdn') || thumbnailUrl.includes('douyinpic') || thumbnailUrl.includes('xhscdn')) acc.cdn++;
             else acc.unknown++;
             return acc;
           }, { r2: 0, cdn: 0, unknown: 0 });
@@ -648,11 +671,10 @@ export default function Search() {
 
               if (statusData.data && statusData.data.length > 0) {
                 const urlStats = statusData.data.reduce((acc: any, video: Video) => {
-                  const thumbnailUrl = video.thumbnail;
-                  if (thumbnailUrl?.includes('.r2.dev')) acc.r2++;
-                  else if (thumbnailUrl?.includes('tiktokcdn') ||
-                           thumbnailUrl?.includes('douyinpic') ||
-                           thumbnailUrl?.includes('xhscdn')) acc.cdn++;
+                  const raw = video.thumbnail;
+                  const thumbnailUrl = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && 'url' in raw ? (raw as { url: string }).url : '');
+                  if (thumbnailUrl.includes('.r2.dev')) acc.r2++;
+                  else if (thumbnailUrl.includes('tiktokcdn') || thumbnailUrl.includes('douyinpic') || thumbnailUrl.includes('xhscdn')) acc.cdn++;
                   else acc.unknown++;
                   return acc;
                 }, { r2: 0, cdn: 0, unknown: 0 });
@@ -998,10 +1020,12 @@ export default function Search() {
     }
   };
 
-  // 샤오홍슈 미리보기: URL 조회 후 앱 내 재생 (Video Downloader 액터 사용)
+  // YouTube 미리보기: embed URL 조회 후 앱 내 iframe 재생
   const handleYouTubePreviewClick = useCallback(
     async (video: Video) => {
-      if (platform !== "youtube" || !video.webVideoUrl) return;
+      if (platform !== "youtube") return;
+      const webUrl = video.webVideoUrl || (video.id && /^[a-zA-Z0-9_-]{11}$/.test(String(video.id)) ? `https://www.youtube.com/watch?v=${video.id}` : undefined);
+      if (!webUrl) return;
       const resolvedUrl = video.videoUrl || previewVideoUrls[video.id];
       if (resolvedUrl) {
         setPlayingVideoId((prev) => (prev === video.id ? null : video.id));
@@ -1013,21 +1037,25 @@ export default function Search() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            webVideoUrl: video.webVideoUrl,
+            webVideoUrl: webUrl,
             platform: "youtube",
           }),
         });
         const data = await res.json();
         if (!res.ok) {
           addToast("error", data.error || "미리보기 URL을 가져오지 못했습니다.", "미리보기");
-          window.open(video.webVideoUrl, "_blank");
+          window.open(webUrl, "_blank");
           return;
         }
-        setPreviewVideoUrls((prev) => ({ ...prev, [video.id]: data.videoUrl }));
-        setPlayingVideoId(video.id);
+        if (data.videoUrl) {
+          setPreviewVideoUrls((prev) => ({ ...prev, [video.id]: data.videoUrl }));
+          setPlayingVideoId(video.id);
+        } else {
+          window.open(webUrl, "_blank");
+        }
       } catch (e) {
         addToast("error", "미리보기 요청에 실패했습니다.", "미리보기");
-        if (video.webVideoUrl) window.open(video.webVideoUrl, "_blank");
+        window.open(webUrl, "_blank");
       } finally {
         setLoadingPreviewId(null);
       }
@@ -1151,8 +1179,13 @@ export default function Search() {
       }
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "다운로드 실패");
+        const errorData = await response.json();
+        if (errorData.openInBrowser && errorData.webVideoUrl) {
+          window.open(errorData.webVideoUrl, "_blank");
+          addToast("info", "YouTube는 브라우저에서 보기만 지원됩니다.", "ℹ️ 안내", 3000);
+          return;
+        }
+        throw new Error(errorData.error || "다운로드 실패");
       }
 
       // Blob으로 변환
@@ -1181,15 +1214,14 @@ export default function Search() {
     }
   };
 
-  // 자막 추출 핸들러
+  // 자막 추출 핸들러 (TikTok, Douyin, YouTube - Whisper AI 사용)
   const handleExtractSubtitles = async (video: Video) => {
-    // TikTok과 Douyin만 지원
-    if (platform !== 'tiktok' && platform !== 'douyin') {
-      addToast("info", "자막 추출은 현재 TikTok과 Douyin만 지원합니다.", "ℹ️ 안내");
+    if (platform !== 'tiktok' && platform !== 'douyin' && platform !== 'youtube') {
+      addToast("info", "자막 추출은 TikTok, Douyin, YouTube만 지원합니다.", "ℹ️ 안내");
       return;
     }
 
-    if (!video.videoUrl) {
+    if (!video.videoUrl && !video.webVideoUrl) {
       addToast("error", "영상 정보를 불러올 수 없습니다.", "❌ 오류");
       return;
     }
@@ -1204,6 +1236,7 @@ export default function Search() {
           videoUrl: video.videoUrl,
           videoId: video.id,
           platform,
+          webVideoUrl: video.webVideoUrl,
           format: "text",
         }),
       });
@@ -1302,7 +1335,7 @@ export default function Search() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      const filePrefix = platform === 'douyin' ? 'douyin' : 'tiktok';
+      const filePrefix = platform === 'douyin' ? 'douyin' : platform === 'youtube' ? 'youtube' : 'tiktok';
       link.download = `${filePrefix}_${video.id}_subtitles.txt`;
       document.body.appendChild(link);
       link.click();
@@ -1916,25 +1949,28 @@ export default function Search() {
                           <div
                             className="card-thumbnail-container"
                             onClick={() => {
-                              if (platform === "youtube" && video.webVideoUrl) {
-                                handleYouTubePreviewClick(video);
-                                return;
+                              let url = video.webVideoUrl;
+                              if (!url && platform === "youtube") {
+                                const raw = video.thumbnail;
+                                const thumbStr = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && 'url' in raw ? (raw as { url: string }).url : '');
+                                const vidFromThumb = thumbStr?.match(/ytimg\.com\/vi\/([a-zA-Z0-9_-]{11})/)?.[1];
+                                const vid = (video.id && /^[a-zA-Z0-9_-]{11}$/.test(String(video.id)) ? video.id : vidFromThumb) || vidFromThumb;
+                                if (vid) url = `https://www.youtube.com/watch?v=${vid}`;
                               }
-                              if (video.webVideoUrl) {
-                                window.open(video.webVideoUrl, "_blank");
-                              }
+                              if (url) window.open(url, "_blank");
                             }}
                             onMouseEnter={() => handleVideoCardMouseEnter(video)}
                             onMouseLeave={handleVideoCardMouseLeave}
                           >
                             {/* 썸네일 */}
-                            {video.thumbnail ? (
+                            {getDisplayThumbnail(video, platform) ? (
                               <img
-                                src={video.thumbnail}
+                                src={getDisplayThumbnail(video, platform)!}
                                 alt={video.title}
                                 className={`card-thumbnail ${playingVideoId === video.id ? "card-thumbnail-hidden" : ""}`}
                                 onError={(e) => handleThumbnailError(video, e)}
                                 loading="lazy"
+                                referrerPolicy="no-referrer"
                               />
                             ) : (
                               <div className="card-thumbnail-fallback">🎬</div>
@@ -1948,8 +1984,9 @@ export default function Search() {
                                 if (isYoutubeEmbed) {
                                   return (
                                     <iframe
+                                      key={`yt-preview-${video.id}`}
                                       className="card-video-preview"
-                                      src={src}
+                                      src={src + (src.includes('?') ? '&' : '?') + 'autoplay=1&mute=1'}
                                       title="YouTube preview"
                                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                       allowFullScreen
@@ -2039,8 +2076,8 @@ export default function Search() {
                                 <span className="card-action-label">{downloadingVideoId === video.id ? "준비중" : "다운"}</span>
                               </button>
 
-                              {/* 자막 버튼 - TikTok, Douyin */}
-                              {(platform === 'tiktok' || platform === 'douyin') && (
+                              {/* 자막 버튼 - TikTok, Douyin, YouTube */}
+                              {(platform === 'tiktok' || platform === 'douyin' || platform === 'youtube') && (
                                 <button
                                   className="card-action-btn"
                                   onClick={(e) => {
@@ -2094,13 +2131,14 @@ export default function Search() {
                                   }
                                 }}
                               >
-                                {video.thumbnail ? (
+                                {getDisplayThumbnail(video, platform) ? (
                                   <img
-                                    src={video.thumbnail}
+                                    src={getDisplayThumbnail(video, platform)!}
                                     alt={video.title}
                                     className="table-thumbnail"
                                     onError={(e) => handleThumbnailError(video, e)}
                                     style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "2px" }}
+                                    referrerPolicy="no-referrer"
                                   />
                                 ) : (
                                   <span>🎬</span>
@@ -2147,11 +2185,12 @@ export default function Search() {
             {/* 스크롤 가능한 콘텐츠 */}
             <div className="modal-scroll">
               {/* 썸네일 */}
-              {selectedVideo.thumbnail && (
+              {getDisplayThumbnail(selectedVideo, platform) && (
                 <img
-                  src={selectedVideo.thumbnail}
+                  src={getDisplayThumbnail(selectedVideo, platform)!}
                   alt={selectedVideo.title}
                   onError={(e) => handleThumbnailError(selectedVideo, e)}
+                  referrerPolicy="no-referrer"
                   style={{
                     width: "100%",
                     height: "240px",
@@ -2335,8 +2374,8 @@ export default function Search() {
                 {selectedVideo && downloadingVideoId === selectedVideo.id ? "⏳ 준비 중..." : "⬇️ 다운로드"}
               </button>
 
-              {/* TikTok/Douyin 자막 추출 버튼 */}
-              {(platform === 'tiktok' || platform === 'douyin') && selectedVideo && (
+              {/* TikTok, Douyin, YouTube 자막 추출 버튼 */}
+              {(platform === 'tiktok' || platform === 'douyin' || platform === 'youtube') && selectedVideo && (
                 <button
                   onClick={() => handleExtractSubtitles(selectedVideo)}
                   disabled={extractingSubtitleId === selectedVideo.id}

@@ -3,11 +3,21 @@
  * Centralized settings for video search queue system
  */
 
-/** Queue name for video search jobs */
-export const QUEUE_NAME = 'video-search' as const
+/**
+ * Queue name for video search jobs.
+ * - Production (NODE_ENV=production): 'video-search'
+ * - Development: 'video-search-dev' (dev/prod 큐 분리로 로컬 작업이 배포에 영향 없음)
+ * - QUEUE_NAME env로 오버라이드 가능
+ */
+export const QUEUE_NAME: string =
+  process.env.QUEUE_NAME ||
+  (process.env.NODE_ENV === 'development' ? 'video-search-dev' : 'video-search')
 
 /** Maximum number of videos to scrape per search */
 export const MAX_VIDEOS_PER_SEARCH = 100 as const
+
+/** YouTube 전용: 쇼츠 검색 시 최대 50개 */
+export const YOUTUBE_MAX_VIDEOS_PER_SEARCH = 50 as const
 
 /** Default worker concurrency level */
 export const DEFAULT_WORKER_CONCURRENCY = 50 as const

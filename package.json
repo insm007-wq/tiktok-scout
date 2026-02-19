@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "start \"worker\" npm run worker:dev && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "worker": "./node_modules/.bin/tsx lib/queue/search-worker.ts",
+    "worker": "tsx lib/queue/search-worker.ts",
+    "worker:dev": "tsx lib/queue/search-worker-dev.ts",
     "worker:pm2": "pm2 start ecosystem.config.js",
     "worker:stop": "pm2 stop all",
     "worker:logs": "pm2 logs",
@@ -41,6 +42,7 @@
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
     "swr": "^2.2.0",
+    "youtube-transcript": "^1.2.1",
     "zod": "^4.3.5"
   },
   "devDependencies": {
