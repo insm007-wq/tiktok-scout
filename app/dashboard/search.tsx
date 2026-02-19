@@ -232,21 +232,15 @@ export default function Search() {
         if (res.ok && data.videoUrl) {
           setPreviewVideoUrls(prev => ({ ...prev, [video.id]: data.videoUrl }));
           setPlayingVideoId(video.id);
-          return;
         }
       } catch {
-        // 실패 시 폴백
+        // 실패 시 무시
       } finally {
         setLoadingPreviewId(null);
       }
-
-      // 폴백: 브라우저에서 열기
-      window.open(video.webVideoUrl, '_blank');
       return;
     }
 
-    // Douyin / 기타: 브라우저에서 열기
-    if (video.webVideoUrl) window.open(video.webVideoUrl, '_blank');
   }, [platform, previewVideoUrls]);
 
   // 언어 감지 함수
