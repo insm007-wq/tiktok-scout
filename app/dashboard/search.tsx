@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { LayoutGrid, Table2, Download, Play, Heart, MessageCircle, Share2, Info, ExternalLink, Loader, Subtitles } from "lucide-react";
 import Toast, { type Toast as ToastType } from "@/app/components/Toast/Toast";
-import Spinner from "@/app/components/ui/Spinner";
 import ViewCountFilter from "@/app/components/Filters/ViewCountFilter/ViewCountFilter";
 import PeriodFilter from "@/app/components/Filters/PeriodFilter/PeriodFilter";
 import VideoLengthFilter from "@/app/components/Filters/VideoLengthFilter/VideoLengthFilter";
@@ -30,7 +29,7 @@ const SEARCH_TIMING = {
   searchTimeoutMs: 180000,
 } as const;
 
-type Platform = "tiktok" | "douyin" | "xiaohongshu";
+type Platform = "tiktok" | "douyin";
 type Language = "ko" | "zh" | "en";
 
 interface Video {
@@ -88,7 +87,7 @@ export default function Search() {
   const [toasts, setToasts] = useState<ToastType[]>([]);
   const [hoveredVideoId, setHoveredVideoId] = useState<string | null>(null);
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
-  /** 샤오홍슈 등 미리보기용으로 조회한 비디오 URL (videoId -> url) */
+  /** 미리보기용으로 조회한 비디오 URL (videoId -> url) */
   const [previewVideoUrls, setPreviewVideoUrls] = useState<Record<string, string>>({});
   const [loadingPreviewId, setLoadingPreviewId] = useState<string | null>(null);
   const [failedThumbnails, setFailedThumbnails] = useState<Set<string>>(new Set());
@@ -114,6 +113,8 @@ export default function Search() {
 
   // 링크 갱신 cooldown 관리 (같은 query에 대해 짧은 시간 내 중복 갱신 방지)
   const recrawlCooldownRef = useRef<Map<string, number>>(new Map());
+  // 취소한 jobId — 이미 날아간 폴링 응답이 도착해도 "검색 완료"로 처리하지 않도록 무시
+  const cancelledJobIdRef = useRef<string | null>(null);
 
   /**
    * 검색 타임아웃 타이머 정리 (early definition for use in cleanup effect)
@@ -142,30 +143,39 @@ export default function Search() {
   }, []);
 
   // 썸네일 로드 실패 처리 (thumbnail이 객체로 올 수 있어 문자열로만 다룸)
-  const handleThumbnailError = useCallback(async (video: Video, e: React.SyntheticEvent<HTMLImageElement>) => {
-    const raw = video.thumbnail;
-    const thumbnailUrl = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && 'url' in raw ? (raw as { url: string }).url : '');
-    const urlType = thumbnailUrl.includes('.r2.dev') ? 'R2' :
-                    (thumbnailUrl.includes('tiktokcdn') || thumbnailUrl.includes('douyinpic') || thumbnailUrl.includes('xhscdn') ? 'CDN' : 'Unknown');
+  const handleThumbnailError = useCallback(
+    async (video: Video, e: React.SyntheticEvent<HTMLImageElement>) => {
+      const raw = video.thumbnail;
+      const thumbnailUrl =
+        typeof raw === "string" ? raw : raw && typeof raw === "object" && "url" in raw ? (raw as { url: string }).url : "";
+      const urlType = thumbnailUrl.includes(".r2.dev")
+        ? "R2"
+        : thumbnailUrl.includes("tiktokcdn") || thumbnailUrl.includes("douyinpic")
+          ? "CDN"
+          : "Unknown";
 
-    console.error(`[Frontend] ❌ Thumbnail load failed`, {
-      videoId: video.id,
-      urlType,
-      thumbnailPreview: thumbnailUrl ? thumbnailUrl.substring(0, 60) : '',
-      platform,
-      creator: video.creator,
-    });
+      console.error(`[Frontend] ❌ Thumbnail load failed`, {
+        videoId: video.id,
+        urlType,
+        thumbnailPreview: thumbnailUrl ? thumbnailUrl.substring(0, 60) : "",
+        platform,
+        creator: video.creator,
+      });
 
-    // 폴백: 썸네일 로딩 실패
-    setFailedThumbnails(prev => new Set(prev).add(video.id));
-    e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect fill="%23f0f0f0" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" font-size="50" fill="%23999"%3E🎬%3C/text%3E%3C/svg%3E';
-    e.currentTarget.alt = '썸네일을 불러올 수 없습니다';
-  }, [platform]);
+      // 폴백: 썸네일 로딩 실패
+      setFailedThumbnails((prev) => new Set(prev).add(video.id));
+      e.currentTarget.src =
+        'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect fill="%23f0f0f0" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" font-size="50" fill="%23999"%3E🎬%3C/text%3E%3C/svg%3E';
+      e.currentTarget.alt = "썸네일을 불러올 수 없습니다";
+    },
+    [platform],
+  );
 
   /** 표시할 썸네일 URL. API 썸네일 사용 (xhscdn 등 CDN) */
   const getDisplayThumbnail = useCallback((video: Video, plat: Platform): string | undefined => {
     const raw = video.thumbnail;
-    const thumbStr = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && 'url' in raw ? (raw as { url: string }).url : undefined);
+    const thumbStr =
+      typeof raw === "string" ? raw : raw && typeof raw === "object" && "url" in raw ? (raw as { url: string }).url : undefined;
     return thumbStr || undefined;
   }, []);
 
@@ -177,21 +187,20 @@ export default function Search() {
     }, 600);
   };
 
-  const handleVideoCardMouseEnter = useCallback((video: Video) => {
-    setHoveredVideoId(video.id);
+  // Douyin은 프리뷰 미지원 → TikTok만 호버 시 재생
+  const handleVideoCardMouseEnter = useCallback(
+    (video: Video) => {
+      setHoveredVideoId(video.id);
 
-    const delayMs = SEARCH_TIMING.hoverPlayDelayMs;
-    hoverTimeoutRef.current = setTimeout(async () => {
-      if (platform === "douyin" || platform === "xiaohongshu") return;
+      const delayMs = SEARCH_TIMING.hoverPlayDelayMs;
+      hoverTimeoutRef.current = setTimeout(() => {
+        if (platform !== "tiktok") return;
+        if (video.videoUrl || previewVideoUrls[video.id]) setPlayingVideoId(video.id);
+      }, delayMs);
+    },
+    [platform, previewVideoUrls],
+  );
 
-      if (video.videoUrl) {
-        setPlayingVideoId(video.id);
-        return;
-      }
-    }, delayMs);
-  }, [platform]);
-
-  // 비디오 카드 마우스 아웃 핸들러
   const handleVideoCardMouseLeave = useCallback(() => {
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
@@ -202,16 +211,21 @@ export default function Search() {
     setLoadingPreviewId(null);
   }, []);
 
-  // 카드/썸네일 클릭: webVideoUrl 있으면 새 탭으로 열기, 없으면 재생/정지 토글
-  const handleVideoCardClick = useCallback((video: Video) => {
-    if (video.webVideoUrl) {
-      window.open(video.webVideoUrl, "_blank");
-      return;
-    }
-    if (video.videoUrl || previewVideoUrls[video.id]) {
-      setPlayingVideoId(prev => (prev === video.id ? null : video.id));
-    }
-  }, [previewVideoUrls]);
+  // 카드/썸네일 클릭: TikTok은 재생 토글 또는 새 탭, Douyin은 프리뷰 없음 → 클릭 시 도우인 페이지 새 탭으로 열기
+  const handleVideoCardClick = useCallback(
+    (video: Video) => {
+      // TikTok: 재생 가능한 URL 있으면 재생 토글
+      if (platform === "tiktok" && (video.videoUrl || previewVideoUrls[video.id])) {
+        setPlayingVideoId((prev) => (prev === video.id ? null : video.id));
+        return;
+      }
+      // 둘 다: 재생할 URL 없으면 webVideoUrl로 새 탭 열기 (Douyin은 항상 여기로 옴)
+      if (video.webVideoUrl) {
+        window.open(video.webVideoUrl, "_blank", "noopener,noreferrer");
+      }
+    },
+    [platform, previewVideoUrls],
+  );
 
   // 언어 감지 함수
   const detectLanguage = (text: string): Language => {
@@ -360,9 +374,12 @@ export default function Search() {
 
         // 5단계 구분 (TikTok 업계 표준 기준, 2026)
         let level = 1;
-        if (engagementRatio >= 0.1) level = 5;   // 10% 이상 - 최고
-        else if (engagementRatio >= 0.06) level = 4; // 6~10% - 매우좋음
-        else if (engagementRatio >= 0.04) level = 3; // 4~6% - 좋음
+        if (engagementRatio >= 0.1)
+          level = 5; // 10% 이상 - 최고
+        else if (engagementRatio >= 0.06)
+          level = 4; // 6~10% - 매우좋음
+        else if (engagementRatio >= 0.04)
+          level = 3; // 4~6% - 좋음
         else if (engagementRatio >= 0.02) level = 2; // 2~4% - 중간
         // else level = 1; // 2% 미만 - 낮음
 
@@ -408,7 +425,11 @@ export default function Search() {
   }, [videos, filters, sortBy]);
 
   const handleCancelSearch = useCallback(async () => {
-    // 타임아웃 타이머 정리 (추가)
+    // 취소한 jobId 기록 → 이후 도착하는 폴링 응답은 "검색 완료"로 처리하지 않음
+    const jobIdToCancel = jobStatus?.jobId ?? null;
+    if (jobIdToCancel) cancelledJobIdRef.current = jobIdToCancel;
+
+    // 타임아웃 타이머 정리
     clearSearchTimeout();
 
     // 1. HTTP 요청 중단
@@ -424,55 +445,45 @@ export default function Search() {
       pollIntervalRef.current = null;
     }
 
-    // 3. 백엔드 취소 API 호출 (job 제거 + 캐시 삭제)
-    if (jobStatus?.jobId) {
+    // 3. 백엔드 취소 API 호출 (Apify abort + job 제거 + 캐시 삭제)
+    if (jobIdToCancel) {
       try {
-        await fetch('/api/search/cancel', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        await fetch("/api/search/cancel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            jobId: jobStatus.jobId,
+            jobId: jobIdToCancel,
             query: searchInput,
             platform,
-            dateRange: filters.uploadPeriod
-          })
+            dateRange: filters.uploadPeriod,
+          }),
         });
-        console.log('[Search] Cancel API 호출 완료');
+        console.log("[Search] Cancel API 호출 완료 (Apify abort 포함)");
+        addToast("info", "검색이 취소되었습니다.", "⏹️ 취소됨");
       } catch (error) {
-        console.error('[Search] Cancel API 실패:', error);
-        // 실패해도 프론트엔드 상태는 이미 정리되었으므로 계속 진행
+        console.error("[Search] Cancel API 실패:", error);
+        addToast("warning", "취소 요청이 완료되지 않았을 수 있습니다.", "⏹️ 취소");
       }
     }
 
     // 4. 상태 초기화
     setJobStatus(null);
-  }, [
-    clearSearchTimeout,
-    jobStatus?.jobId,
-    searchInput,
-    platform,
-    filters.uploadPeriod
-  ]);
+  }, [clearSearchTimeout, jobStatus?.jobId, searchInput, platform, filters.uploadPeriod, addToast]);
 
   /**
    * 자동 타임아웃 처리 (3분 초과)
    */
   const handleAutoTimeout = useCallback(async () => {
-    console.log('[Search] Auto timeout after 3 minutes');
+    console.log("[Search] Auto timeout after 3 minutes");
 
     // 기존 취소 로직 재사용 (백엔드 취소 API + 캐시 삭제)
     await handleCancelSearch();
 
     // 사용자 안내 토스트
-    addToast(
-      'warning',
-      '검색 시간이 초과되었습니다.\n잠시 후 다시 시도해주세요.',
-      '⏱️ 타임아웃',
-      5000
-    );
+    addToast("warning", "검색 시간이 초과되었습니다.\n잠시 후 다시 시도해주세요.", "⏱️ 타임아웃", 5000);
 
     // 에러 메시지 표시
-    setError('검색 시간이 초과되었습니다. 서버 상태를 확인하거나 잠시 후 다시 시도해주세요.');
+    setError("검색 시간이 초과되었습니다. 서버 상태를 확인하거나 잠시 후 다시 시도해주세요.");
   }, [handleCancelSearch, addToast]);
 
   const handleSearch = useCallback(async () => {
@@ -482,12 +493,7 @@ export default function Search() {
       setError(validation.error || "잘못된 검색어입니다");
 
       // 🔔 토스트 알람 추가!
-      addToast(
-        "warning",
-        validation.error || "잘못된 검색어입니다",
-        "⚠️ 입력 오류",
-        4000
-      );
+      addToast("warning", validation.error || "잘못된 검색어입니다", "⚠️ 입력 오류", 4000);
       return;
     }
 
@@ -583,14 +589,19 @@ export default function Search() {
         setIsLoading(false);
 
         if (data.data && data.data.length > 0) {
-          const urlStats = data.data.reduce((acc: any, video: Video) => {
-            const raw = video.thumbnail;
-            const thumbnailUrl = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && 'url' in raw ? (raw as { url: string }).url : '');
-            if (thumbnailUrl.includes('.r2.dev')) acc.r2++;
-            else if (thumbnailUrl.includes('tiktokcdn') || thumbnailUrl.includes('douyinpic') || thumbnailUrl.includes('xhscdn')) acc.cdn++;
-            else acc.unknown++;
-            return acc;
-          }, { r2: 0, cdn: 0, unknown: 0 });
+          const urlStats = data.data.reduce(
+            (acc: any, video: Video) => {
+              const raw = video.thumbnail;
+              const thumbnailUrl =
+                typeof raw === "string" ? raw : raw && typeof raw === "object" && "url" in raw ? (raw as { url: string }).url : "";
+              if (thumbnailUrl.includes(".r2.dev")) acc.r2++;
+              else if (thumbnailUrl.includes("tiktokcdn") || thumbnailUrl.includes("douyinpic") || thumbnailUrl.includes("xhscdn"))
+                acc.cdn++;
+              else acc.unknown++;
+              return acc;
+            },
+            { r2: 0, cdn: 0, unknown: 0 },
+          );
 
           console.log(`[Frontend] 📥 Search results received`, {
             platform,
@@ -613,17 +624,13 @@ export default function Search() {
 
         // 초기 큐 크기 저장
         const initialQueueSize = data.totalQueueSize || data.queueSize;
+        cancelledJobIdRef.current = null; // 새 검색 시작 시 취소 플래그 초기화
 
         // ========== 타임아웃 타이머 시작 (추가) ==========
 
         warningTimeoutRef.current = setTimeout(() => {
           if (isLoading) {
-            addToast(
-              "info",
-              "검색이 오래 걸리고 있습니다.\n30초 후 자동으로 취소됩니다.",
-              "⏳ 잠시만요",
-              5000
-            );
+            addToast("info", "검색이 오래 걸리고 있습니다.\n30초 후 자동으로 취소됩니다.", "⏳ 잠시만요", 5000);
           }
         }, SEARCH_TIMING.warningTimeoutMs);
 
@@ -642,6 +649,9 @@ export default function Search() {
             if (!statusRes.ok) return;
 
             const statusData = await statusRes.json();
+
+            // 취소한 job이면 응답 무시 (나중에 도착한 "completed"로 검색 완료 처리하지 않음)
+            if (cancelledJobIdRef.current === data.jobId) return;
 
             // 실시간 상태 업데이트
             if (statusData.status && statusData.queuePosition !== undefined) {
@@ -664,14 +674,19 @@ export default function Search() {
               clearInterval(pollInterval);
 
               if (statusData.data && statusData.data.length > 0) {
-                const urlStats = statusData.data.reduce((acc: any, video: Video) => {
-                  const raw = video.thumbnail;
-                  const thumbnailUrl = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && 'url' in raw ? (raw as { url: string }).url : '');
-                  if (thumbnailUrl.includes('.r2.dev')) acc.r2++;
-                  else if (thumbnailUrl.includes('tiktokcdn') || thumbnailUrl.includes('douyinpic') || thumbnailUrl.includes('xhscdn')) acc.cdn++;
-                  else acc.unknown++;
-                  return acc;
-                }, { r2: 0, cdn: 0, unknown: 0 });
+                const urlStats = statusData.data.reduce(
+                  (acc: any, video: Video) => {
+                    const raw = video.thumbnail;
+                    const thumbnailUrl =
+                      typeof raw === "string" ? raw : raw && typeof raw === "object" && "url" in raw ? (raw as { url: string }).url : "";
+                    if (thumbnailUrl.includes(".r2.dev")) acc.r2++;
+                    else if (thumbnailUrl.includes("tiktokcdn") || thumbnailUrl.includes("douyinpic") || thumbnailUrl.includes("xhscdn"))
+                      acc.cdn++;
+                    else acc.unknown++;
+                    return acc;
+                  },
+                  { r2: 0, cdn: 0, unknown: 0 },
+                );
 
                 console.log(`[Frontend] 📥 Search results received (via polling)`, {
                   platform,
@@ -758,16 +773,7 @@ export default function Search() {
       }
       setIsLoading(false);
     }
-  }, [
-    searchInput,
-    platform,
-    targetLanguage,
-    searchHistory,
-    filters.uploadPeriod,
-    addToast,
-    clearSearchTimeout,
-    handleAutoTimeout
-  ]);
+  }, [searchInput, platform, targetLanguage, searchHistory, filters.uploadPeriod, addToast, clearSearchTimeout, handleAutoTimeout]);
 
   const debouncedSearch = useCallback(() => {
     if (searchTimeoutRef.current) {
@@ -850,7 +856,7 @@ export default function Search() {
         setIsDownloading(false);
       }
     },
-    [addToast, platform]
+    [addToast, platform],
   );
 
   const handleExcelDownload = () => {
@@ -915,11 +921,7 @@ export default function Search() {
   };
 
   // 🆕 링크 갱신 트리거 및 완료 대기 (CDN URL 만료 시 자동 갱신)
-  const handleRecrawl = async (
-    query: string,
-    platform: Platform,
-    dateRange: string
-  ): Promise<{ success: boolean; videos?: Video[] }> => {
+  const handleRecrawl = async (query: string, platform: Platform, dateRange: string): Promise<{ success: boolean; videos?: Video[] }> => {
     try {
       console.log("[Refresh] Starting refresh for:", query, platform, dateRange);
       addToast("info", "링크를 갱신하는 중입니다...", "⏳ 잠시만 기다려주세요", 5000);
@@ -943,7 +945,7 @@ export default function Search() {
       console.log("[Refresh] Job started:", jobId);
 
       // Job 상태 폴링 (최대 30초 - Railway 타임아웃 120초 고려)
-      const maxAttempts = 15;  // 2초 × 15 = 30초
+      const maxAttempts = 15; // 2초 × 15 = 30초
       let attempt = 0;
 
       while (attempt < maxAttempts) {
@@ -952,10 +954,7 @@ export default function Search() {
         const statusRes = await fetch(`/api/search/${jobId}`);
         const statusData = await statusRes.json();
 
-        console.log(
-          `[Refresh] Poll attempt ${attempt + 1}/${maxAttempts}, status:`,
-          statusData.status
-        );
+        console.log(`[Refresh] Poll attempt ${attempt + 1}/${maxAttempts}, status:`, statusData.status);
 
         if (statusData.status === "completed") {
           console.log("[Refresh] ✅ Completed");
@@ -978,12 +977,7 @@ export default function Search() {
 
         if (statusData.status === "failed") {
           console.error("[Refresh] Failed:", statusData.error);
-          addToast(
-            "error",
-            statusData.error || "데이터를 가져오는데 실패했습니다",
-            "❌ 실패",
-            5000
-          );
+          addToast("error", statusData.error || "데이터를 가져오는데 실패했습니다", "❌ 실패", 5000);
           return { success: false };
         }
 
@@ -992,12 +986,7 @@ export default function Search() {
 
       // 타임아웃
       console.warn("[Refresh] Timeout after 30 seconds");
-      addToast(
-        "warning",
-        "서버가 느리게 응답하고 있습니다. 잠시 후 다시 시도해주세요.",
-        "⏱️ 타임아웃",
-        5000
-      );
+      addToast("warning", "서버가 느리게 응답하고 있습니다. 잠시 후 다시 시도해주세요.", "⏱️ 타임아웃", 5000);
       return { success: false };
     } catch (error) {
       console.error("[Refresh] Error:", error);
@@ -1007,12 +996,12 @@ export default function Search() {
     }
   };
 
-  // 영상 페이지로 이동
-  const handleOpenVideo = (video: Video) => {
+  // 영상으로 이동: 바로 해당 URL로 새 탭 열기
+  const handleOpenVideo = useCallback((video: Video) => {
     if (video.webVideoUrl) {
-      window.open(video.webVideoUrl, "_blank");
+      window.open(video.webVideoUrl, "_blank", "noopener,noreferrer");
     }
-  };
+  }, []);
 
   // 영상 다운로드 (클립보드 복사 + 외부 다운로더 열기)
   const handleDownloadVideo = async (video: Video) => {
@@ -1048,27 +1037,17 @@ export default function Search() {
           const cacheKey = `${platform}:${searchInput}:${filters.uploadPeriod}`;
           const lastRecrawlTime = recrawlCooldownRef.current.get(cacheKey);
           const now = Date.now();
-          const COOLDOWN_MS = 1 * 60 * 1000;  // 1분 (갱신 완료 후 중복 방지용)
+          const COOLDOWN_MS = 1 * 60 * 1000; // 1분 (갱신 완료 후 중복 방지용)
 
-          if (lastRecrawlTime && (now - lastRecrawlTime) < COOLDOWN_MS) {
+          if (lastRecrawlTime && now - lastRecrawlTime < COOLDOWN_MS) {
             const waitSeconds = Math.ceil((COOLDOWN_MS - (now - lastRecrawlTime)) / 1000);
             console.log(`[Download] Refresh cooldown active, wait ${waitSeconds}s more`);
-            addToast(
-              "warning",
-              `방금 링크 갱신을 시도했습니다. ${waitSeconds}초 후 다시 시도해주세요.`,
-              "⏳ 재시도 필요",
-              5000
-            );
+            addToast("warning", `방금 링크 갱신을 시도했습니다. ${waitSeconds}초 후 다시 시도해주세요.`, "⏳ 재시도 필요", 5000);
             setDownloadingVideoId(null);
             return;
           }
 
-          addToast(
-            "info",
-            "링크가 만료되어 최신 링크로 갱신 중입니다.",
-            "🔄 링크 갱신",
-            4000
-          );
+          addToast("info", "링크가 만료되어 최신 링크로 갱신 중입니다.", "🔄 링크 갱신", 4000);
 
           // 링크 갱신 실행 (현재 검색어와 필터 사용)
           // ⚠️ 중요: setDownloadingVideoId(null) 하지 않음 (즉시 재시도 가능하게)
@@ -1079,23 +1058,18 @@ export default function Search() {
             console.log("[Download] DEBUG: Video matching info:", {
               originalVideoId: video.id,
               freshVideosCount: result.videos.length,
-              freshVideoIds: result.videos.slice(0, 3).map(v => v.id),
-              idMatch: result.videos.some(v => v.id === video.id),
+              freshVideoIds: result.videos.slice(0, 3).map((v) => v.id),
+              idMatch: result.videos.some((v) => v.id === video.id),
             });
 
             // ✅ ID로 새 결과에서 같은 비디오 찾기
-            const freshVideo = result.videos.find(v => v.id === video.id);
+            const freshVideo = result.videos.find((v) => v.id === video.id);
 
             if (freshVideo) {
               console.log("[Download] Fresh video found, retrying with new URL");
               recrawlCooldownRef.current.set(cacheKey, Date.now());
 
-              addToast(
-                "info",
-                "최신 링크로 다시 다운로드를 시도합니다...",
-                "🔄 다시 시도",
-                2000
-              );
+              addToast("info", "최신 링크로 다시 다운로드를 시도합니다...", "🔄 다시 시도", 2000);
 
               setDownloadingVideoId(null);
               await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -1104,24 +1078,14 @@ export default function Search() {
               return handleDownloadVideo(freshVideo);
             } else {
               console.warn("[Download] Video not found in fresh results");
-              addToast(
-                "warning",
-                "링크 갱신 후 해당 영상을 찾을 수 없습니다.",
-                "⚠️ 경고",
-                5000
-              );
+              addToast("warning", "링크 갱신 후 해당 영상을 찾을 수 없습니다.", "⚠️ 경고", 5000);
             }
           } else {
             // 링크 갱신 실패: cooldown 무효화 (더 빨리 재시도 가능하게)
             recrawlCooldownRef.current.delete(cacheKey);
 
             console.error("[Download] Refresh failed");
-            addToast(
-              "error",
-              "링크를 갱신하지 못했습니다. 잠시 후 다시 시도해주세요.",
-              "❌ 링크 갱신 실패",
-              5000
-            );
+            addToast("error", "링크를 갱신하지 못했습니다. 잠시 후 다시 시도해주세요.", "❌ 링크 갱신 실패", 5000);
           }
         } else {
           throw new Error("영상을 불러올 수 없습니다.");
@@ -1131,11 +1095,6 @@ export default function Search() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        if (errorData.openInBrowser && errorData.webVideoUrl) {
-          window.open(errorData.webVideoUrl, "_blank");
-          addToast("info", "브라우저에서 보기만 지원됩니다.", "ℹ️ 안내", 3000);
-          return;
-        }
         throw new Error(errorData.error || "다운로드 실패");
       }
 
@@ -1146,7 +1105,7 @@ export default function Search() {
       link.href = url;
 
       // 플랫폼별 파일명 설정
-      const filePrefix = platform === "douyin" ? "douyin" : platform === "xiaohongshu" ? "xiaohongshu" : "tiktok";
+      const filePrefix = platform === "douyin" ? "douyin" : "tiktok";
       link.download = `${filePrefix}_${video.id}.mp4`;
 
       document.body.appendChild(link);
@@ -1167,8 +1126,8 @@ export default function Search() {
 
   // 자막 추출 핸들러 (Whisper AI 사용)
   const handleExtractSubtitles = async (video: Video) => {
-    if (platform !== 'tiktok' && platform !== 'douyin' && platform !== 'xiaohongshu') {
-      addToast("info", "자막 추출은 TikTok, Douyin, 레드노트만 지원합니다.", "ℹ️ 안내");
+    if (platform !== "tiktok" && platform !== "douyin") {
+      addToast("info", "자막 추출은 TikTok, Douyin만 지원합니다.", "ℹ️ 안내");
       return;
     }
 
@@ -1203,17 +1162,12 @@ export default function Search() {
           const cacheKey = `${platform}:${searchInput}:${filters.uploadPeriod}`;
           const lastRecrawlTime = recrawlCooldownRef.current.get(cacheKey);
           const now = Date.now();
-          const COOLDOWN_MS = 5 * 60 * 1000;  // 5분
+          const COOLDOWN_MS = 5 * 60 * 1000; // 5분
 
-          if (lastRecrawlTime && (now - lastRecrawlTime) < COOLDOWN_MS) {
+          if (lastRecrawlTime && now - lastRecrawlTime < COOLDOWN_MS) {
             const waitSeconds = Math.ceil((COOLDOWN_MS - (now - lastRecrawlTime)) / 1000);
             console.log(`[ExtractSubtitles] Refresh cooldown active, wait ${waitSeconds}s more`);
-            addToast(
-              "warning",
-              `방금 링크 갱신을 시도했습니다. ${waitSeconds}초 후 다시 시도해주세요.`,
-              "⏳ 재시도 필요",
-              5000
-            );
+            addToast("warning", `방금 링크 갱신을 시도했습니다. ${waitSeconds}초 후 다시 시도해주세요.`, "⏳ 재시도 필요", 5000);
             setExtractingSubtitleId(null);
             return;
           }
@@ -1221,12 +1175,7 @@ export default function Search() {
           // Cooldown 시간 기록
           recrawlCooldownRef.current.set(cacheKey, now);
 
-          addToast(
-            "info",
-            "링크가 만료되어 최신 링크로 갱신 중입니다.",
-            "🔄 링크 갱신",
-            4000
-          );
+          addToast("info", "링크가 만료되어 최신 링크로 갱신 중입니다.", "🔄 링크 갱신", 4000);
 
           const result = await handleRecrawl(searchInput, platform, filters.uploadPeriod);
 
@@ -1234,17 +1183,12 @@ export default function Search() {
             console.log("[ExtractSubtitles] Refresh completed, searching for fresh video data...");
 
             // ✅ ID로 새 결과에서 같은 비디오 찾기
-            const freshVideo = result.videos.find(v => v.id === video.id);
+            const freshVideo = result.videos.find((v) => v.id === video.id);
 
             if (freshVideo) {
               console.log("[ExtractSubtitles] Fresh video found, retrying with new URL");
 
-              addToast(
-                "info",
-                "최신 링크로 다시 자막 추출을 시도합니다...",
-                "🔄 다시 시도",
-                2000
-              );
+              addToast("info", "최신 링크로 다시 자막 추출을 시도합니다...", "🔄 다시 시도", 2000);
 
               setExtractingSubtitleId(null);
               await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -1253,22 +1197,12 @@ export default function Search() {
               return handleExtractSubtitles(freshVideo);
             } else {
               console.warn("[ExtractSubtitles] Video not found in fresh results");
-              addToast(
-                "warning",
-                "링크 갱신 후 해당 영상을 찾을 수 없습니다.",
-                "⚠️ 경고",
-                5000
-              );
+              addToast("warning", "링크 갱신 후 해당 영상을 찾을 수 없습니다.", "⚠️ 경고", 5000);
             }
           } else {
             // 링크 갱신 실패
             console.error("[ExtractSubtitles] Refresh failed");
-            addToast(
-              "error",
-              "링크를 갱신하지 못했습니다. 잠시 후 다시 시도해주세요.",
-              "❌ 링크 갱신 실패",
-              5000
-            );
+            addToast("error", "링크를 갱신하지 못했습니다. 잠시 후 다시 시도해주세요.", "❌ 링크 갱신 실패", 5000);
           }
         } else {
           throw new Error("영상을 불러올 수 없습니다.");
@@ -1286,7 +1220,7 @@ export default function Search() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      const filePrefix = platform === 'douyin' ? 'douyin' : platform === 'xiaohongshu' ? 'xiaohongshu' : 'tiktok';
+      const filePrefix = platform === "douyin" ? "douyin" : "tiktok";
       link.download = `${filePrefix}_${video.id}_subtitles.txt`;
       document.body.appendChild(link);
       link.click();
@@ -1564,18 +1498,6 @@ export default function Search() {
                   <span className="platform-icon">🐉</span>
                   <span className="platform-name">Douyin</span>
                 </label>
-                <label className={`platform-option ${platform === "xiaohongshu" ? "active" : ""}`} onClick={() => setPlatform("xiaohongshu")}>
-                  <input
-                    type="radio"
-                    name="platform"
-                    value="xiaohongshu"
-                    checked={platform === "xiaohongshu"}
-                    onChange={() => setPlatform("xiaohongshu")}
-                    style={{ display: "none" }}
-                  />
-                  <span className="platform-icon">📕</span>
-                  <span className="platform-name">Xiaohongshu</span>
-                </label>
               </div>
             </div>
 
@@ -1627,31 +1549,18 @@ export default function Search() {
                   fontSize: "12px",
                   marginTop: "6px",
                   padding: "8px 10px",
-                  backgroundColor:
-                    (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh"
-                      ? "rgba(0, 229, 115, 0.1)"
-                      : "transparent",
-                  border:
-                    (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh"
-                      ? "1px solid rgba(0, 229, 115, 0.2)"
-                      : "none",
+                  backgroundColor: platform === "douyin" && targetLanguage !== "zh" ? "rgba(0, 229, 115, 0.1)" : "transparent",
+                  border: platform === "douyin" && targetLanguage !== "zh" ? "1px solid rgba(0, 229, 115, 0.2)" : "none",
                   borderRadius: "4px",
                   minHeight: "32px",
-                  opacity: (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" ? 1 : 0,
+                  opacity: platform === "douyin" && targetLanguage !== "zh" ? 1 : 0,
                   transition: "opacity 0.2s ease, background-color 0.2s ease",
                   display: "flex",
                   alignItems: "center",
                 }}
               >
                 {platform === "douyin" && targetLanguage !== "zh" && (
-                  <span style={{ color: "#00E573", fontWeight: "600" }}>
-                    💡 팁: Douyin은 중국어 검색이 더 정확합니다
-                  </span>
-                )}
-                {platform === "xiaohongshu" && targetLanguage !== "zh" && (
-                  <span style={{ color: "#00E573", fontWeight: "600" }}>
-                    💡 팁: Xiaohongshu는 중국어 검색이 더 정확합니다
-                  </span>
+                  <span style={{ color: "#00E573", fontWeight: "600" }}>💡 팁: Douyin은 중국어 검색이 더 정확합니다</span>
                 )}
               </div>
             </div>
@@ -1703,34 +1612,32 @@ export default function Search() {
                   />
                 </div>
 
-                {platform !== "xiaohongshu" && (
+                <div
+                  style={{
+                    background: "linear-gradient(135deg, rgba(37, 37, 48, 0.6) 0%, rgba(26, 26, 36, 0.6) 100%)",
+                    borderRadius: "8px",
+                    padding: "10px 8px",
+                    border: "1px solid rgba(255, 255, 255, 0.08)",
+                  }}
+                >
                   <div
                     style={{
-                      background: "linear-gradient(135deg, rgba(37, 37, 48, 0.6) 0%, rgba(26, 26, 36, 0.6) 100%)",
-                      borderRadius: "8px",
-                      padding: "10px 8px",
-                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                      fontSize: "11px",
+                      fontWeight: "600",
+                      color: "rgba(255, 255, 255, 0.75)",
+                      marginBottom: "6px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.4px",
                     }}
                   >
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: "600",
-                        color: "rgba(255, 255, 255, 0.75)",
-                        marginBottom: "6px",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.4px",
-                      }}
-                    >
-                      기간
-                    </div>
-                    <PeriodFilter
-                      value={filters.uploadPeriod}
-                      onChange={(value) => setFilters({ ...filters, uploadPeriod: value })}
-                      platform={platform}
-                    />
+                    기간
                   </div>
-                )}
+                  <PeriodFilter
+                    value={filters.uploadPeriod}
+                    onChange={(value) => setFilters({ ...filters, uploadPeriod: value })}
+                    platform={platform}
+                  />
+                </div>
 
                 <div
                   style={{
@@ -1898,11 +1805,6 @@ export default function Search() {
               <>
                 <div style={{ width: "100%" }}>
                   <div className="results-count">총 {results.length}개의 영상</div>
-                  {platform === "xiaohongshu" && results.length <= 3 && results.length > 0 && (
-                    <p style={{ fontSize: "12px", color: "#999", marginTop: "4px", marginBottom: "0" }}>
-                      💡 결과가 적을 때: 검색어를 중국어로 넣거나 더 넓은 키워드(예: 护肤, 美妆)로 다시 검색해 보세요.
-                    </p>
-                  )}
                   {viewMode === "card" ? (
                     <div className="results-grid">
                       {(results as Video[]).map((video) => (
@@ -1927,30 +1829,31 @@ export default function Search() {
                               <div className="card-thumbnail-fallback">🎬</div>
                             )}
 
-                            {/* 비디오 미리보기: URL 있으면 재생 (TikTok만, key로 URL 변경 시 재마운트) */}
-                            {platform !== "xiaohongshu" && playingVideoId === video.id && video.videoUrl && (
-                              <video
-                                key={video.videoUrl || video.id}
-                                className="card-video-preview"
-                                src={video.videoUrl}
-                                autoPlay
-                                muted
-                                loop
-                                playsInline
-                                preload="auto"
-                              />
-                            )}
-                            {platform !== "xiaohongshu" && loadingPreviewId === video.id && (
+                            {/* 비디오 미리보기 - TikTok만 지원 (Douyin 미지원) */}
+                            {platform === "tiktok" &&
+                              (hoveredVideoId === video.id || playingVideoId === video.id) &&
+                              (video.videoUrl || previewVideoUrls[video.id]) && (
+                                <video
+                                  key={video.videoUrl || previewVideoUrls[video.id] || video.id}
+                                  className="card-video-preview"
+                                  src={video.videoUrl || previewVideoUrls[video.id]}
+                                  autoPlay
+                                  muted
+                                  loop
+                                  playsInline
+                                  preload="auto"
+                                  {...({ referrerPolicy: "no-referrer" } as React.ComponentProps<"video">)}
+                                />
+                              )}
+                            {platform === "tiktok" && loadingPreviewId === video.id && (
                               <div className="card-preview-loading">
                                 <Loader className="card-action-icon animate-spin" style={{ width: 32, height: 32 }} />
                                 <span>미리보기 로딩...</span>
                               </div>
                             )}
 
-                            {/* Duration 뱃지 - 왼쪽 상단 (레드노트는 0일 수 있음) */}
-                            {platform !== "xiaohongshu" && (
-                              <div className="card-duration-badge">{formatVideoDuration(video.videoDuration)}</div>
-                            )}
+                            {/* Duration 뱃지 - 왼쪽 상단 */}
+                            <div className="card-duration-badge">{formatVideoDuration(video.videoDuration)}</div>
 
                             {/* Date 뱃지 - 오른쪽 상단 */}
                             {video.createTime && <div className="card-date-badge">{getRelativeDateString(new Date(video.createTime))}</div>}
@@ -1990,47 +1893,45 @@ export default function Search() {
                             </div>
 
                             {/* 오른쪽 액션 버튼 */}
-                            <div className="card-actions-vertical">
-                              {/* 다운로드 버튼 */}
+                          </div>
+                          <div className="card-actions-vertical">
+                            {/* 다운로드 버튼 */}
+                            <button
+                              className="card-action-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownloadVideo(video);
+                              }}
+                              disabled={downloadingVideoId === video.id}
+                              title="다운로드"
+                            >
+                              {downloadingVideoId === video.id ? (
+                                <Loader className="card-action-icon animate-spin" />
+                              ) : (
+                                <Download className="card-action-icon" />
+                              )}
+                              <span className="card-action-label">{downloadingVideoId === video.id ? "준비중" : "다운"}</span>
+                            </button>
+
+                            {/* 자막 버튼 - TikTok, Douyin */}
+                            {(platform === "tiktok" || platform === "douyin") && (
                               <button
                                 className="card-action-btn"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDownloadVideo(video);
+                                  handleExtractSubtitles(video);
                                 }}
-                                disabled={downloadingVideoId === video.id}
-                                title="다운로드"
+                                disabled={extractingSubtitleId === video.id}
+                                title="자막 추출"
                               >
-                                {downloadingVideoId === video.id ? (
+                                {extractingSubtitleId === video.id ? (
                                   <Loader className="card-action-icon animate-spin" />
                                 ) : (
-                                  <Download className="card-action-icon" />
+                                  <Subtitles className="card-action-icon" />
                                 )}
-                                <span className="card-action-label">{downloadingVideoId === video.id ? "준비중" : "다운"}</span>
+                                <span className="card-action-label">{extractingSubtitleId === video.id ? "추출중" : "자막"}</span>
                               </button>
-
-                              {/* 자막 버튼 - TikTok, Douyin, Xiaohongshu */}
-                              {(platform === 'tiktok' || platform === 'douyin' || platform === 'xiaohongshu') && (
-                                <button
-                                  className="card-action-btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleExtractSubtitles(video);
-                                  }}
-                                  disabled={extractingSubtitleId === video.id}
-                                  title="자막 추출"
-                                >
-                                  {extractingSubtitleId === video.id ? (
-                                    <Loader className="card-action-icon animate-spin" />
-                                  ) : (
-                                    <Subtitles className="card-action-icon" />
-                                  )}
-                                  <span className="card-action-label">
-                                    {extractingSubtitleId === video.id ? "추출중" : "자막"}
-                                  </span>
-                                </button>
-                              )}
-                            </div>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -2056,15 +1957,28 @@ export default function Search() {
                         <tbody>
                           {(results as Video[]).map((video) => (
                             <tr key={video.id} style={{ fontSize: "12px" }}>
-                              <td
-                                style={{ textAlign: "center", cursor: "pointer" }}
-                                onClick={() => {
-                                  if (video.webVideoUrl) {
-                                    window.open(video.webVideoUrl, "_blank");
-                                  }
-                                }}
-                              >
-                                {getDisplayThumbnail(video, platform) ? (
+                              <td style={{ textAlign: "center", cursor: "pointer" }}>
+                                {video.webVideoUrl ? (
+                                  <a
+                                    href={video.webVideoUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ display: "block" }}
+                                  >
+                                    {getDisplayThumbnail(video, platform) ? (
+                                      <img
+                                        src={getDisplayThumbnail(video, platform)!}
+                                        alt={video.title}
+                                        className="table-thumbnail"
+                                        onError={(e) => handleThumbnailError(video, e)}
+                                        style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "2px" }}
+                                        referrerPolicy="no-referrer"
+                                      />
+                                    ) : (
+                                      <span>🎬</span>
+                                    )}
+                                  </a>
+                                ) : getDisplayThumbnail(video, platform) ? (
                                   <img
                                     src={getDisplayThumbnail(video, platform)!}
                                     alt={video.title}
@@ -2087,7 +2001,7 @@ export default function Search() {
                               <td className="table-number" style={{ fontSize: "11px" }}>
                                 {formatDateWithTime(video.createTime)}
                               </td>
-                              {platform !== "xiaohongshu" && <td className="table-number">{formatVideoDuration(video.videoDuration)}</td>}
+                              <td className="table-number">{formatVideoDuration(video.videoDuration)}</td>
                               <td className="table-number">{video.playCount ? formatNumber(video.playCount) : "제공 안 함"}</td>
                               <td className="table-number">{formatNumber(video.likeCount)}</td>
                               <td className="table-number">{formatNumber(video.commentCount)}</td>
@@ -2170,7 +2084,9 @@ export default function Search() {
                   }}
                 >
                   <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px", color: "#6b6b6b" }}>조회수</div>
-                  <div style={{ fontSize: "20px", fontWeight: "700" }}>{selectedVideo.playCount ? formatNumber(selectedVideo.playCount) : "제공 안 함"}</div>
+                  <div style={{ fontSize: "20px", fontWeight: "700" }}>
+                    {selectedVideo.playCount ? formatNumber(selectedVideo.playCount) : "제공 안 함"}
+                  </div>
                 </div>
                 <div
                   style={{
@@ -2281,7 +2197,7 @@ export default function Search() {
                   boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
                 }}
               >
-                🔗 {platform === "douyin" ? "도우인" : platform === "xiaohongshu" ? "Xiaohongshu" : "TikTok"}에서 열기
+                🔗 {platform === "douyin" ? "도우인" : "TikTok"}에서 열기
               </button>
               <button
                 onClick={() => {
@@ -2307,17 +2223,18 @@ export default function Search() {
                 {selectedVideo && downloadingVideoId === selectedVideo.id ? "⏳ 준비 중..." : "⬇️ 다운로드"}
               </button>
 
-              {/* TikTok, Douyin, Xiaohongshu 자막 추출 버튼 */}
-              {(platform === 'tiktok' || platform === 'douyin' || platform === 'xiaohongshu') && selectedVideo && (
+              {/* TikTok, Douyin 자막 추출 버튼 */}
+              {(platform === "tiktok" || platform === "douyin") && selectedVideo && (
                 <button
                   onClick={() => handleExtractSubtitles(selectedVideo)}
                   disabled={extractingSubtitleId === selectedVideo.id}
                   style={{
                     flex: 1,
                     padding: "10px",
-                    background: extractingSubtitleId === selectedVideo.id
-                      ? "linear-gradient(135deg, #9ca3af 0%, #c0c0c0 100%)"
-                      : "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
+                    background:
+                      extractingSubtitleId === selectedVideo.id
+                        ? "linear-gradient(135deg, #9ca3af 0%, #c0c0c0 100%)"
+                        : "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
                     color: "#ffffff",
                     border: "none",
                     borderRadius: "4px",

@@ -466,7 +466,7 @@
   pointer-events: none;
 }
 
-/* 미리보기 URL 로딩 중 (샤오홍슈 등) */
+/* 미리보기 URL 로딩 중 */
 .card-preview-loading {
   position: absolute;
   inset: 0;

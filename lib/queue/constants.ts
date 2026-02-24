@@ -16,9 +16,6 @@ export const QUEUE_NAME: string =
 /** Maximum number of videos to scrape per search */
 export const MAX_VIDEOS_PER_SEARCH = 100 as const
 
-/** 레드노트(xiaohongshu) 전용: kuaima 액터 최대 100개 */
-export const XIAOHONGSHU_MAX_VIDEOS_PER_SEARCH = 100 as const
-
 /** Default worker concurrency level */
 export const DEFAULT_WORKER_CONCURRENCY = 50 as const
 

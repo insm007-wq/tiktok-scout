@@ -3,7 +3,7 @@ import { fetchPostWithRetry, fetchGetWithRetry } from '@/lib/utils/fetch-with-re
 interface SingleVideoResult {
   videoUrl?: string;
   webVideoUrl?: string;
-  platform: 'tiktok' | 'douyin' | 'xiaohongshu';
+  platform: 'tiktok' | 'douyin';
   error?: string;
 }
 
@@ -13,13 +13,13 @@ interface SingleVideoResult {
  * - Douyin: scrapearchitect/douyin-video-downloader
  *
  * @param webVideoUrl - The web page URL (e.g., https://www.tiktok.com/@user/video/123456)
- * @param platform - The platform (tiktok, douyin, xiaohongshu)
+ * @param platform - The platform (tiktok, douyin)
  * @param apiKey - Apify API key
  * @returns Object with videoUrl (CDN URL) or error
  */
 export async function fetchSingleVideoUrl(
   webVideoUrl: string,
-  platform: 'tiktok' | 'douyin' | 'xiaohongshu',
+  platform: 'tiktok' | 'douyin',
   apiKey: string
 ): Promise<SingleVideoResult> {
   if (!apiKey) {
@@ -29,62 +29,7 @@ export async function fetchSingleVideoUrl(
   try {
     console.log(`[fetchSingleVideoUrl] Fetching ${platform} video from URL:`, webVideoUrl);
 
-    // xiaohongshu: easyapi/rednote-xiaohongshu-video-downloader
-    if (platform === 'xiaohongshu') {
-      const actorId = 'easyapi~rednote-xiaohongshu-video-downloader';
-      const runRes = await fetchPostWithRetry(
-        `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
-        {
-          links: [webVideoUrl.startsWith('http') ? webVideoUrl : `https://www.xiaohongshu.com/explore/${webVideoUrl}`],
-          proxyConfiguration: { useApifyProxy: true, apifyProxyGroups: ['RESIDENTIAL'] },
-        },
-        {},
-        { maxRetries: 3, initialDelayMs: 1000 }
-      );
-      const runData = await runRes.json();
-      if (!runRes.ok) {
-        console.warn(`[fetchSingleVideoUrl] Xiaohongshu download actor failed:`, runRes.status, runData);
-        return { platform, webVideoUrl, error: undefined };
-      }
-      const runId = runData.data?.id;
-      if (!runId) return { platform, webVideoUrl, error: undefined };
-
-      let status = 'RUNNING';
-      let attempt = 0;
-      let firstAttempt = true;
-      while ((status === 'RUNNING' || status === 'READY') && attempt < 120) {
-        if (!firstAttempt) {
-          await new Promise(r => setTimeout(r, Math.min(1000 * Math.pow(1.5, attempt - 1), 5000)));
-        }
-        firstAttempt = false;
-        const statusRes = await fetchGetWithRetry(`https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`, {}, { maxRetries: 2 });
-        const statusData = await statusRes.json();
-        status = statusData.data?.status ?? status;
-        attempt++;
-        if (status === 'SUCCEEDED') break;
-        if (status === 'FAILED' || status === 'ABORTED') return { platform, webVideoUrl, error: undefined };
-      }
-
-      if (status !== 'SUCCEEDED') return { platform, webVideoUrl, error: undefined };
-
-      const datasetRes = await fetch(`https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`);
-      if (!datasetRes.ok) return { platform, webVideoUrl, error: undefined };
-      const dataset = await datasetRes.json();
-      const item = Array.isArray(dataset) && dataset.length > 0 ? dataset[0] : null;
-      const result = item?.result ?? item;
-      const medias = result?.medias;
-      const mp4Url = Array.isArray(medias) && medias.length > 0
-        ? (medias.find((m: any) => m.type === 'video' && m.url) ?? medias[0])?.url
-        : null;
-
-      if (mp4Url && typeof mp4Url === 'string') {
-        console.log(`[fetchSingleVideoUrl] Xiaohongshu: CDN URL from easyapi`);
-        return { videoUrl: mp4Url, webVideoUrl, platform };
-      }
-      return { platform, webVideoUrl, error: undefined };
-    }
-
-    // TikTok: Use epctex download actor
+    // TikTok only: Douyin single-video URL fetch not supported here
     if (platform !== 'tiktok') {
       return { platform, webVideoUrl, error: `${platform}은 단일 영상 URL 조회를 지원하지 않습니다.` };
     }

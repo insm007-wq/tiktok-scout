@@ -57,43 +57,29 @@ export async function POST(req: NextRequest) {
         const result = await fetchSingleVideoUrl(webVideoUrl, platform as any, apiKey);
         console.log('[Download] 📥 fetchSingleVideoUrl result:', JSON.stringify(result));
 
-        if (result.error && platform !== 'xiaohongshu') {
+        if (result.error) {
           console.error(`[Download] ❌ fetchSingleVideoUrl returned error:`, result.error);
           throw new Error(result.error);
         }
 
         if (result.videoUrl) {
           finalVideoUrl = result.videoUrl;
-        } else if (platform !== 'xiaohongshu') {
+        } else {
           throw new Error('Could not extract video URL from page');
         }
-        console.log(`[Download] ✅ ${platform} video URL extracted successfully:`, finalVideoUrl.substring(0, 100));
+
+        if (finalVideoUrl) {
+          console.log(`[Download] ✅ ${platform} video URL extracted successfully:`, finalVideoUrl.substring(0, 100));
+        }
 
       } catch (error) {
-        if (platform === 'xiaohongshu' && webVideoUrl) {
-          // 레드노트: fetch 실패 시 브라우저에서 열기
-          finalVideoUrl = undefined;
-        } else {
-          console.error(`[Download] ❌ ${platform} video URL fetch failed:`, error);
-          throw new Error(
-            error instanceof Error
-              ? error.message
-              : `${platform} URL에서 영상을 가져올 수 없습니다. 올바른 공개 영상 URL인지 확인해주세요.`
-          );
-        }
+        console.error(`[Download] ❌ ${platform} video URL fetch failed:`, error);
+        throw new Error(
+          error instanceof Error
+            ? error.message
+            : `${platform} URL에서 영상을 가져올 수 없습니다. 올바른 공개 영상 URL인지 확인해주세요.`
+        );
       }
-    }
-
-    // Xiaohongshu: CDN URL 없으면 브라우저에서 열기
-    if (platform === 'xiaohongshu' && (!finalVideoUrl || finalVideoUrl.includes('xiaohongshu.com'))) {
-      return NextResponse.json(
-        {
-          error: '레드노트는 브라우저에서 보기만 지원됩니다.',
-          webVideoUrl: webVideoUrl || finalVideoUrl,
-          openInBrowser: true,
-        },
-        { status: 400 }
-      );
     }
 
     if (!finalVideoUrl) {
@@ -107,7 +93,6 @@ export async function POST(req: NextRequest) {
     const refererMap: Record<string, string> = {
       'tiktok': 'https://www.tiktok.com/',
       'douyin': 'https://www.douyin.com/',
-      'xiaohongshu': 'https://www.xiaohongshu.com/',
     };
 
     // 비디오 URL에서 파일 fetch
@@ -124,8 +109,7 @@ export async function POST(req: NextRequest) {
       // ✅ NEW: CDN URL 재시도 (query parameter 제거)
       if (finalVideoUrl.includes('?')) {
         const isCDN = finalVideoUrl.includes('tiktokcdn') ||
-                      finalVideoUrl.includes('douyinpic') ||
-                      finalVideoUrl.includes('xhscdn');
+                      finalVideoUrl.includes('douyinpic');
 
         if (isCDN) {
           console.warn('[Download] ⚠️ Retrying without query parameters...');
@@ -195,8 +179,7 @@ export async function POST(req: NextRequest) {
     console.log('[Download] Video file size:', buffer.byteLength, 'bytes');
 
     // 파일명 생성 (플랫폼별)
-    const filePrefix = platform === 'douyin' ? 'douyin' :
-                       platform === 'xiaohongshu' ? 'xiaohongshu' : 'tiktok';
+    const filePrefix = platform === 'douyin' ? 'douyin' : 'tiktok';
     const fileName = `${filePrefix}_${videoId}.mp4`;
 
     // 다운로드 응답 반환

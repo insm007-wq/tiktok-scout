@@ -51,7 +51,7 @@ export default function TermsPage() {
                 <p className="font-semibold text-white mb-1">1-3 정의</p>
                 <div className="text-white/80 ml-4 space-y-1">
                   <p>
-                    <strong>"서비스":</strong> TikTok, Douyin, 샤오홍슈 등 동영상 플랫폼의 영상 검색 및 분석 기능
+                    <strong>"서비스":</strong> TikTok, Douyin 등 동영상 플랫폼의 영상 검색 및 분석 기능
                   </p>
                   <p>
                     <strong>"이용자":</strong> 본 약관에 동의하고 서비스를 이용하는 개인

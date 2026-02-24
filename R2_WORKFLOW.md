@@ -332,7 +332,7 @@ npm run r2:clean
 ### 유지됨 ✅
 
 ```
-✅ lib/scrapers/douyin.ts, tiktok.ts, xiaohongshu.ts
+✅ lib/scrapers/douyin.ts, tiktok.ts
    - CDN URL 직접 사용 (R2 제거 완료)
 
 ✅ lib/cache.ts 모든 주요 함수

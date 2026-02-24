@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchSingleVideoUrl } from '@/lib/utils/fetch-single-video-url';
 import { auth } from '@/lib/auth';
 
 /**
  * 미리보기용 비디오 URL만 조회 (다운로드 X, 할당량 차감 X)
+ * 현재 미지원 — 필요 시 TikTok/Douyin용으로 확장 가능
  */
 export async function POST(req: NextRequest) {
   try {
@@ -20,43 +20,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 미리보기 URL 조회는 앱 내 embed 미지원 (레드노트는 webVideoUrl로 새 탭 열기)
-    if (platform !== 'xiaohongshu') {
-      return NextResponse.json(
-        { error: '현재 미리보기 URL 조회를 지원하지 않습니다.' },
-        { status: 400 }
-      );
-    }
-
-    const apiKey = process.env.APIFY_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'APIFY_API_KEY가 설정되지 않았습니다.' },
-        { status: 500 }
-      );
-    }
-
-    const result = await fetchSingleVideoUrl(
-      webVideoUrl,
-      platform as 'tiktok' | 'douyin' | 'xiaohongshu',
-      apiKey
+    return NextResponse.json(
+      { error: '현재 미리보기 URL 조회를 지원하지 않습니다.' },
+      { status: 400 }
     );
-
-    if (result.error) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: 400 }
-      );
-    }
-
-    if (!result.videoUrl) {
-      return NextResponse.json(
-        { error: '영상 URL을 가져올 수 없습니다.' },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json({ videoUrl: result.videoUrl });
   } catch (error) {
     console.error('[video-preview-url]', error);
     return NextResponse.json(

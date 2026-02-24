@@ -35,15 +35,6 @@ export default function HomeContent() {
       description: "중국 시장의 모든 것",
       features: ["중국 트렌드 발굴", "한중 번역 지원", "로컬 인사이트"],
     },
-    {
-      id: 2,
-      platform: "레드노트",
-      icon: "📕",
-      gradient: "from-[#FE2C55] to-[#FF6B35]",
-      title: "레드노트",
-      description: "샤오홍슈 영상 검색",
-      features: ["키워드 검색", "조회수·메타데이터", "이미지·영상 분석"],
-    },
   ];
 
   return (
@@ -58,7 +49,6 @@ export default function HomeContent() {
       <div className={styles.platformWatermarks}>
         <div className={`${styles.platformLogo} ${styles.tiktokLogo}`}></div>
         <div className={`${styles.platformLogo} ${styles.douyinLogo}`}></div>
-        <div className={`${styles.platformLogo} ${styles.xiaohongshuLogo}`}></div>
       </div>
 
       {/* 메인 콘텐츠 */}
@@ -80,12 +70,12 @@ export default function HomeContent() {
         {/* 히어로 섹션 */}
         <div className={styles.heroSection}>
           <h2 className={styles.heroTitle}>숏폼의 모든 것을 한눈에</h2>
-          <p className={styles.heroSubtitle}>TikTok · Douyin · 샤오홍슈 | 3개 플랫폼, 무한한 인사이트</p>
+          <p className={styles.heroSubtitle}>TikTok · Douyin | 2개 플랫폼, 무한한 인사이트</p>
 
           {/* 통계 하이라이트 */}
           <div className={styles.statsHighlight}>
             <span className={styles.statItem}>
-              <span className={styles.neonText}>3</span> 플랫폼
+              <span className={styles.neonText}>2</span> 플랫폼
             </span>
             <span className={styles.divider}>•</span>
             <span className={styles.statItem}>

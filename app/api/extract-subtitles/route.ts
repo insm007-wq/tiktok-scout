@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchWithRetry } from '@/lib/utils/fetch-with-retry';
 import { auth } from '@/lib/auth';
 import { checkApiUsage, incrementApiUsage } from '@/lib/apiUsage';
-import { fetchSingleVideoUrl } from '@/lib/utils/fetch-single-video-url';
 
 // SRT를 순수 텍스트로 변환 (시간, 씬 번호 제거)
 function parseSrtToText(srtContent: string): string {
@@ -53,29 +52,18 @@ export async function POST(req: NextRequest) {
 
     const { videoUrl, videoId, platform = 'tiktok', webVideoUrl, format = 'text' } = await req.json();
 
-    if (platform !== 'tiktok' && platform !== 'douyin' && platform !== 'xiaohongshu') {
+    if (platform !== 'tiktok' && platform !== 'douyin') {
       return NextResponse.json(
         { error: `${platform}은(는) 자막 추출을 지원하지 않습니다.` },
         { status: 400 }
       );
     }
 
-    let finalVideoUrl = videoUrl;
-
-    // xiaohongshu: videoUrl 없으면 fetchSingleVideoUrl 시도 (다운로드 액터 설정 시)
-    if (platform === 'xiaohongshu' && !finalVideoUrl && webVideoUrl) {
-      const apiKey = process.env.APIFY_API_KEY;
-      if (apiKey) {
-        const result = await fetchSingleVideoUrl(webVideoUrl, 'xiaohongshu', apiKey);
-        if (!result.error && result.videoUrl && !result.videoUrl.includes('xiaohongshu.com')) {
-          finalVideoUrl = result.videoUrl;
-        }
-      }
-    }
+    const finalVideoUrl = videoUrl;
 
     if (!finalVideoUrl) {
       return NextResponse.json(
-        { error: '비디오 URL이 필요합니다. (레드노트는 검색 결과에 videoUrl이 없을 수 있습니다)' },
+        { error: '비디오 URL이 필요합니다.' },
         { status: 400 }
       );
     }
@@ -86,7 +74,6 @@ export async function POST(req: NextRequest) {
     const refererMap: Record<string, string> = {
       'tiktok': 'https://www.tiktok.com/',
       'douyin': 'https://www.douyin.com/',
-      'xiaohongshu': 'https://www.xiaohongshu.com/',
     };
 
     // 비디오 다운로드
@@ -254,7 +241,7 @@ export async function POST(req: NextRequest) {
     console.log('[ExtractSubtitles] ✅ Subtitle extraction successful');
 
     // 포맷에 따라 변환
-    const filePrefix = platform === 'douyin' ? 'douyin' : platform === 'xiaohongshu' ? 'xiaohongshu' : 'tiktok';
+    const filePrefix = platform === 'douyin' ? 'douyin' : 'tiktok';
     let content = srtContent;
     let fileName = `${filePrefix}_${videoId}_subtitles.srt`;
     let fileExt = 'srt';

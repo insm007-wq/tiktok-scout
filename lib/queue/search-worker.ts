@@ -3,7 +3,6 @@ import { SearchJobData } from './search-queue'
 import { redisConnection } from './redis'
 import { searchTikTokVideos } from '@/lib/scrapers/tiktok'
 import { searchDouyinVideosParallel } from '@/lib/scrapers/douyin'
-import { searchXiaohongshuVideosParallel } from '@/lib/scrapers/xiaohongshu'
 import { setVideoToCache } from '@/lib/cache'
 import {
   DEFAULT_WORKER_CONCURRENCY,
@@ -12,7 +11,6 @@ import {
   STALLED_INTERVAL,
   MAX_STALLED_COUNT,
   MAX_VIDEOS_PER_SEARCH,
-  XIAOHONGSHU_MAX_VIDEOS_PER_SEARCH,
   RATE_LIMITER_MAX,
   RATE_LIMITER_DURATION,
   QUEUE_NAME,
@@ -82,13 +80,24 @@ const worker = new Worker<SearchJobData>(
 
       switch (platform) {
         case 'tiktok':
-          videos = await searchTikTokVideos(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
+          videos = await searchTikTokVideos(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange, {
+            onRunStarted: (runId) => {
+              job.updateData({ ...job.data, apifyRunId: runId } as any).catch(() => {})
+            },
+            onProgress: (percent) => {
+              job.updateProgress(percent).catch(() => {})
+            },
+          })
           break
         case 'douyin':
-          videos = await searchDouyinVideosParallel(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
-          break
-        case 'xiaohongshu':
-          videos = await searchXiaohongshuVideosParallel(query, XIAOHONGSHU_MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange)
+          videos = await searchDouyinVideosParallel(query, MAX_VIDEOS_PER_SEARCH, APIFY_KEY, dateRange, {
+            onRunStarted: (runIds) => {
+              job.updateData({ ...job.data, apifyRunIds: runIds } as any).catch(() => {})
+            },
+            onProgress: (percent) => {
+              job.updateProgress(percent).catch(() => {})
+            },
+          })
           break
         default:
           throw new Error(`Unknown platform: ${platform}`)

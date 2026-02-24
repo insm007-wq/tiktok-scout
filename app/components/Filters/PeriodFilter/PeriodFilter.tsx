@@ -1,6 +1,6 @@
 'use client'
 
-type Platform = 'tiktok' | 'douyin' | 'xiaohongshu'
+type Platform = 'tiktok' | 'douyin'
 
 interface PeriodFilterProps {
   value: string
@@ -13,15 +13,6 @@ const getPeriodOptions = (platform?: Platform) => {
   switch (platform) {
     case 'douyin':
       // Douyin: all, last_day, last_week, last_half_year
-      return [
-        { value: 'all', label: '전체' },
-        { value: 'yesterday', label: '어제' },
-        { value: '7days', label: '1주일' },
-        { value: '6months', label: '6개월' },
-      ]
-
-    case 'xiaohongshu':
-      // 레드노트: kuaima filter 最新/最热 (날짜는 액터가 제한적 지원)
       return [
         { value: 'all', label: '전체' },
         { value: 'yesterday', label: '어제' },

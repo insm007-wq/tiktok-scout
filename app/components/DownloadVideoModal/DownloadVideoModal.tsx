@@ -25,7 +25,7 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
-  const [detectedPlatform, setDetectedPlatform] = useState<"tiktok" | "douyin" | "xiaohongshu" | null>(null);
+  const [detectedPlatform, setDetectedPlatform] = useState<"tiktok" | "douyin" | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timeoutTriggeredRef = useRef(false);
@@ -46,10 +46,9 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
     if (closeAfter) onClose();
   };
 
-  const detectPlatformFromUrl = (url: string): "tiktok" | "douyin" | "xiaohongshu" | null => {
+  const detectPlatformFromUrl = (url: string): "tiktok" | "douyin" | null => {
     if (url.includes("tiktok.com")) return "tiktok";
     if (url.includes("douyin.com")) return "douyin";
-    if (url.includes("xiaohongshu.com") || url.includes("xhslink.com")) return "xiaohongshu";
     return null;
   };
 
@@ -61,10 +60,6 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
 
       // Douyin: /video/7595183372683463957 or /aweme/detail/7595183372683463957
       match = url.match(/\/aweme\/detail\/(\d+)/);
-      if (match) return match[1];
-
-      // xiaohongshu: /explore/xxx
-      match = url.match(/\/explore\/([a-zA-Z0-9]+)/);
       if (match) return match[1];
 
       return null;
@@ -84,7 +79,7 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
     const webVideoUrl = input.trim();
     const platformDetected = detectPlatformFromUrl(webVideoUrl);
     if (!platformDetected) {
-      setError("지원하지 않는 플랫폼입니다. TikTok, Douyin, 레드노트 URL을 입력해주세요.");
+      setError("지원하지 않는 플랫폼입니다. TikTok 또는 Douyin URL을 입력해주세요.");
       return;
     }
 
@@ -114,14 +109,10 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
 
       if (!response.ok) {
         const data = await response.json();
-        if (data.openInBrowser && data.webVideoUrl) {
-          window.open(data.webVideoUrl, "_blank");
-          setError("⚠️ 레드노트는 브라우저에서 보기만 지원됩니다. 새 탭을 열었습니다.");
-          return;
-        }
         throw new Error(data.error || "다운로드 실패");
       }
 
+      // 동영상 파일 다운로드
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -267,29 +258,6 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
               <strong>TikTok</strong> 영상 URL을 붙여넣기하면 자동으로 감지하여 다운로드합니다.
             </div>
           </div>
-
-          {/* 레드노트 경고 */}
-          {detectedPlatform === "xiaohongshu" && (
-            <div
-              style={{
-                padding: "12px",
-                backgroundColor: "rgba(255, 0, 0, 0.08)",
-                border: "1px solid rgba(255, 0, 0, 0.25)",
-                borderRadius: "8px",
-                marginBottom: "20px",
-                fontSize: "13px",
-                color: "#ff6b6b",
-                display: "flex",
-                gap: "8px",
-                alignItems: "flex-start",
-              }}
-            >
-              <AlertCircle size={16} style={{ flexShrink: 0, marginTop: "2px" }} />
-              <div>
-                <strong>⚠️ 참고:</strong> 레드노트는 브라우저에서 보기만 지원됩니다.
-              </div>
-            </div>
-          )}
 
           {/* 진행 중 표시 + 취소 안내 */}
           {isDownloading && (

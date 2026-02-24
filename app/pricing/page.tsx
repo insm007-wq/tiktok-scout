@@ -225,7 +225,7 @@ export default function PricingPage() {
               <strong className="text-white">상품 형태:</strong> 월간 구독형 디지털 서비스 (웹 기반)
             </p>
             <p>
-              <strong className="text-white">제공 내용:</strong> TikTok / Douyin / 샤오홍슈 영상 검색 및 분석 기능과
+              <strong className="text-white">제공 내용:</strong> TikTok / Douyin 영상 검색 및 분석 기능과
               다운로드·자막 추출 기능(플랜별 일일 사용량 제한)
             </p>
             <p>
