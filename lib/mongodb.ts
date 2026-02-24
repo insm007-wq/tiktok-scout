@@ -1,9 +1,13 @@
-import dns from 'dns'
 import { MongoClient, Db } from 'mongodb'
 
 // PC DNS가 SRV 조회를 막을 때(ECONNREFUSED) Node에서 Google DNS로 우회
+// Edge Runtime에서는 dns 모듈이 없으므로 Node.js 환경에서만 실행
 try {
-  dns.setServers(['8.8.8.8', '8.8.4.4'])
+  if (typeof process !== 'undefined' && process.versions?.node) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const dns = require('dns')
+    dns.setServers(['8.8.8.8', '8.8.4.4'])
+  }
 } catch {
   // ignore
 }
