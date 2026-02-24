@@ -110,6 +110,7 @@ export default function Search() {
   const resizeRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const abortControllerRef = useRef<AbortController | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -248,13 +249,17 @@ export default function Search() {
     (video: Video) => {
       setHoveredVideoId(video.id);
 
-      const delayMs = SEARCH_TIMING.hoverPlayDelayMs;
       hoverTimeoutRef.current = setTimeout(() => {
         if ((video._platform ?? platform) !== "tiktok") return;
-        if (video.videoUrl || previewVideoUrls[video.id]) setPlayingVideoId(video.id);
-      }, delayMs);
+        const el = videoRefs.current.get(video.id);
+        if (el) {
+          el.preload = "auto";
+          el.play().catch(() => {});
+        }
+        setPlayingVideoId(video.id);
+      }, SEARCH_TIMING.hoverPlayDelayMs);
     },
-    [platform, previewVideoUrls],
+    [platform],
   );
 
   const handleVideoCardMouseLeave = useCallback(() => {
@@ -262,10 +267,17 @@ export default function Search() {
       clearTimeout(hoverTimeoutRef.current);
       hoverTimeoutRef.current = null;
     }
+    if (playingVideoId) {
+      const el = videoRefs.current.get(playingVideoId);
+      if (el) {
+        el.pause();
+        el.preload = "metadata";
+      }
+    }
     setHoveredVideoId(null);
     setPlayingVideoId(null);
     setLoadingPreviewId(null);
-  }, []);
+  }, [playingVideoId]);
 
   // 카드/썸네일 클릭: 항상 새 탭으로 페이지 열기 (호버로 프리뷰, 클릭으로 이동)
   const handleVideoCardClick = useCallback(
@@ -1899,17 +1911,18 @@ export default function Search() {
 
                             {/* 비디오 미리보기 - TikTok만 지원 (Douyin 미지원) */}
                             {(video._platform ?? platform) === "tiktok" &&
-                              (hoveredVideoId === video.id || playingVideoId === video.id) &&
                               (video.videoUrl || previewVideoUrls[video.id]) && (
                                 <video
-                                  key={video.videoUrl || previewVideoUrls[video.id] || video.id}
-                                  className="card-video-preview"
+                                  ref={(el) => {
+                                    if (el) videoRefs.current.set(video.id, el);
+                                    else videoRefs.current.delete(video.id);
+                                  }}
+                                  className={`card-video-preview${hoveredVideoId === video.id ? "" : " card-video-hidden"}`}
                                   src={video.videoUrl || previewVideoUrls[video.id]}
-                                  autoPlay
                                   muted
                                   loop
                                   playsInline
-                                  preload="auto"
+                                  preload="metadata"
                                   {...({ referrerPolicy: "no-referrer" } as React.ComponentProps<"video">)}
                                 />
                               )}

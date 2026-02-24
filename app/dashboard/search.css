@@ -511,6 +511,12 @@
   pointer-events: none;
 }
 
+/* 비디오 숨김 (hover 전 상태) */
+.card-video-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* 미리보기 URL 로딩 중 */
 .card-preview-loading {
   position: absolute;
