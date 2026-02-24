@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { LayoutGrid, Table2, Download, Play, Heart, MessageCircle, Share2, Info, ExternalLink, Loader, Subtitles } from "lucide-react";
+import { LayoutGrid, Table2, Download, Play, Heart, MessageCircle, Share2, Info, ExternalLink, Loader, Subtitles, Copy, Bookmark, BookmarkCheck } from "lucide-react";
 import Toast, { type Toast as ToastType } from "@/app/components/Toast/Toast";
 import ViewCountFilter from "@/app/components/Filters/ViewCountFilter/ViewCountFilter";
 import PeriodFilter from "@/app/components/Filters/PeriodFilter/PeriodFilter";
@@ -49,6 +49,7 @@ interface Video {
   thumbnail?: string;
   videoUrl?: string;
   webVideoUrl?: string;
+  _platform?: Platform; // 찜 목록에서 저장 시점 플랫폼 보존용
 }
 
 interface FilterState {
@@ -91,6 +92,9 @@ export default function Search() {
   const [previewVideoUrls, setPreviewVideoUrls] = useState<Record<string, string>>({});
   const [loadingPreviewId, setLoadingPreviewId] = useState<string | null>(null);
   const [failedThumbnails, setFailedThumbnails] = useState<Set<string>>(new Set());
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
+  const [isBookmarkView, setIsBookmarkView] = useState(false);
+  const [bookmarkVideos, setBookmarkVideos] = useState<Video[]>([]);
   const [showTranslationPanel, setShowTranslationPanel] = useState(true);
   const [jobStatus, setJobStatus] = useState<{
     jobId: string;
@@ -141,6 +145,58 @@ export default function Search() {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, duration);
   }, []);
+
+  // 마운트 시 북마크 로드
+  useEffect(() => {
+    fetch('/api/bookmarks')
+      .then(r => r.json())
+      .then(data => {
+        if (data.bookmarks) {
+          setBookmarkedIds(new Set(data.bookmarks.map((b: any) => b.videoId)))
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  // URL 복사
+  const handleCopyUrl = useCallback((video: Video) => {
+    const url = video.webVideoUrl || ''
+    navigator.clipboard.writeText(url)
+    addToast('success', 'URL이 복사되었습니다', '✅ 복사 완료', 2000)
+  }, [addToast])
+
+  // 북마크 토글
+  const handleToggleBookmark = useCallback(async (video: Video) => {
+    const isBookmarked = bookmarkedIds.has(video.id)
+    if (isBookmarked) {
+      await fetch(`/api/bookmarks/${video.id}?platform=${video._platform ?? platform}`, { method: 'DELETE' })
+      setBookmarkedIds(prev => { const s = new Set(prev); s.delete(video.id); return s })
+      setBookmarkVideos(prev => prev.filter(v => v.id !== video.id))
+      addToast('info', '즐겨찾기에서 제거되었습니다', '🗑️ 제거', 2000)
+    } else {
+      await fetch('/api/bookmarks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId: video.id, platform, videoData: video })
+      })
+      setBookmarkedIds(prev => new Set(prev).add(video.id))
+      addToast('success', '즐겨찾기에 저장되었습니다', '⭐ 저장', 2000)
+    }
+  }, [bookmarkedIds, platform, addToast])
+
+  // 찜 목록 뷰 토글
+  const handleToggleBookmarkView = useCallback(async () => {
+    if (isBookmarkView) {
+      setIsBookmarkView(false);
+      return;
+    }
+    const res = await fetch('/api/bookmarks');
+    const data = await res.json();
+    if (data.bookmarks) {
+      setBookmarkVideos(data.bookmarks.map((b: any) => ({ ...b.videoData, _platform: b.platform } as Video)));
+    }
+    setIsBookmarkView(true);
+  }, [isBookmarkView])
 
   // 썸네일 로드 실패 처리 (thumbnail이 객체로 올 수 있어 문자열로만 다룸)
   const handleThumbnailError = useCallback(
@@ -194,7 +250,7 @@ export default function Search() {
 
       const delayMs = SEARCH_TIMING.hoverPlayDelayMs;
       hoverTimeoutRef.current = setTimeout(() => {
-        if (platform !== "tiktok") return;
+        if ((video._platform ?? platform) !== "tiktok") return;
         if (video.videoUrl || previewVideoUrls[video.id]) setPlayingVideoId(video.id);
       }, delayMs);
     },
@@ -211,20 +267,14 @@ export default function Search() {
     setLoadingPreviewId(null);
   }, []);
 
-  // 카드/썸네일 클릭: TikTok은 재생 토글 또는 새 탭, Douyin은 프리뷰 없음 → 클릭 시 도우인 페이지 새 탭으로 열기
+  // 카드/썸네일 클릭: 항상 새 탭으로 페이지 열기 (호버로 프리뷰, 클릭으로 이동)
   const handleVideoCardClick = useCallback(
     (video: Video) => {
-      // TikTok: 재생 가능한 URL 있으면 재생 토글
-      if (platform === "tiktok" && (video.videoUrl || previewVideoUrls[video.id])) {
-        setPlayingVideoId((prev) => (prev === video.id ? null : video.id));
-        return;
-      }
-      // 둘 다: 재생할 URL 없으면 webVideoUrl로 새 탭 열기 (Douyin은 항상 여기로 옴)
       if (video.webVideoUrl) {
         window.open(video.webVideoUrl, "_blank", "noopener,noreferrer");
       }
     },
-    [platform, previewVideoUrls],
+    [],
   );
 
   // 언어 감지 함수
@@ -418,11 +468,14 @@ export default function Search() {
   };
 
   const results = useMemo(() => {
+    if (isBookmarkView) {
+      return sortVideos(bookmarkVideos, sortBy);
+    }
     // 중복 제거 (같은 ID를 가진 영상이 여러 번 나타나는 경우 방지)
     const uniqueVideos = Array.from(new Map(videos.map((video) => [video.id, video])).values());
     const filtered = filterVideos(uniqueVideos, filters);
     return sortVideos(filtered, sortBy);
-  }, [videos, filters, sortBy]);
+  }, [videos, filters, sortBy, isBookmarkView, bookmarkVideos]);
 
   const handleCancelSearch = useCallback(async () => {
     // 취소한 jobId 기록 → 이후 도착하는 폴링 응답은 "검색 완료"로 처리하지 않음
@@ -1714,12 +1767,27 @@ export default function Search() {
 
         {/* 오른쪽 컨텐츠 영역 */}
         <div className="content">
-          <div className="content-header">
-            <div className="content-title">검색결과</div>
+          <div className={`content-header${isBookmarkView ? " bookmark-view" : ""}`}>
+            <div className={`content-title${isBookmarkView ? " bookmark-view" : ""}`}>
+              {isBookmarkView ? (
+                <>
+                  <BookmarkCheck size={18} style={{ display: "inline", marginRight: "6px", verticalAlign: "middle", color: "#FFD700" }} />
+                  찜 목록
+                </>
+              ) : "검색결과"}
+            </div>
             <div className="controls-right">
               <button className="btn-video-download" onClick={handleVideoDownload}>
                 <Download size={16} style={{ display: "inline", marginRight: "4px" }} />
                 영상 다운로드
+              </button>
+              <button
+                className={`btn-bookmarks${isBookmarkView ? " active" : ""}`}
+                onClick={handleToggleBookmarkView}
+                title="즐겨찾기 목록"
+              >
+                <Bookmark size={16} style={{ display: "inline", marginRight: "4px" }} />
+                찜 목록
               </button>
               <div className="view-toggle">
                 <button className={`view-btn ${viewMode === "card" ? "active" : ""}`} onClick={() => setViewMode("card")}>
@@ -1795,10 +1863,10 @@ export default function Search() {
                   🔍
                 </div>
                 <p style={{ fontSize: "16px", fontWeight: "600", marginBottom: "8px", color: "#FFFFFF", textAlign: "center" }}>
-                  {error ? "검색 결과가 없습니다" : "검색어를 입력하여 시작하세요"}
+                  {isBookmarkView ? "찜한 영상이 없습니다" : error ? "검색 결과가 없습니다" : "검색어를 입력하여 시작하세요"}
                 </p>
                 <p style={{ fontSize: "13px", color: "#999999", textAlign: "center", maxWidth: "300px" }}>
-                  {error ? "다른 키워드나 필터로 다시 시도해보세요" : "관심있는 콘텐츠를 찾아보세요"}
+                  {isBookmarkView ? "영상 카드의 ☆ 버튼으로 찜할 수 있습니다" : error ? "다른 키워드나 필터로 다시 시도해보세요" : "관심있는 콘텐츠를 찾아보세요"}
                 </p>
               </div>
             ) : (
@@ -1830,7 +1898,7 @@ export default function Search() {
                             )}
 
                             {/* 비디오 미리보기 - TikTok만 지원 (Douyin 미지원) */}
-                            {platform === "tiktok" &&
+                            {(video._platform ?? platform) === "tiktok" &&
                               (hoveredVideoId === video.id || playingVideoId === video.id) &&
                               (video.videoUrl || previewVideoUrls[video.id]) && (
                                 <video
@@ -1845,7 +1913,7 @@ export default function Search() {
                                   {...({ referrerPolicy: "no-referrer" } as React.ComponentProps<"video">)}
                                 />
                               )}
-                            {platform === "tiktok" && loadingPreviewId === video.id && (
+                            {(video._platform ?? platform) === "tiktok" && loadingPreviewId === video.id && (
                               <div className="card-preview-loading">
                                 <Loader className="card-action-icon animate-spin" style={{ width: 32, height: 32 }} />
                                 <span>미리보기 로딩...</span>
@@ -1895,6 +1963,36 @@ export default function Search() {
                             {/* 오른쪽 액션 버튼 */}
                           </div>
                           <div className="card-actions-vertical">
+                            {/* URL 복사 버튼 */}
+                            <button
+                              className="card-action-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopyUrl(video);
+                              }}
+                              title="URL 복사"
+                            >
+                              <Copy className="card-action-icon" />
+                              <span className="card-action-label">복사</span>
+                            </button>
+
+                            {/* 북마크 버튼 */}
+                            <button
+                              className="card-action-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleBookmark(video);
+                              }}
+                              title={bookmarkedIds.has(video.id) ? "즐겨찾기 해제" : "즐겨찾기 추가"}
+                            >
+                              {bookmarkedIds.has(video.id) ? (
+                                <BookmarkCheck className="card-action-icon" style={{ color: "#FFD700" }} />
+                              ) : (
+                                <Bookmark className="card-action-icon" />
+                              )}
+                              <span className="card-action-label">찜</span>
+                            </button>
+
                             {/* 다운로드 버튼 */}
                             <button
                               className="card-action-btn"

@@ -106,6 +106,14 @@ async function initializeIndexes(db: Db) {
     // video_cache: 최근 접근순 정렬용
     await cacheCollection.createIndex({ lastAccessedAt: -1 })
 
+    // bookmarks: 유저별 비디오 고유 인덱스
+    const bookmarksCollection = db.collection('bookmarks')
+    await bookmarksCollection.createIndex(
+      { email: 1, videoId: 1, platform: 1 },
+      { unique: true }
+    )
+    await bookmarksCollection.createIndex({ email: 1, createdAt: -1 })
+
   } catch (error) {
     if ((error as any).code === 48 || (error as any).code === 68) {
       // 인덱스 이미 존재 (정상)
