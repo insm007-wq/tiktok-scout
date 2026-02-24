@@ -1,4 +1,12 @@
+import dns from 'dns'
 import { MongoClient, Db } from 'mongodb'
+
+// PC DNS가 SRV 조회를 막을 때(ECONNREFUSED) Node에서 Google DNS로 우회
+try {
+  dns.setServers(['8.8.8.8', '8.8.4.4'])
+} catch {
+  // ignore
+}
 
 let cachedClient: MongoClient | null = null
 let cachedDb: Db | null = null

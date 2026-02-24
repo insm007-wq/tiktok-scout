@@ -16,11 +16,9 @@
     "redis:stop": "docker-compose -f docker-compose.local.yml down",
     "test:load": "npm run build && npm run worker:pm2 & npm run dev",
     "migrate:expiry": "tsx scripts/migrate-expiry-days.ts",
-    "r2:list": "tsx scripts/clean-r2.ts list",
-    "r2:clean": "tsx scripts/clean-r2.ts delete --older-than-days 30"
+    "check:usage": "node scripts/check-usage.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.645.0",
     "@bull-board/api": "^6.16.2",
     "@bull-board/ui": "^6.16.2",
     "@hookform/resolvers": "^5.2.2",
