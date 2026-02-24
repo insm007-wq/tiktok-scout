@@ -1,13 +1,9 @@
 import dns from 'dns'
 import { MongoClient, Db } from 'mongodb'
 
-// Windows DNS Client가 127.0.0.1을 로컬 프록시로 등록해 c-ares가 ECONNREFUSED를 받는 문제 수정.
-// MongoDB 드라이버는 dns.promises.resolveSrv()를 직접 호출하므로 해당 함수를 패치.
+// PC DNS가 SRV 조회를 막을 때(ECONNREFUSED) Node에서 Google DNS로 우회
 try {
-  const resolver = new dns.Resolver()
-  resolver.setServers(['8.8.8.8', '8.8.4.4'])
-  dns.promises.resolveSrv = (hostname: string) => resolver.promises.resolveSrv(hostname)
-  dns.promises.resolveTxt = (hostname: string) => resolver.promises.resolveTxt(hostname)
+  dns.setServers(['8.8.8.8', '8.8.4.4'])
 } catch {
   // ignore
 }
