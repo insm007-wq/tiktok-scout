@@ -6,8 +6,8 @@ import { MongoClient, Db } from 'mongodb'
 try {
   const resolver = new dns.Resolver()
   resolver.setServers(['8.8.8.8', '8.8.4.4'])
-  dns.promises.resolveSrv = (hostname: string) => resolver.resolveSrv(hostname)
-  dns.promises.resolveTxt = (hostname: string) => resolver.resolveTxt(hostname)
+  dns.promises.resolveSrv = (hostname: string) => resolver.promises.resolveSrv(hostname)
+  dns.promises.resolveTxt = (hostname: string) => resolver.promises.resolveTxt(hostname)
 } catch {
   // ignore
 }
