@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { X, Download, AlertCircle } from "lucide-react";
+import { X, Download, AlertCircle, FileText } from "lucide-react";
 
 interface Video {
   id: string;
@@ -19,7 +19,7 @@ interface DownloadVideoModalProps {
   isLoading?: boolean;
 }
 
-const DOWNLOAD_TIMEOUT_MS = 90_000; // 90초 초과 시 자동 종료
+const TIMEOUT_MS = 90_000; // 90초 초과 시 자동 종료
 
 export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoading = false }: DownloadVideoModalProps) {
   const [input, setInput] = useState("");
@@ -29,6 +29,12 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
   const abortControllerRef = useRef<AbortController | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timeoutTriggeredRef = useRef(false);
+
+  const [isExtractingSubtitle, setIsExtractingSubtitle] = useState(false);
+  const [subtitleError, setSubtitleError] = useState("");
+  const subtitleAbortControllerRef = useRef<AbortController | null>(null);
+  const subtitleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const subtitleTimeoutTriggeredRef = useRef(false);
 
   if (!isOpen) return null;
 
@@ -43,6 +49,20 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
     }
     setError("다운로드가 취소되었습니다.");
     setIsDownloading(false);
+    if (closeAfter) onClose();
+  };
+
+  const handleCancelSubtitle = (closeAfter = false) => {
+    if (subtitleTimeoutRef.current) {
+      clearTimeout(subtitleTimeoutRef.current);
+      subtitleTimeoutRef.current = null;
+    }
+    if (subtitleAbortControllerRef.current) {
+      subtitleAbortControllerRef.current.abort();
+      subtitleAbortControllerRef.current = null;
+    }
+    setSubtitleError("자막 추출이 취소되었습니다.");
+    setIsExtractingSubtitle(false);
     if (closeAfter) onClose();
   };
 
@@ -93,7 +113,7 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
       timeoutRef.current = null;
       timeoutTriggeredRef.current = true;
       abortControllerRef.current?.abort();
-    }, DOWNLOAD_TIMEOUT_MS);
+    }, TIMEOUT_MS);
 
     try {
       const response = await fetch("/api/download-video", {
@@ -145,14 +165,90 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
     }
   };
 
+  const handleExtractSubtitle = async () => {
+    setSubtitleError("");
+
+    if (!input.trim()) {
+      setSubtitleError("URL을 입력해주세요.");
+      return;
+    }
+
+    const webVideoUrl = input.trim();
+    const platformDetected = detectPlatformFromUrl(webVideoUrl);
+    if (!platformDetected) {
+      setSubtitleError("지원하지 않는 플랫폼입니다. TikTok 또는 Douyin URL을 입력해주세요.");
+      return;
+    }
+
+    const videoId = extractVideoIdFromUrl(webVideoUrl) || "video";
+    setIsExtractingSubtitle(true);
+    subtitleTimeoutTriggeredRef.current = false;
+    subtitleAbortControllerRef.current = new AbortController();
+    const signal = subtitleAbortControllerRef.current.signal;
+
+    subtitleTimeoutRef.current = setTimeout(() => {
+      subtitleTimeoutRef.current = null;
+      subtitleTimeoutTriggeredRef.current = true;
+      subtitleAbortControllerRef.current?.abort();
+    }, TIMEOUT_MS);
+
+    try {
+      const response = await fetch("/api/extract-subtitles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          webVideoUrl,
+          videoId,
+          platform: platformDetected,
+          format: "text",
+        }),
+        signal,
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "자막 추출 실패");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${platformDetected}_${videoId}_subtitles.txt`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        setSubtitleError(subtitleTimeoutTriggeredRef.current
+          ? "자막 추출 시간이 초과되었습니다. (90초) 다시 시도해 주세요."
+          : "자막 추출이 취소되었습니다.");
+        return;
+      }
+      const message = err instanceof Error ? err.message : "자막 추출 중 오류가 발생했습니다.";
+      setSubtitleError(message);
+    } finally {
+      if (subtitleTimeoutRef.current) {
+        clearTimeout(subtitleTimeoutRef.current);
+        subtitleTimeoutRef.current = null;
+      }
+      subtitleTimeoutTriggeredRef.current = false;
+      subtitleAbortControllerRef.current = null;
+      setIsExtractingSubtitle(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !isDownloading && !isLoading) {
+    if (e.key === "Enter" && !isDownloading && !isExtractingSubtitle && !isLoading) {
       handleDownload();
     }
     if (e.key === "Escape") {
       onClose();
     }
   };
+
+  const isBusy = isDownloading || isExtractingSubtitle;
 
   return (
     <>
@@ -214,7 +310,11 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
             </h2>
             <button
               type="button"
-              onClick={() => (isDownloading ? handleCancelDownload(true) : onClose())}
+              onClick={() => {
+                if (isDownloading) handleCancelDownload(true);
+                else if (isExtractingSubtitle) handleCancelSubtitle(true);
+                else onClose();
+              }}
               disabled={isLoading}
               style={{
                 background: "none",
@@ -232,7 +332,7 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
               }}
               onMouseEnter={(e) => !isLoading && (e.currentTarget.style.color = "#00E573")}
               onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255, 255, 255, 0.5)")}
-              title={isDownloading ? "다운로드 취소" : "닫기"}
+              title={isBusy ? "취소" : "닫기"}
             >
               <X size={20} />
             </button>
@@ -255,15 +355,15 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
           >
             <AlertCircle size={16} style={{ flexShrink: 0, marginTop: "2px" }} />
             <div>
-              <strong>TikTok</strong> 영상 URL을 붙여넣기하면 자동으로 감지하여 다운로드합니다.
+              <strong>TikTok</strong> 영상 URL을 붙여넣기하면 자동으로 감지하여 다운로드하거나 자막을 추출합니다.
             </div>
           </div>
 
-          {/* 진행 중 표시 + 취소 안내 */}
+          {/* 다운로드 진행 중 표시 */}
           {isDownloading && (
             <div
               style={{
-                marginBottom: "20px",
+                marginBottom: "12px",
                 padding: "12px",
                 backgroundColor: "rgba(0, 229, 115, 0.1)",
                 border: "1px solid rgba(0, 229, 115, 0.3)",
@@ -289,7 +389,7 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
                     animation: "spin 0.8s linear infinite",
                   }}
                 />
-                비디오를 찾는 중입니다... (90초 초과 시 자동 취소)
+                비디오를 다운로드 중입니다... (90초 초과 시 자동 취소)
               </span>
               <button
                 type="button"
@@ -304,6 +404,78 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
                   color: "rgba(255, 255, 255, 0.9)",
                   cursor: "pointer",
                   whiteSpace: "nowrap",
+                  boxShadow: "none",
+                  outline: "none",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.16)";
+                  e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.6)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
+                  e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.3)";
+                }}
+              >
+                취소
+              </button>
+            </div>
+          )}
+
+          {/* 자막 추출 진행 중 표시 */}
+          {isExtractingSubtitle && (
+            <div
+              style={{
+                marginBottom: "12px",
+                padding: "12px",
+                backgroundColor: "rgba(147, 51, 234, 0.1)",
+                border: "1px solid rgba(147, 51, 234, 0.3)",
+                borderRadius: "8px",
+                fontSize: "13px",
+                color: "#c084fc",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "8px",
+                flexWrap: "wrap",
+              }}
+            >
+              <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div
+                  style={{
+                    display: "inline-block",
+                    width: "12px",
+                    height: "12px",
+                    border: "2px solid rgba(147, 51, 234, 0.2)",
+                    borderTop: "2px solid #c084fc",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite",
+                  }}
+                />
+                자막을 추출 중입니다... (90초 초과 시 자동 취소)
+              </span>
+              <button
+                type="button"
+                onClick={() => handleCancelSubtitle()}
+                style={{
+                  padding: "6px 12px",
+                  border: "1px solid rgba(255, 255, 255, 0.3)",
+                  background: "rgba(255, 255, 255, 0.08)",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "rgba(255, 255, 255, 0.9)",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  boxShadow: "none",
+                  outline: "none",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.16)";
+                  e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.6)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
+                  e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.3)";
                 }}
               >
                 취소
@@ -324,57 +496,61 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
             >
               영상 URL
             </label>
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => {
+                const newInput = e.target.value;
+                setInput(newInput);
+                setError("");
+                setSubtitleError("");
+                // Detect platform as user types
+                setDetectedPlatform(detectPlatformFromUrl(newInput));
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="https://www.tiktok.com/@gulum323/video/7595183372683463957"
+              disabled={isBusy || isLoading}
+              style={{
+                width: "100%",
+                padding: "12px",
+                border: (error || subtitleError) ? "2px solid #ff6b6b" : "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontFamily: "inherit",
+                boxSizing: "border-box",
+                backgroundColor: isBusy || isLoading ? "rgba(37, 37, 48, 0.4)" : "rgba(37, 37, 48, 0.6)",
+                color: "#FFFFFF",
+                outline: "none",
+                transition: "border-color 0.2s",
+                marginBottom: "12px",
+              }}
+              className="download-modal-input"
+              onFocus={(e) => {
+                if (!error && !subtitleError) {
+                  e.currentTarget.style.borderColor = "#00E573";
+                }
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = (error || subtitleError) ? "#ff6b6b" : "rgba(255, 255, 255, 0.08)";
+              }}
+            />
+            {/* 버튼 행 */}
             <div style={{ display: "flex", gap: "12px" }}>
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => {
-                  const newInput = e.target.value;
-                  setInput(newInput);
-                  setError("");
-                  // Detect platform as user types
-                  setDetectedPlatform(detectPlatformFromUrl(newInput));
-                }}
-                onKeyDown={handleKeyDown}
-                placeholder="https://www.tiktok.com/@gulum323/video/7595183372683463957"
-                disabled={isDownloading || isLoading}
-                style={{
-                  flex: 1,
-                  padding: "12px",
-                  border: error ? "2px solid #ff6b6b" : "1px solid rgba(255, 255, 255, 0.08)",
-                  borderRadius: "8px",
-                  fontSize: "13px",
-                  fontFamily: "inherit",
-                  boxSizing: "border-box",
-                  backgroundColor: isDownloading || isLoading ? "rgba(37, 37, 48, 0.4)" : "rgba(37, 37, 48, 0.6)",
-                  color: "#FFFFFF",
-                  outline: "none",
-                  transition: "border-color 0.2s",
-                }}
-                className="download-modal-input"
-                onFocus={(e) => {
-                  if (!error) {
-                    e.currentTarget.style.borderColor = "#00E573";
-                  }
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = error ? "#ff6b6b" : "rgba(255, 255, 255, 0.08)";
-                }}
-              />
               <button
                 onClick={handleDownload}
-                disabled={isDownloading || isLoading || !input.trim()}
+                disabled={isBusy || isLoading || !input.trim()}
                 style={{
+                  flex: 1,
                   padding: "12px 16px",
                   border: "none",
                   background:
-                    isDownloading || isLoading || !input.trim()
+                    isBusy || isLoading || !input.trim()
                       ? "rgba(0, 229, 115, 0.3)"
                       : "linear-gradient(135deg, #00E573 0%, #00B85C 100%)",
                   borderRadius: "8px",
                   fontSize: "13px",
                   fontWeight: "700",
-                  cursor: isDownloading || isLoading || !input.trim() ? "not-allowed" : "pointer",
+                  cursor: isBusy || isLoading || !input.trim() ? "not-allowed" : "pointer",
                   color: "#000",
                   display: "flex",
                   alignItems: "center",
@@ -384,12 +560,12 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
                   whiteSpace: "nowrap",
                 }}
                 onMouseEnter={(e) => {
-                  if (!isDownloading && !isLoading && input.trim()) {
+                  if (!isBusy && !isLoading && input.trim()) {
                     e.currentTarget.style.background = "linear-gradient(135deg, #00FF7F 0%, #00E573 100%)";
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (!isDownloading && !isLoading && input.trim()) {
+                  if (!isBusy && !isLoading && input.trim()) {
                     e.currentTarget.style.background = "linear-gradient(135deg, #00E573 0%, #00B85C 100%)";
                   }
                 }}
@@ -416,14 +592,70 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
                   </>
                 )}
               </button>
+              <button
+                onClick={handleExtractSubtitle}
+                disabled={isBusy || isLoading || !input.trim()}
+                style={{
+                  flex: 1,
+                  padding: "12px 16px",
+                  border: "none",
+                  background:
+                    isBusy || isLoading || !input.trim()
+                      ? "rgba(147, 51, 234, 0.3)"
+                      : "linear-gradient(135deg, #9333ea 0%, #7c3aed 100%)",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: "700",
+                  cursor: isBusy || isLoading || !input.trim() ? "not-allowed" : "pointer",
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  transition: "all 0.3s",
+                  whiteSpace: "nowrap",
+                }}
+                onMouseEnter={(e) => {
+                  if (!isBusy && !isLoading && input.trim()) {
+                    e.currentTarget.style.background = "linear-gradient(135deg, #a855f7 0%, #9333ea 100%)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isBusy && !isLoading && input.trim()) {
+                    e.currentTarget.style.background = "linear-gradient(135deg, #9333ea 0%, #7c3aed 100%)";
+                  }
+                }}
+              >
+                {isExtractingSubtitle ? (
+                  <>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: "12px",
+                        height: "12px",
+                        border: "2px solid rgba(255,255,255,0.3)",
+                        borderTop: "2px solid white",
+                        borderRadius: "50%",
+                        animation: "spin 0.8s linear infinite",
+                      }}
+                    />
+                    추출 중...
+                  </>
+                ) : (
+                  <>
+                    <FileText size={16} />
+                    자막 추출
+                  </>
+                )}
+              </button>
             </div>
           </div>
 
-          {/* 에러 메시지 + 다시 시도 */}
+          {/* 에러 메시지 - 다운로드 */}
           {error && (
             <div
               style={{
-                marginBottom: "20px",
+                marginBottom: "12px",
                 padding: "12px",
                 backgroundColor: "rgba(255, 107, 107, 0.1)",
                 border: "1px solid rgba(255, 107, 107, 0.3)",
@@ -454,12 +686,50 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
             </div>
           )}
 
-          {/* 하단 버튼: 다운로드 중이면 취소만, 아니면 닫기 */}
-          <div style={{ display: "flex", gap: "12px" }}>
-            {isDownloading ? (
+          {/* 에러 메시지 - 자막 */}
+          {subtitleError && (
+            <div
+              style={{
+                marginBottom: "12px",
+                padding: "12px",
+                backgroundColor: "rgba(255, 107, 107, 0.1)",
+                border: "1px solid rgba(255, 107, 107, 0.3)",
+                borderRadius: "8px",
+                color: "#ff6b6b",
+                fontSize: "13px",
+              }}
+            >
+              <div style={{ marginBottom: !subtitleError.includes("취소") ? "10px" : 0 }}>{subtitleError}</div>
+              {!subtitleError.includes("취소") && (
+                <button
+                  type="button"
+                  onClick={() => setSubtitleError("")}
+                  style={{
+                    padding: "6px 12px",
+                    border: "1px solid rgba(255, 107, 107, 0.5)",
+                    background: "rgba(255, 107, 107, 0.15)",
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    color: "#ff8a8a",
+                    cursor: "pointer",
+                  }}
+                >
+                  다시 시도
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* 하단 버튼: 진행 중이면 취소, 아니면 닫기 */}
+          <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
+            {isBusy ? (
               <button
                 type="button"
-                onClick={() => handleCancelDownload()}
+                onClick={() => {
+                  if (isDownloading) handleCancelDownload();
+                  else handleCancelSubtitle();
+                }}
                 style={{
                   flex: 1,
                   padding: "12px",
@@ -471,6 +741,16 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
                   cursor: "pointer",
                   color: "#ff8a8a",
                   transition: "all 0.2s",
+                  boxShadow: "none",
+                  outline: "none",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(255, 130, 130, 0.35)";
+                  e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.35)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(255, 100, 100, 0.2)";
+                  e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)";
                 }}
               >
                 취소

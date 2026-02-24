@@ -2025,7 +2025,7 @@ export default function Search() {
                             </button>
 
                             {/* 자막 버튼 - TikTok, Douyin */}
-                            {(platform === "tiktok" || platform === "douyin") && (
+                            {((video._platform ?? platform) === "tiktok" || (video._platform ?? platform) === "douyin") && (
                               <button
                                 className="card-action-btn"
                                 onClick={(e) => {

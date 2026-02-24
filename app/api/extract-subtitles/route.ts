@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchWithRetry } from '@/lib/utils/fetch-with-retry';
+import { fetchSingleVideoUrl } from '@/lib/utils/fetch-single-video-url';
 import { auth } from '@/lib/auth';
 import { checkApiUsage, incrementApiUsage } from '@/lib/apiUsage';
 
@@ -59,7 +60,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const finalVideoUrl = videoUrl;
+    let finalVideoUrl = videoUrl;
+
+    // webVideoUrl만 있을 경우 Apify로 CDN URL 조회 (download-video와 동일 방식)
+    if (!finalVideoUrl && webVideoUrl) {
+      console.log('[ExtractSubtitles] 🚀 webVideoUrl에서 CDN URL 조회:', webVideoUrl);
+      const apiKey = process.env.APIFY_API_KEY;
+      if (!apiKey) {
+        return NextResponse.json({ error: '서버 설정 오류: APIFY_API_KEY가 없습니다.' }, { status: 500 });
+      }
+      const result = await fetchSingleVideoUrl(webVideoUrl, platform as 'tiktok' | 'douyin', apiKey);
+      if (result.error || !result.videoUrl) {
+        return NextResponse.json({ error: result.error || '영상 URL을 가져올 수 없습니다.' }, { status: 400 });
+      }
+      finalVideoUrl = result.videoUrl;
+      console.log('[ExtractSubtitles] ✅ CDN URL 조회 성공:', finalVideoUrl.substring(0, 100));
+    }
 
     if (!finalVideoUrl) {
       return NextResponse.json(
