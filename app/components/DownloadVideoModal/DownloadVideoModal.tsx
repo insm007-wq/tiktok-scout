@@ -306,7 +306,7 @@ export default function DownloadVideoModal({ isOpen, onClose, onDownload, isLoad
               }}
             >
               <Download size={24} />
-              영상 다운로드
+              영상 자막 추출
             </h2>
             <button
               type="button"

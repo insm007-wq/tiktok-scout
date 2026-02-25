@@ -320,7 +320,7 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* 헤더 필터/정렬: 영상 다운로드 버튼 높이에 맞춤 (padding 8px) */
+/* 헤더 필터/정렬: 영상 자막 추출 버튼 높이에 맞춤 (padding 8px) */
 .sort-dropdown {
   width: 150px;
   min-width: 150px;
@@ -439,8 +439,8 @@
 }
 
 .btn-video-download {
-  background: linear-gradient(135deg, #00E573 0%, #00B85C 100%);
-  color: #000000;
+  background: linear-gradient(135deg, #9D4EDD 0%, #7B2CBF 100%);
+  color: #ffffff;
   padding: 8px 24px;
   font-size: 13px;
   font-weight: 700;
@@ -448,17 +448,17 @@
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 16px rgba(0, 229, 115, 0.3);
+  box-shadow: 0 4px 16px rgba(157, 78, 221, 0.35);
 }
 
 .btn-video-download:hover {
-  background: linear-gradient(135deg, #00FF7F 0%, #00E573 100%);
-  box-shadow: 0 6px 20px rgba(0, 229, 115, 0.5);
+  background: linear-gradient(135deg, #B565E8 0%, #9D4EDD 100%);
+  box-shadow: 0 6px 20px rgba(157, 78, 221, 0.5);
   transform: translateY(-2px);
 }
 
 .btn-video-download:disabled {
-  background: rgba(0, 229, 115, 0.3);
+  background: rgba(157, 78, 221, 0.4);
   cursor: not-allowed;
   box-shadow: none;
 }

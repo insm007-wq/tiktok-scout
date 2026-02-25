@@ -1760,7 +1760,7 @@ export default function Search() {
             <div className="controls-right">
               <button className="btn-video-download" onClick={handleVideoDownload}>
                 <Download size={16} style={{ display: "inline", marginRight: "4px" }} />
-                영상 다운로드
+                영상 자막 추출
               </button>
               <button
                 className={`btn-bookmarks${isBookmarkView ? " active" : ""}`}
@@ -2286,7 +2286,7 @@ export default function Search() {
         </div>
       )}
 
-      {/* 영상 다운로드 모달 */}
+      {/* 영상 자막 추출 모달 */}
       <DownloadVideoModal
         isOpen={isDownloadModalOpen}
         onClose={() => setIsDownloadModalOpen(false)}
