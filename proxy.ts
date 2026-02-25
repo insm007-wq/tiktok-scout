@@ -31,16 +31,10 @@ export default async function proxy(req: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // 관리자 라우트 확인
-  if (pathname.startsWith('/admin') && !session.user.isAdmin) {
-    console.log(`[Proxy] ${pathname} - 관리자 아님, 대시보드로 리다이렉트`)
-    return NextResponse.redirect(new URL('/dashboard', req.url))
-  }
-
   console.log(`[Proxy] ${pathname} - 통과`)
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/dashboard', '/dashboard/:path*', '/admin/:path*', '/api/brightdata/:path*', '/api/admin/:path*'],
+  matcher: ['/dashboard', '/dashboard/:path*', '/api/brightdata/:path*', '/api/admin/:path*'],
 }

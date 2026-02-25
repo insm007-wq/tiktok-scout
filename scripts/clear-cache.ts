@@ -1,7 +1,11 @@
 import { MongoClient } from 'mongodb'
 
 async function clearCache() {
-  const mongoUri = process.env.MONGODB_URI || 'mongodb+srv://insm007_db_user:8FSMNz7XdNLMqD8Y@youtube-search-cluster.wo6t609.mongodb.net/?appName=youtube-search-cluster'
+  const mongoUri = process.env.MONGODB_URI
+  if (!mongoUri) {
+    console.error('❌ MONGODB_URI 환경 변수가 설정되지 않았습니다.')
+    process.exit(1)
+  }
   const client = new MongoClient(mongoUri)
 
   try {

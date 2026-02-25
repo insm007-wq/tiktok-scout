@@ -32,13 +32,27 @@ export async function POST(request: NextRequest) {
 
     const { db } = await connectToDatabase();
 
-    const order = await db.collection('payment_orders').findOne({
+    let order = await db.collection('payment_orders').findOne({
       orderId,
       email: session.user.email,
       status: 'PENDING',
     });
 
+    // 이미 처리된 주문(PAID)이면 idempotent로 성공 반환 (새로고침 대응)
     if (!order) {
+      const paidOrder = await db.collection('payment_orders').findOne({
+        orderId,
+        email: session.user.email,
+        status: 'PAID',
+      });
+      if (paidOrder) {
+        return NextResponse.json({
+          success: true,
+          planId: paidOrder.planId,
+          paymentKey: paidOrder.paymentKey,
+          orderId: paidOrder.orderId,
+        });
+      }
       return NextResponse.json({ error: '주문을 찾을 수 없거나 이미 처리되었습니다.' }, { status: 404 });
     }
 
@@ -77,7 +91,7 @@ export async function POST(request: NextRequest) {
       { upsert: true }
     );
 
-    // 플랜별 dailyLimit 업데이트
+    // 플랜별 dailyLimit 업데이트 (users 없으면 upsert로 생성)
     const PLAN_LIMITS: Record<string, number> = {
       light: 20,
       pro: 40,
@@ -85,6 +99,7 @@ export async function POST(request: NextRequest) {
       ultra: 100,
     };
     const newLimit = PLAN_LIMITS[order.planId] ?? 20;
+    const todayStr = now.toISOString().split('T')[0];
 
     await db.collection('users').updateOne(
       { email: session.user.email },
@@ -93,8 +108,26 @@ export async function POST(request: NextRequest) {
           dailyLimit: newLimit,
           remainingLimit: newLimit,
           updatedAt: now,
+          lastActive: now,
         },
-      }
+        $setOnInsert: {
+          email: session.user.email,
+          name: session.user.name,
+          image: session.user.image,
+          provider: 'payment',
+          providerId: order.planId,
+          todayUsed: 0,
+          lastResetDate: todayStr,
+          isActive: true,
+          isBanned: false,
+          isOnline: false,
+          lastLogin: now,
+          createdAt: now,
+          isAdmin: false,
+          isApproved: true,
+        },
+      },
+      { upsert: true }
     );
 
     return NextResponse.json({

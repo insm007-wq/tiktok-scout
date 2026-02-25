@@ -1786,7 +1786,9 @@ export default function Search() {
                 >
                   구독
                 </button>
-                <span className="subscription-status-text">
+                <span
+                  className={`subscription-status-badge ${isSubscribed && subscriptionPlanName ? "subscribed" : "unsubscribed"}`}
+                >
                   {isSubscribed === null ? "—" : isSubscribed && subscriptionPlanName ? subscriptionPlanName : "미구독 중"}
                 </span>
               </div>

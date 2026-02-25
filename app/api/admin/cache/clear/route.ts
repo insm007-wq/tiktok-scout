@@ -17,13 +17,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 관리자 확인 (필요시 추가)
-    // if (session.user.email !== process.env.ADMIN_EMAIL) {
-    //   return NextResponse.json(
-    //     { error: '관리자만 접근 가능합니다.' },
-    //     { status: 403 }
-    //   );
-    // }
+    if (!session.user.isAdmin) {
+      return NextResponse.json(
+        { error: '관리자만 접근 가능합니다.' },
+        { status: 403 }
+      );
+    }
 
     const db = await getDb();
 

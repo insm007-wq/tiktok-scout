@@ -35,6 +35,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '유효하지 않은 플랜입니다.' }, { status: 400 });
     }
 
+    const PLAN_PRICES: Record<string, number> = {
+      light: 19800,
+      pro: 29800,
+      'pro-plus': 39800,
+      ultra: 49800,
+    };
+    const expectedAmount = PLAN_PRICES[planId];
+    if (expectedAmount === undefined || amount !== expectedAmount) {
+      return NextResponse.json({ error: '결제 금액이 플랜과 일치하지 않습니다.' }, { status: 400 });
+    }
+
     const orderId = `tiktalk-${new ObjectId().toString()}-${Date.now()}`;
 
     const { db } = await connectToDatabase();
