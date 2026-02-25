@@ -38,6 +38,16 @@ export async function POST(request: NextRequest) {
     }
 
     const { db } = await connectToDatabase()
+
+    // 이미 찜한 영상이면 업데이트만 (한도 체크 불필요)
+    const existing = await db.collection('bookmarks').findOne({ email: session.user.email, videoId })
+    if (!existing) {
+      const count = await db.collection('bookmarks').countDocuments({ email: session.user.email })
+      if (count >= 50) {
+        return NextResponse.json({ error: '찜 목록은 최대 50개까지 저장할 수 있습니다.' }, { status: 400 })
+      }
+    }
+
     await db.collection('bookmarks').updateOne(
       { email: session.user.email, videoId, platform },
       {

@@ -1,7 +1,7 @@
 'use client'
 
 const LAST_UPDATED = '2026-02-11'
-const SUPPORT_EMAIL = 'aiyumisejong@gmail.com'
+const SUPPORT_EMAIL = 'synergynano2026@gmail.com'
 
 export default function PrivacyPage() {
   return (

@@ -175,11 +175,20 @@ export default function Search() {
       setBookmarkVideos(prev => prev.filter(v => v.id !== video.id))
       addToast('info', '즐겨찾기에서 제거되었습니다', '🗑️ 제거', 2000)
     } else {
-      await fetch('/api/bookmarks', {
+      if (bookmarkedIds.size >= 50) {
+        addToast('warning', '찜 목록은 최대 50개까지 저장할 수 있습니다.', '⚠️ 한도 초과', 3000)
+        return
+      }
+      const res = await fetch('/api/bookmarks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ videoId: video.id, platform, videoData: video })
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        addToast('error', data.error || '저장에 실패했습니다.', '❌ 오류', 3000)
+        return
+      }
       setBookmarkedIds(prev => new Set(prev).add(video.id))
       addToast('success', '즐겨찾기에 저장되었습니다', '⭐ 저장', 2000)
     }

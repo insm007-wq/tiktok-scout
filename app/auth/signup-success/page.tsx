@@ -7,7 +7,7 @@ export const metadata = {
 };
 
 export default function SignupSuccessPage() {
-  const SUPPORT_EMAIL = "aiyumisejong@gmail.com";
+  const SUPPORT_EMAIL = "synergynano2026@gmail.com";
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-black via-gray-950 to-black flex items-center justify-center p-4">

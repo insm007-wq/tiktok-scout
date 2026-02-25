@@ -9,7 +9,7 @@ export default function PricingPage() {
   const [copied, setCopied] = useState(false);
   const emailRef = useRef<HTMLButtonElement>(null);
   const LAST_UPDATED = "2026-02-11";
-  const SUPPORT_EMAIL = "aiyumisejong@gmail.com";
+  const SUPPORT_EMAIL = "synergynano2026@gmail.com";
 
   const handleCopyEmail = async () => {
     try {
@@ -108,51 +108,53 @@ export default function PricingPage() {
           </p>
         </div>
 
-        {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        {/* Pricing Cards - pt-8 gives space for "가장 인기" badge overlap */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12 pt-8">
           {plans.map((plan) => (
             <div
               key={plan.id}
               onClick={() => setSelectedPlan(plan.id)}
-              className="relative group rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer h-full"
+              className="relative group transition-all duration-300 cursor-pointer h-full"
             >
-              {/* Card background */}
-              <div
-                className={`absolute inset-0 rounded-2xl blur-xl transition-all duration-300 ${
-                  selectedPlan === plan.id
-                    ? 'bg-gradient-to-r from-cyan-500/40 to-pink-500/40 opacity-100'
-                    : 'bg-gradient-to-r from-cyan-500/20 to-pink-500/20 opacity-0 group-hover:opacity-100'
-                }`}
-              />
+              {/* Badge - outside overflow so it overlaps top of card without clipping */}
+              {plan.highlighted && (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
+                  <span className="bg-gradient-to-r from-cyan-500 to-pink-500 text-black px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap block">
+                    가장 인기
+                  </span>
+                </div>
+              )}
 
-              {/* Card content */}
-              <div
-                className={`relative p-8 rounded-2xl border backdrop-blur-md transition-all duration-300 h-full flex flex-col ${
-                  selectedPlan === plan.id
-                    ? 'border-cyan-400/80 bg-white/15 ring-2 ring-cyan-400/50'
-                    : 'border-white/20 bg-white/10 group-hover:border-white/40 group-hover:bg-white/15'
-                }`}
-              >
-                {/* Popular or Selected badge */}
-                {plan.highlighted && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-gradient-to-r from-cyan-500 to-pink-500 text-black px-4 py-1 rounded-full text-sm font-bold">
-                      가장 인기
-                    </span>
-                  </div>
-                )}
+              {selectedPlan === plan.id && !plan.highlighted && (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
+                  <span className="bg-gradient-to-r from-cyan-400 to-cyan-300 text-black px-4 py-1 rounded-full text-sm font-bold flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    선택됨
+                  </span>
+                </div>
+              )}
 
-                {selectedPlan === plan.id && !plan.highlighted && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-gradient-to-r from-cyan-400 to-cyan-300 text-black px-4 py-1 rounded-full text-sm font-bold flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      선택됨
-                    </span>
-                  </div>
-                )}
+              {/* Card - overflow-hidden only on this inner div for blur clipping */}
+              <div className="relative rounded-2xl overflow-hidden h-full">
+                {/* Card background */}
+                <div
+                  className={`absolute inset-0 rounded-2xl blur-xl transition-all duration-300 ${
+                    selectedPlan === plan.id
+                      ? 'bg-gradient-to-r from-cyan-500/40 to-pink-500/40 opacity-100'
+                      : 'bg-gradient-to-r from-cyan-500/20 to-pink-500/20 opacity-0 group-hover:opacity-100'
+                  }`}
+                />
 
+                {/* Card content */}
+                <div
+                  className={`relative p-8 rounded-2xl border backdrop-blur-md transition-all duration-300 h-full flex flex-col ${
+                    selectedPlan === plan.id
+                      ? 'border-cyan-400/80 bg-white/15 ring-2 ring-cyan-400/50'
+                      : 'border-white/20 bg-white/10 group-hover:border-white/40 group-hover:bg-white/15'
+                  }`}
+                >
                 {/* Plan name */}
                 <h3 className="text-2xl font-bold text-white mb-2">{plan.name}</h3>
                 <p className="text-white/60 text-sm mb-6">{plan.description}</p>
@@ -209,6 +211,7 @@ export default function PricingPage() {
                 >
                   {selectedPlan === plan.id ? '✓ 선택됨' : '구독 문의'}
                 </button>
+              </div>
               </div>
             </div>
           ))}

@@ -26,10 +26,10 @@ export default function ContactPage() {
               <p>
                 <strong>문의 이메일:</strong>{" "}
                 <a
-                  href="mailto:aiyumisejong@gmail.com"
+                  href="mailto:synergynano2026@gmail.com"
                   className="text-cyan-400 hover:text-cyan-300"
                 >
-                  aiyumisejong@gmail.com
+                  synergynano2026@gmail.com
                 </a>
               </p>
               <p>
