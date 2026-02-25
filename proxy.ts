@@ -36,5 +36,5 @@ export default async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard', '/dashboard/:path*', '/api/brightdata/:path*', '/api/admin/:path*'],
+  matcher: ['/dashboard', '/dashboard/:path*', '/api/brightdata/:path*'],
 }
