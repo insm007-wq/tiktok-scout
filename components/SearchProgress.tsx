@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Loader2, X } from "lucide-react";
 
 interface SearchProgressProps {
@@ -25,10 +25,12 @@ export function SearchProgress({
   estimatedWaitSeconds,
 }: SearchProgressProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const maxProgressRef = useRef(0);
 
   useEffect(() => {
     if (!isSearching) {
       setElapsedSeconds(0);
+      maxProgressRef.current = 0;
       return;
     }
 
@@ -40,7 +42,14 @@ export function SearchProgress({
   }, [isSearching]);
 
   const visualState = jobStatus === "active" ? "ACTIVE" : "QUEUED";
-  const displayProgress = realProgress !== undefined ? realProgress : visualState === "ACTIVE" ? 10 : 5;
+
+  // 진행률은 절대 감소하지 않도록 유지 (깜빡임 방지)
+  const rawProgress = realProgress ?? (visualState === "ACTIVE" ? 10 : 5);
+  const stableProgress = Math.max(rawProgress, maxProgressRef.current);
+  if (rawProgress > maxProgressRef.current) {
+    maxProgressRef.current = rawProgress;
+  }
+  const displayProgress = Math.min(Math.max(stableProgress, visualState === "ACTIVE" ? 8 : 5), 99);
 
   const queueMessage =
     queuePosition && totalQueueSize ? `Position ${queuePosition} of ${totalQueueSize}` : queuePosition ? `Position ${queuePosition}` : null;
@@ -89,10 +98,7 @@ export function SearchProgress({
         <div className="progress-bar-container">
           <div
             className={`progress-bar-fill ${visualState.toLowerCase()}`}
-            style={{
-              width: `${displayProgress}%`,
-              transition: "width 0.6s ease",
-            }}
+            style={{ width: `${displayProgress}%` }}
           />
         </div>
 
@@ -114,16 +120,6 @@ export function SearchProgress({
           50% {
             opacity: 0.8;
             transform: scale(1.02);
-          }
-        }
-
-        @keyframes shimmer {
-          0%,
-          100% {
-            background-position: -1000px 0;
-          }
-          50% {
-            background-position: 1000px 0;
           }
         }
 
@@ -234,8 +230,8 @@ export function SearchProgress({
 
         .progress-bar-container {
           width: 100%;
-          height: 6px;
-          background-color: rgba(0, 229, 115, 0.1);
+          height: 8px;
+          background-color: rgba(0, 229, 115, 0.08);
           border-radius: 9999px;
           overflow: hidden;
           margin-bottom: 28px;
@@ -244,20 +240,18 @@ export function SearchProgress({
         .progress-bar-fill {
           height: 100%;
           border-radius: 9999px;
-          transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); /* 너비 변경은 부드럽게 유지 */
-          box-shadow: 0 0 20px rgba(0, 229, 115, 0.5);
+          background: linear-gradient(90deg, #00E573 0%, #22c55e 50%, #9D4EDD 100%);
+          transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+          will-change: width;
         }
 
         .progress-bar-fill.queued {
-          background: linear-gradient(90deg, #00E573 0%, #9D4EDD 50%, #00E573 100%);
-          background-size: 200% 100%;
-          animation: shimmer 3s ease-in-out infinite;
+          opacity: 0.9;
         }
 
         .progress-bar-fill.active {
-          background: linear-gradient(90deg, #00E573 0%, #9D4EDD 50%, #00E573 100%);
-          background-size: 200% 100%;
-          animation: shimmer 2s ease-in-out infinite;
+          opacity: 1;
+          box-shadow: 0 0 12px rgba(0, 229, 115, 0.4);
         }
 
         .cancel-button {
