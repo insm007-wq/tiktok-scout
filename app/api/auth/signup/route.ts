@@ -71,20 +71,13 @@ export async function POST(req: NextRequest) {
     // 비밀번호 해싱
     const hashedPassword = await hashPassword(data.password)
 
-    // 주소 문자열 구성 (교재 수령 선택 시에만)
-    const addressString = data.address
-      ? `${data.address.zipCode} ${data.address.address} ${data.address.detailAddress}`
-      : undefined
-
     // 사용자 생성 (구독 결제 전 dailyLimit: 0으로 시작)
     const newUser = await createUser({
       email: data.email,
       name: data.name,
       phone: data.phone.replace(/-/g, ''), // 하이픈 제거
       password: hashedPassword,
-      address: addressString,
       marketingConsent: data.marketingConsent,
-      wantsTextbook: data.wantsTextbook,
       isApproved: true,
     })
 

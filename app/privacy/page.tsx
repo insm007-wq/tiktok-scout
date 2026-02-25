@@ -226,22 +226,6 @@ export default function PrivacyPage() {
             </div>
           </section>
 
-          {/* 동의 섹션 */}
-          <div className="bg-pink-500/20 border border-pink-500/50 rounded-lg p-4 mt-8">
-            <p className="text-white text-center">
-              본 개인정보 처리방침에 동의하시고 서비스를 이용하시게 됩니다.
-            </p>
-          </div>
-
-          {/* 동의하고 창 닫기 버튼 */}
-          <div className="flex gap-3 mt-8">
-            <button
-              onClick={() => window.close()}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-pink-500 to-cyan-400 text-black rounded-lg hover:shadow-[0_0_20px_rgba(254,44,85,0.5)] transition-all font-semibold"
-            >
-              동의하고 계속하기
-            </button>
-          </div>
         </div>
       </div>
     </div>
