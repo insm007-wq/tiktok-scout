@@ -264,7 +264,7 @@
 }
 
 .content-header.bookmark-view {
-  border-bottom-color: rgba(255, 215, 0, 0.5);
+  border-bottom-color: rgba(255, 215, 0, 0.7);
   background: rgba(255, 215, 0, 0.04);
   margin-left: -40px;
   margin-right: -40px;
@@ -461,6 +461,42 @@
   background: rgba(157, 78, 221, 0.4);
   cursor: not-allowed;
   box-shadow: none;
+}
+
+.btn-subscription {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+  color: #ffffff;
+  padding: 8px 24px;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(6, 182, 212, 0.35);
+}
+.btn-subscription:hover {
+  background: linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%);
+  box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+  transform: translateY(-2px);
+  color: #ffffff;
+}
+
+.subscription-status-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.subscription-status-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
 }
 
 .results-count {

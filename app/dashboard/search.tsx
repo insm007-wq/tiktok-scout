@@ -10,6 +10,7 @@ import DownloadVideoModal from "@/app/components/DownloadVideoModal/DownloadVide
 import { formatDateWithTime, getRelativeDateString } from "@/lib/dateUtils";
 import { formatNumber, formatVideoDuration } from "@/lib/formatters";
 import UserDropdown from "@/app/components/UserDropdown/UserDropdown";
+import SubscriptionModal from "@/app/components/SubscriptionModal/SubscriptionModal";
 import { SearchProgress } from "@/components/SearchProgress";
 import { validateKeyword } from "@/lib/utils/validateKeyword";
 import "./search.css";
@@ -118,6 +119,11 @@ export default function Search() {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // 구독 상태 (null = 로딩 중, true = 구독 중, false = 미구독)
+  const [isSubscribed, setIsSubscribed] = useState<boolean | null>(null);
+  const [subscriptionPlanName, setSubscriptionPlanName] = useState<string | null>(null);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+
   // 링크 갱신 cooldown 관리 (같은 query에 대해 짧은 시간 내 중복 갱신 방지)
   const recrawlCooldownRef = useRef<Map<string, number>>(new Map());
   // 취소한 jobId — 이미 날아간 폴링 응답이 도착해도 "검색 완료"로 처리하지 않도록 무시
@@ -147,6 +153,20 @@ export default function Search() {
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, duration);
+  }, []);
+
+  // 마운트 시 구독 상태 조회
+  useEffect(() => {
+    fetch('/api/user/subscription')
+      .then(r => r.json())
+      .then(data => {
+        setIsSubscribed(data.isSubscribed ?? false);
+        setSubscriptionPlanName(data.subscription?.planName ?? null);
+      })
+      .catch(() => {
+        setIsSubscribed(false);
+        setSubscriptionPlanName(null);
+      });
   }, []);
 
   // 마운트 시 북마크 로드
@@ -1758,6 +1778,18 @@ export default function Search() {
               ) : "검색결과"}
             </div>
             <div className="controls-right">
+              <div className="subscription-status-wrap">
+                <button
+                  type="button"
+                  className="btn-subscription"
+                  onClick={() => setShowSubscriptionModal(true)}
+                >
+                  구독
+                </button>
+                <span className="subscription-status-text">
+                  {isSubscribed === null ? "—" : isSubscribed && subscriptionPlanName ? subscriptionPlanName : "미구독 중"}
+                </span>
+              </div>
               <button className="btn-video-download" onClick={handleVideoDownload}>
                 <Download size={16} style={{ display: "inline", marginRight: "4px" }} />
                 영상 자막 추출
@@ -1828,7 +1860,7 @@ export default function Search() {
                 <Download size={16} style={{ display: "inline", marginRight: "4px" }} />
                 엑셀
               </button>
-              <UserDropdown />
+              <UserDropdown onOpenSubscription={() => setShowSubscriptionModal(true)} />
             </div>
           </div>
 
@@ -2292,6 +2324,12 @@ export default function Search() {
         onClose={() => setIsDownloadModalOpen(false)}
         onDownload={handleDownloadFromUrl}
         isLoading={isDownloading}
+      />
+
+      {/* 구독 결제 모달 */}
+      <SubscriptionModal
+        isOpen={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
       />
     </>
   );

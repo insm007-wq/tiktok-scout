@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
+import TossPaymentButton from '@/app/components/TossPaymentButton/TossPaymentButton';
 
 export default function PricingPage() {
   const router = useRouter();
@@ -68,10 +69,8 @@ export default function PricingPage() {
     }
   ];
 
-  const handleSubscribe = (planId: string) => {
+  const handlePlanSelect = (planId: string) => {
     setSelectedPlan(planId);
-    // 토스페이먼츠 심사/오픈 준비 중: 결제 대신 고객센터로 안내
-    router.push(`/contact?plan=${planId}`);
   };
 
   return (
@@ -104,7 +103,7 @@ export default function PricingPage() {
             당신의 필요에 맞는 완벽한 플랜을 선택하세요
           </p>
           <p className="text-white/50 text-sm mt-4">
-            최근 수정일: {LAST_UPDATED} · 결제는 토스페이먼츠 연동/심사 진행 중이며, 현재는 구독 문의로 접수됩니다.
+            최근 수정일: {LAST_UPDATED} · 토스페이먼츠로 안전하게 결제합니다
           </p>
         </div>
 
@@ -113,7 +112,7 @@ export default function PricingPage() {
           {plans.map((plan) => (
             <div
               key={plan.id}
-              onClick={() => setSelectedPlan(plan.id)}
+              onClick={() => handlePlanSelect(plan.id)}
               className="relative group transition-all duration-300 cursor-pointer h-full"
             >
               {/* Badge - outside overflow so it overlaps top of card without clipping */}
@@ -125,7 +124,7 @@ export default function PricingPage() {
                 </div>
               )}
 
-              {selectedPlan === plan.id && !plan.highlighted && (
+                {selectedPlan === plan.id && !plan.highlighted && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
                   <span className="bg-gradient-to-r from-cyan-400 to-cyan-300 text-black px-4 py-1 rounded-full text-sm font-bold flex items-center gap-2">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -201,16 +200,21 @@ export default function PricingPage() {
                 </ul>
 
                 {/* Subscribe button - stays at bottom */}
-                <button
-                  onClick={() => handleSubscribe(plan.id)}
-                  className={`w-full py-3 rounded-lg font-semibold transition-all duration-300 mt-auto ${
-                    selectedPlan === plan.id
-                      ? 'bg-gradient-to-r from-cyan-500 to-pink-400 text-black hover:shadow-[0_0_20px_rgba(34,211,238,0.5)]'
-                      : 'bg-white/10 text-white border border-white/20 hover:bg-white/20 hover:border-white/40'
-                  }`}
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="mt-auto"
                 >
-                  {selectedPlan === plan.id ? '✓ 선택됨' : '구독 문의'}
-                </button>
+                  <TossPaymentButton
+                    plan={{ id: plan.id, name: plan.name, price: plan.price }}
+                    className={`w-full py-3 rounded-lg font-semibold transition-all duration-300 ${
+                      selectedPlan === plan.id
+                        ? 'bg-gradient-to-r from-cyan-500 to-pink-400 text-black hover:shadow-[0_0_20px_rgba(34,211,238,0.5)]'
+                        : 'bg-white/10 text-white border border-white/20 hover:bg-white/20 hover:border-white/40'
+                    }`}
+                  >
+                    {selectedPlan === plan.id ? '✓ 결제하기' : '구독하기'}
+                  </TossPaymentButton>
+                </div>
               </div>
               </div>
             </div>

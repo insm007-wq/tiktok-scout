@@ -342,12 +342,10 @@ export default function ProfilePage() {
           </div>
 
           {/* 구독 관리 */}
-          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8">
+          <div id="subscription" className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8">
             <h2 className="text-2xl font-bold text-cyan-400 mb-6">구독 관리</h2>
             <SubscriptionCard
               userEmail={session?.user?.email}
-              currentPlan={null}
-              nextBillingDate={null}
             />
           </div>
         </div>

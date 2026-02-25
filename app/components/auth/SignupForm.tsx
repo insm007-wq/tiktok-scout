@@ -27,7 +27,6 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
     phone: '',
     password: '',
     passwordConfirm: '',
-    invitationCode: '',
     wantsTextbook: false,
     address: {
       zipCode: '',
@@ -56,7 +55,6 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
         phone: formData.phone,
         password: formData.password,
         passwordConfirm: formData.passwordConfirm,
-        invitationCode: formData.invitationCode,
       })
 
       if (!result.success) {
@@ -259,25 +257,6 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
           </div>
           {fieldErrors.passwordConfirm && (
             <p className="text-red-400 text-sm mt-1">{fieldErrors.passwordConfirm[0]}</p>
-          )}
-        </div>
-
-        {/* 초대 코드 */}
-        <div>
-          <label htmlFor="invitationCode" className="block text-sm font-medium text-white/90 mb-2">
-            초대 코드 <span className="text-red-400">*</span>
-          </label>
-          <input
-            id="invitationCode"
-            type="text"
-            value={formData.invitationCode || ''}
-            onChange={(e) => setFormData({ ...formData, invitationCode: e.target.value.toUpperCase() })}
-            placeholder=""
-            maxLength={20}
-            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all uppercase"
-          />
-          {fieldErrors.invitationCode && (
-            <p className="text-red-400 text-sm mt-1">{fieldErrors.invitationCode[0]}</p>
           )}
         </div>
 

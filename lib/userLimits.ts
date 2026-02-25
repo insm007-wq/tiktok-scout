@@ -498,8 +498,7 @@ export async function rejectUser(email: string, adminEmail: string): Promise<boo
 
 /**
  * 새로운 사용자 생성 (회원가입 시)
- * isApproved를 false로 설정하여 관리자 승인 대기 상태로 생성
- * invitationCode가 DONBOK/FORMAN이면 hasAccessCode: true로 설정
+ * 구독 결제 전 dailyLimit: 0으로 시작
  */
 export async function createUser(userData: {
   email: string
@@ -512,25 +511,11 @@ export async function createUser(userData: {
   provider?: string
   providerId?: string
   isApproved?: boolean
-  invitationCode?: string
 }): Promise<User> {
   const { db } = await connectToDatabase()
   const collection = getUsersCollection(db)
 
   const now = new Date()
-
-  // 초대 코드 검증 (DONBOK 또는 FORMNA)
-  let hasAccessCode = false
-  let expiryDays: number | undefined = undefined
-  const code = userData.invitationCode?.trim().toUpperCase()
-
-  if (code === 'DONBOK') {
-    hasAccessCode = true
-    expiryDays = 90
-  } else if (code === 'FORMNA') {
-    hasAccessCode = true
-    expiryDays = 30
-  }
 
   const user: User = {
     email: userData.email,
@@ -538,8 +523,8 @@ export async function createUser(userData: {
     phone: userData.phone,
     provider: userData.provider || 'credentials',
     providerId: userData.providerId,
-    dailyLimit: DEFAULT_DAILY_LIMIT,
-    remainingLimit: DEFAULT_DAILY_LIMIT,
+    dailyLimit: 0,
+    remainingLimit: 0,
     todayUsed: 0,
     lastResetDate: new Date().toISOString().split('T')[0],
     isActive: true,
@@ -555,9 +540,6 @@ export async function createUser(userData: {
     marketingConsent: userData.marketingConsent ?? false,
     // 교재 배송 희망 저장
     wantsTextbook: userData.wantsTextbook ?? false,
-    // 유효한 초대 코드 입력 시만 hasAccessCode: true
-    hasAccessCode,
-    ...(hasAccessCode && { accessCodeUsedAt: now, expiryDays }),
   }
 
   // password는 선택적으로 추가

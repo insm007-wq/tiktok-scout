@@ -114,6 +114,15 @@ async function initializeIndexes(db: Db) {
     )
     await bookmarksCollection.createIndex({ email: 1, createdAt: -1 })
 
+    // payment_orders: orderId 유니크, email+status 조회
+    const paymentOrdersCollection = db.collection('payment_orders')
+    await paymentOrdersCollection.createIndex({ orderId: 1 }, { unique: true })
+    await paymentOrdersCollection.createIndex({ email: 1, status: 1 })
+
+    // subscriptions: email 유니크 (1인 1구독)
+    const subscriptionsCollection = db.collection('subscriptions')
+    await subscriptionsCollection.createIndex({ email: 1 }, { unique: true })
+
   } catch (error) {
     if ((error as any).code === 48 || (error as any).code === 68) {
       // 인덱스 이미 존재 (정상)

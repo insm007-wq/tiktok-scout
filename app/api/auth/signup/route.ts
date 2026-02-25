@@ -5,13 +5,6 @@ import { createUser, getUserById, getUserByPhone, checkWithdrawnStatus } from '@
 import { hashPassword } from '@/lib/auth/password'
 import { connectToDatabase } from '@/lib/mongodb'
 
-// 환경 변수에서 초대 코드 로드
-const INVITATION_CODE = process.env.INVITATION_CODE
-
-if (!INVITATION_CODE) {
-  console.error('[Signup API] ⚠️ WARNING: INVITATION_CODE not set!')
-}
-
 /**
  * POST /api/auth/signup
  * 회원가입
@@ -34,25 +27,6 @@ export async function POST(req: NextRequest) {
     }
 
     const data = parsed.data
-
-    // 초대 코드 검증 (DONBOK 또는 FORMAN)
-    const submittedCode = data.invitationCode.trim().toUpperCase()
-
-    // 지원하는 코드: DONBOK (90일), FORMNA (30일)
-    const validCodes = {
-      DONBOK: { expiryDays: 90, planType: '프리미엄 90일' },
-      FORMNA: { expiryDays: 30, planType: '스탠다드 30일' },
-    } as const
-
-    if (!Object.keys(validCodes).includes(submittedCode)) {
-      console.warn('[Signup API] Invalid invitation code:', submittedCode)
-      return NextResponse.json(
-        { error: '유효하지 않은 접근 코드입니다.' },
-        { status: 403 }
-      )
-    }
-
-    const codeConfig = validCodes[submittedCode as keyof typeof validCodes]
 
     // 이메일 중복 확인 및 탈퇴 상태 확인
     const existingEmail = await getUserById(data.email)
@@ -102,7 +76,7 @@ export async function POST(req: NextRequest) {
       ? `${data.address.zipCode} ${data.address.address} ${data.address.detailAddress}`
       : undefined
 
-    // 사용자 생성 (유효한 초대 코드 입력 시 자동 승인)
+    // 사용자 생성 (구독 결제 전 dailyLimit: 0으로 시작)
     const newUser = await createUser({
       email: data.email,
       name: data.name,
@@ -112,12 +86,9 @@ export async function POST(req: NextRequest) {
       marketingConsent: data.marketingConsent,
       wantsTextbook: data.wantsTextbook,
       isApproved: true,
-      invitationCode: submittedCode, // 초대 코드 전달
     })
 
-    // 로그인 정보 출력
-    const planType = codeConfig.planType
-    console.log(`[Signup] ✓ 회원가입 완료: ${data.email} (${planType})`)
+    console.log(`[Signup] ✓ 회원가입 완료: ${data.email}`)
 
     return NextResponse.json(
       {
