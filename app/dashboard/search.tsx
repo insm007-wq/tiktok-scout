@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { LayoutGrid, Table2, Download, Play, Heart, MessageCircle, Share2, Info, ExternalLink, Loader, Subtitles, Copy, Bookmark, BookmarkCheck } from "lucide-react";
+import { Download, Play, Heart, MessageCircle, Share2, Info, ExternalLink, Loader, Subtitles, Copy, Bookmark, BookmarkCheck } from "lucide-react";
 import Toast, { type Toast as ToastType } from "@/app/components/Toast/Toast";
 import ViewCountFilter from "@/app/components/Filters/ViewCountFilter/ViewCountFilter";
 import PeriodFilter from "@/app/components/Filters/PeriodFilter/PeriodFilter";
-import VideoLengthFilter from "@/app/components/Filters/VideoLengthFilter/VideoLengthFilter";
 import EngagementRatioFilter from "@/app/components/Filters/EngagementRatioFilter/EngagementRatioFilter";
 import DownloadVideoModal from "@/app/components/DownloadVideoModal/DownloadVideoModal";
 import { formatDateWithTime, getRelativeDateString } from "@/lib/dateUtils";
@@ -65,7 +64,6 @@ export default function Search() {
   const [platform, setPlatform] = useState<Platform>("tiktok");
   const [isLoading, setIsLoading] = useState(false);
   const [videos, setVideos] = useState<Video[]>([]);
-  const [viewMode, setViewMode] = useState<"card" | "table">("card");
   const [sortBy, setSortBy] = useState("plays");
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [isTitleRefreshing, setIsTitleRefreshing] = useState(false);
@@ -96,6 +94,10 @@ export default function Search() {
   const [isBookmarkView, setIsBookmarkView] = useState(false);
   const [bookmarkVideos, setBookmarkVideos] = useState<Video[]>([]);
   const [showTranslationPanel, setShowTranslationPanel] = useState(true);
+  const [isEngagementPopoverOpen, setIsEngagementPopoverOpen] = useState(false);
+  const engagementPopoverRef = useRef<HTMLDivElement>(null);
+  const [isViewCountPopoverOpen, setIsViewCountPopoverOpen] = useState(false);
+  const viewCountPopoverRef = useRef<HTMLDivElement>(null);
   const [jobStatus, setJobStatus] = useState<{
     jobId: string;
     status: "waiting" | "active" | "delayed" | "paused";
@@ -418,6 +420,30 @@ export default function Search() {
     setFilters((prev) => ({ ...prev, uploadPeriod: "all" }));
   }, [platform]);
 
+  // 인기도 팝오버: 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!isEngagementPopoverOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (engagementPopoverRef.current && !engagementPopoverRef.current.contains(e.target as Node)) {
+        setIsEngagementPopoverOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isEngagementPopoverOpen]);
+
+  // 조회수 팝오버: 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!isViewCountPopoverOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (viewCountPopoverRef.current && !viewCountPopoverRef.current.contains(e.target as Node)) {
+        setIsViewCountPopoverOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isViewCountPopoverOpen]);
+
   // 영상 필터링 함수
   const filterVideos = (items: Video[], filterState: FilterState) => {
     return items.filter((video) => {
@@ -630,11 +656,20 @@ export default function Search() {
 
     setIsLoading(true);
     setError("");
-    // setVideos([]);  // ← 주석 처리: 이전 결과 유지로 UX 개선
+
+    // 검색 시 필터/정렬 초기화: 조회수·기간·길이·인기도 전체, 조회수순
+    setFilters({
+      minPlayCount: 0,
+      maxPlayCount: null,
+      uploadPeriod: "all",
+      videoLength: "all",
+      engagementScore: ["all"],
+    });
+    setSortBy("plays");
 
     try {
-      // 새로운 비동기 큐 API 호출
-      const dateRange = filters.uploadPeriod;
+      // 새로운 비동기 큐 API 호출 (필터 초기화했으므로 기간 전체)
+      const dateRange = "all";
 
       const response = await fetch("/api/search", {
         method: "POST",
@@ -1677,33 +1712,6 @@ export default function Search() {
                       letterSpacing: "0.4px",
                     }}
                   >
-                    조회수
-                  </div>
-                  <ViewCountFilter
-                    minValue={filters.minPlayCount}
-                    maxValue={filters.maxPlayCount}
-                    onChange={(min, max) => setFilters({ ...filters, minPlayCount: min, maxPlayCount: max })}
-                  />
-                </div>
-
-                <div
-                  style={{
-                    background: "linear-gradient(135deg, rgba(37, 37, 48, 0.6) 0%, rgba(26, 26, 36, 0.6) 100%)",
-                    borderRadius: "8px",
-                    padding: "10px 8px",
-                    border: "1px solid rgba(255, 255, 255, 0.08)",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: "600",
-                      color: "rgba(255, 255, 255, 0.75)",
-                      marginBottom: "6px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.4px",
-                    }}
-                  >
                     기간
                   </div>
                   <PeriodFilter
@@ -1713,54 +1721,6 @@ export default function Search() {
                   />
                 </div>
 
-                <div
-                  style={{
-                    background: "linear-gradient(135deg, rgba(37, 37, 48, 0.6) 0%, rgba(26, 26, 36, 0.6) 100%)",
-                    borderRadius: "8px",
-                    padding: "10px 8px",
-                    border: "1px solid rgba(255, 255, 255, 0.08)",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: "600",
-                      color: "rgba(255, 255, 255, 0.75)",
-                      marginBottom: "6px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.4px",
-                    }}
-                  >
-                    길이
-                  </div>
-                  <VideoLengthFilter value={filters.videoLength} onChange={(value) => setFilters({ ...filters, videoLength: value })} />
-                </div>
-
-                <div
-                  style={{
-                    background: "linear-gradient(135deg, rgba(37, 37, 48, 0.6) 0%, rgba(26, 26, 36, 0.6) 100%)",
-                    borderRadius: "8px",
-                    padding: "10px 8px",
-                    border: "1px solid rgba(255, 255, 255, 0.08)",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: "600",
-                      color: "rgba(255, 255, 255, 0.75)",
-                      marginBottom: "6px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.4px",
-                    }}
-                  >
-                    인기도
-                  </div>
-                  <EngagementRatioFilter
-                    selectedValues={filters.engagementScore}
-                    onChange={(values) => setFilters({ ...filters, engagementScore: values })}
-                  />
-                </div>
               </div>
             </div>
 
@@ -1810,15 +1770,53 @@ export default function Search() {
                 <Bookmark size={16} style={{ display: "inline", marginRight: "4px" }} />
                 찜 목록
               </button>
-              <div className="view-toggle">
-                <button className={`view-btn ${viewMode === "card" ? "active" : ""}`} onClick={() => setViewMode("card")}>
-                  <LayoutGrid size={16} style={{ display: "inline", marginRight: "4px" }} />
-                  카드
+              <div ref={viewCountPopoverRef} className="header-filter-popover">
+                <button
+                  type="button"
+                  className={`header-filter-summary${isViewCountPopoverOpen ? " open" : ""}`}
+                  onClick={() => setIsViewCountPopoverOpen((prev) => !prev)}
+                >
+                  조회수{filters.minPlayCount > 0 ? ` (${formatNumber(filters.minPlayCount)}+)` : ""}
+                  <span className="header-filter-chevron">▾</span>
                 </button>
-                <button className={`view-btn ${viewMode === "table" ? "active" : ""}`} onClick={() => setViewMode("table")}>
-                  <Table2 size={16} style={{ display: "inline", marginRight: "4px" }} />
-                  테이블
+                {isViewCountPopoverOpen && (
+                  <div className="header-filter-dropdown">
+                    <div style={{ fontSize: "11px", fontWeight: "600", color: "rgba(255,255,255,0.75)", marginBottom: "8px", textTransform: "uppercase" }}>조회수</div>
+                    <ViewCountFilter
+                      minValue={filters.minPlayCount}
+                      maxValue={filters.maxPlayCount}
+                      onChange={(min, max) => setFilters({ ...filters, minPlayCount: min, maxPlayCount: max })}
+                    />
+                  </div>
+                )}
+              </div>
+              <select
+                className="sort-dropdown header-filter"
+                value={filters.videoLength}
+                onChange={(e) => setFilters({ ...filters, videoLength: e.target.value })}
+                title="영상 길이"
+              >
+                <option value="all">길이: 전체</option>
+                <option value="short">길이: 20초 미만</option>
+                <option value="long">길이: 20초 이상</option>
+              </select>
+              <div ref={engagementPopoverRef} className="header-filter-popover">
+                <button
+                  type="button"
+                  className={`header-filter-summary${isEngagementPopoverOpen ? " open" : ""}`}
+                  onClick={() => setIsEngagementPopoverOpen((prev) => !prev)}
+                >
+                  인기도{filters.engagementScore.length > 0 && !filters.engagementScore.includes("all") ? ` (${filters.engagementScore.length})` : ""}
+                  <span className="header-filter-chevron">▾</span>
                 </button>
+                {isEngagementPopoverOpen && (
+                  <div className="header-filter-dropdown">
+                    <EngagementRatioFilter
+                      selectedValues={filters.engagementScore}
+                      onChange={(values) => setFilters({ ...filters, engagementScore: values })}
+                    />
+                  </div>
+                )}
               </div>
               <select className="sort-dropdown" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
                 <option value="plays">조회수순</option>
@@ -1894,8 +1892,7 @@ export default function Search() {
               <>
                 <div style={{ width: "100%" }}>
                   <div className="results-count">총 {results.length}개의 영상</div>
-                  {viewMode === "card" ? (
-                    <div className="results-grid">
+                  <div className="results-grid">
                       {(results as Video[]).map((video) => (
                         <div key={video.id} className="result-card">
                           <div
@@ -2056,88 +2053,6 @@ export default function Search() {
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <div className="results-table-wrapper">
-                      <table className="results-table">
-                        <thead>
-                          <tr>
-                            <th style={{ width: "50px" }}>썸네일</th>
-                            <th style={{ width: "150px" }}>제목</th>
-                            <th style={{ width: "100px" }}>크리에이터</th>
-                            <th style={{ width: "80px" }}>팔로워</th>
-                            <th style={{ width: "100px" }}>게시일</th>
-                            <th style={{ width: "70px" }}>길이</th>
-                            <th style={{ width: "70px" }}>조회수</th>
-                            <th style={{ width: "70px" }}>좋아요</th>
-                            <th style={{ width: "70px" }}>댓글</th>
-                            <th style={{ width: "70px" }}>공유</th>
-                            <th style={{ width: "60px" }}>참여율</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(results as Video[]).map((video) => (
-                            <tr key={video.id} style={{ fontSize: "12px" }}>
-                              <td style={{ textAlign: "center", cursor: "pointer" }}>
-                                {video.webVideoUrl ? (
-                                  <a
-                                    href={video.webVideoUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{ display: "block" }}
-                                  >
-                                    {getDisplayThumbnail(video, platform) ? (
-                                      <img
-                                        src={getDisplayThumbnail(video, platform)!}
-                                        alt={video.title}
-                                        className="table-thumbnail"
-                                        onError={(e) => handleThumbnailError(video, e)}
-                                        style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "2px" }}
-                                        referrerPolicy="no-referrer"
-                                      />
-                                    ) : (
-                                      <span>🎬</span>
-                                    )}
-                                  </a>
-                                ) : getDisplayThumbnail(video, platform) ? (
-                                  <img
-                                    src={getDisplayThumbnail(video, platform)!}
-                                    alt={video.title}
-                                    className="table-thumbnail"
-                                    onError={(e) => handleThumbnailError(video, e)}
-                                    style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "2px" }}
-                                    referrerPolicy="no-referrer"
-                                  />
-                                ) : (
-                                  <span>🎬</span>
-                                )}
-                              </td>
-                              <td className="table-title" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {video.title}
-                              </td>
-                              <td className="table-author" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {video.creator}
-                              </td>
-                              <td className="table-number">{video.followerCount ? formatNumber(video.followerCount) : "-"}</td>
-                              <td className="table-number" style={{ fontSize: "11px" }}>
-                                {formatDateWithTime(video.createTime)}
-                              </td>
-                              <td className="table-number">{formatVideoDuration(video.videoDuration)}</td>
-                              <td className="table-number">{video.playCount ? formatNumber(video.playCount) : "제공 안 함"}</td>
-                              <td className="table-number">{formatNumber(video.likeCount)}</td>
-                              <td className="table-number">{formatNumber(video.commentCount)}</td>
-                              <td className="table-number">{formatNumber(video.shareCount)}</td>
-                              <td className="table-number" style={{ color: "#f4d03f", fontWeight: "600" }}>
-                                {video.playCount > 0
-                                  ? (((video.likeCount + video.commentCount + video.shareCount) / video.playCount) * 100).toFixed(2)
-                                  : "-"}
-                                %
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
                 </div>
               </>
             )}
