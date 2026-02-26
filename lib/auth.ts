@@ -216,8 +216,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               subscription?.currentPeriodEnd &&
               new Date(subscription.currentPeriodEnd) > now
 
-            if (!isActive) {
-              // 구독 없음 또는 만료: dailyLimit 0으로 설정
+            // 구독이 있었는데 만료된 경우에만 dailyLimit 0으로 초기화
+            // 구독 기록이 없으면 무료 10회 회원가입 혜택 유지
+            if (subscription && !isActive) {
               const currentLimit = user.dailyLimit ?? 0
               if (currentLimit > 0) {
                 await db.collection('users').updateOne(

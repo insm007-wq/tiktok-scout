@@ -4,6 +4,9 @@ import { connectToDatabase } from './mongodb'
 // 환경변수에서 기본 일일 할당량 설정
 const DEFAULT_DAILY_LIMIT = parseInt(process.env.DEFAULT_DAILY_LIMIT || '20', 10)
 
+/** 회원가입 시 제공하는 무료 검색/다운로드 횟수 (env: FREE_SIGNUP_LIMIT) */
+export const FREE_SIGNUP_LIMIT = parseInt(process.env.FREE_SIGNUP_LIMIT || '10', 10)
+
 interface User {
   _id?: ObjectId
   email: string  // Primary Key
@@ -498,7 +501,7 @@ export async function rejectUser(email: string, adminEmail: string): Promise<boo
 
 /**
  * 새로운 사용자 생성 (회원가입 시)
- * 구독 결제 전 dailyLimit: 0으로 시작
+ * 회원가입 시 무료 10회 제공, 이후 결제 시 플랜별로 업데이트
  */
 export async function createUser(userData: {
   email: string
@@ -524,8 +527,8 @@ export async function createUser(userData: {
     phone: userData.phone,
     provider: userData.provider || 'credentials',
     providerId: userData.providerId,
-    dailyLimit: 0,
-    remainingLimit: 0,
+    dailyLimit: FREE_SIGNUP_LIMIT,
+    remainingLimit: FREE_SIGNUP_LIMIT,
     todayUsed: 0,
     lastResetDate: new Date().toISOString().split('T')[0],
     isActive: true,

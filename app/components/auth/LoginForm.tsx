@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { signIn, signOut, getSession } from 'next-auth/react'
 import { loginSchema, type LoginFormData } from '@/lib/validations/auth'
@@ -208,9 +209,9 @@ export default function LoginForm() {
 
       {/* 비밀번호 찾기 */}
       <div className="text-center pt-2">
-        <a href="#" className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors">
+        <Link href="/auth/forgot-password" className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors">
           비밀번호 찾기
-        </a>
+        </Link>
       </div>
     </form>
   )

@@ -52,6 +52,32 @@ export async function sendVerificationEmail(email: string, token: string) {
   })
 }
 
+/** 6자리 비밀번호 재설정 코드 발송 */
+export async function sendPasswordResetCodeEmail(email: string, code: string) {
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: `[${APP_NAME}] 비밀번호 재설정 코드`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; background: #0a0a0a; color: #ffffff; border-radius: 12px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #ec4899, #06b6d4); padding: 32px 24px; text-align: center;">
+          <h1 style="margin: 0; font-size: 24px; font-weight: 900; color: #ffffff;">${APP_NAME}</h1>
+          <p style="margin: 8px 0 0; color: rgba(255,255,255,0.8); font-size: 14px;">비밀번호 재설정</p>
+        </div>
+        <div style="padding: 32px 24px;">
+          <p style="color: #d1d5db; font-size: 16px; line-height: 1.6;">비밀번호 재설정을 요청하셨습니다.</p>
+          <p style="color: #d1d5db; font-size: 16px; line-height: 1.6;">아래 인증 코드를 입력해주세요.</p>
+          <div style="text-align: center; margin: 24px 0; padding: 24px; background: #1f2937; border-radius: 12px;">
+            <span style="font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #ec4899;">${code}</span>
+          </div>
+          <p style="color: #6b7280; font-size: 13px;">인증 코드는 <strong style="color: #9ca3af;">5분</strong>간 유효합니다.</p>
+          <p style="color: #4b5563; font-size: 12px; margin-top: 16px;">본인이 요청하지 않으셨다면 이 이메일을 무시해주세요.</p>
+        </div>
+      </div>
+    `,
+  })
+}
+
 /** 6자리 인증 코드 발송 (회원가입 폼용) */
 export async function sendVerificationCodeEmail(email: string, code: string) {
   await resend.emails.send({

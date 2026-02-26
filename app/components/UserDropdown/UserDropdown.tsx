@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useSession, signOut } from 'next-auth/react'
-import { User, LogOut, ChevronDown } from 'lucide-react'
+import { User, LogOut, ChevronDown, KeyRound } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import WithdrawModal from './WithdrawModal'
+import ChangePasswordModal from './ChangePasswordModal'
 import './UserDropdown.css'
 
 interface UserDropdownProps {
@@ -16,6 +17,7 @@ export default function UserDropdown({ onOpenSubscription }: UserDropdownProps) 
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false)
   const [isWithdrawing, setIsWithdrawing] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -40,6 +42,27 @@ export default function UserDropdown({ onOpenSubscription }: UserDropdownProps) 
   const handleSubscription = () => {
     onOpenSubscription?.()
     setIsOpen(false)
+  }
+
+  const handleChangePassword = async (currentPassword: string, newPassword: string) => {
+    const response = await fetch('/api/user/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    })
+
+    let data: { error?: string } = {}
+    try {
+      data = await response.json()
+    } catch {
+      // 응답이 JSON이 아닌 경우
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || `비밀번호 변경에 실패했습니다. (${response.status})`)
+    }
+
+    // 성공 시 모달이 성공 메시지 표시 후 onClose 호출
   }
 
   const handleWithdraw = async (password: string) => {
@@ -121,6 +144,15 @@ export default function UserDropdown({ onOpenSubscription }: UserDropdownProps) 
           </button>
 
           <button
+            className="change-password-btn"
+            onClick={() => setShowChangePasswordModal(true)}
+            disabled={isWithdrawing}
+          >
+            <KeyRound size={16} />
+            비밀번호 변경
+          </button>
+
+          <button
             className="withdraw-btn"
             onClick={() => setShowWithdrawModal(true)}
             disabled={isWithdrawing}
@@ -141,8 +173,20 @@ export default function UserDropdown({ onOpenSubscription }: UserDropdownProps) 
 
       <WithdrawModal
         isOpen={showWithdrawModal}
-        onClose={() => setShowWithdrawModal(false)}
+        onClose={() => {
+          setShowWithdrawModal(false)
+          setIsOpen(false)
+        }}
         onConfirm={handleWithdraw}
+      />
+
+      <ChangePasswordModal
+        isOpen={showChangePasswordModal}
+        onClose={() => {
+          setShowChangePasswordModal(false)
+          setIsOpen(false)
+        }}
+        onConfirm={handleChangePassword}
       />
     </div>
   )
