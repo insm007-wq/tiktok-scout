@@ -511,6 +511,7 @@ export async function createUser(userData: {
   provider?: string
   providerId?: string
   isApproved?: boolean
+  isVerified?: boolean
 }): Promise<User> {
   const { db } = await connectToDatabase()
   const collection = getUsersCollection(db)
@@ -536,7 +537,7 @@ export async function createUser(userData: {
     updatedAt: now,
     isAdmin: false,
     isApproved: userData.isApproved ?? false,
-    // 마케팅 동의 저장
+    isVerified: userData.isVerified ?? false,
     marketingConsent: userData.marketingConsent ?? false,
     // 교재 배송 희망 저장
     wantsTextbook: userData.wantsTextbook ?? false,

@@ -1,32 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { signupSchema } from '@/lib/validations/auth'
-import { createUser, getUserById, getUserByPhone, checkWithdrawnStatus } from '@/lib/userLimits'
+import { createUser, getUserById, checkWithdrawnStatus } from '@/lib/userLimits'
 import { hashPassword } from '@/lib/auth/password'
 import { connectToDatabase } from '@/lib/mongodb'
+import crypto from 'crypto'
 
 /**
  * POST /api/auth/signup
- * 회원가입
+ * 회원가입 (폼 인증 완료 시 emailVerificationToken 필수)
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
 
-    // Zod 검증
     const parsed = signupSchema.safeParse(body)
-
     if (!parsed.success) {
       return NextResponse.json(
-        {
-          error: '입력값 검증 실패',
-          details: parsed.error.flatten().fieldErrors,
-        },
+        { error: '입력값 검증 실패', details: parsed.error.flatten().fieldErrors },
         { status: 400 }
       )
     }
 
     const data = parsed.data
+    const emailVerificationToken = body.emailVerificationToken as string | undefined
+
+    if (!emailVerificationToken) {
+      return NextResponse.json(
+        { error: '이메일 인증을 먼저 완료해주세요.' },
+        { status: 400 }
+      )
+    }
+
+    const { db } = await connectToDatabase()
+    const verified = await db.collection('email_verified_tokens').findOne({
+      token: emailVerificationToken,
+      email: data.email.trim().toLowerCase(),
+      expiresAt: { $gt: new Date() },
+    })
+    if (!verified) {
+      return NextResponse.json(
+        { error: '이메일 인증이 만료되었습니다. 인증을 다시 진행해주세요.' },
+        { status: 400 }
+      )
+    }
 
     // 이메일 중복 확인 및 탈퇴 상태 확인
     const existingEmail = await getUserById(data.email)
@@ -62,23 +79,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 핸드폰 번호 중복 확인
-    const existingPhone = await getUserByPhone(data.phone)
-    if (existingPhone) {
-      return NextResponse.json({ error: '이미 사용 중인 핸드폰 번호입니다' }, { status: 409 })
-    }
-
-    // 비밀번호 해싱
     const hashedPassword = await hashPassword(data.password)
 
-    // 사용자 생성 (구독 결제 전 dailyLimit: 0으로 시작)
-    const newUser = await createUser({
-      email: data.email,
+    await createUser({
+      email: data.email.trim().toLowerCase(),
       name: data.name,
-      phone: data.phone.replace(/-/g, ''), // 하이픈 제거
+      phone: data.phone.replace(/-/g, ''),
       password: hashedPassword,
-      marketingConsent: data.marketingConsent,
+      marketingConsent: data.marketingConsent ?? false,
       isApproved: true,
+      isVerified: true,
+    })
+
+    await db.collection('email_verified_tokens').deleteOne({ token: emailVerificationToken })
+
+    // 자동 로그인용 1회성 토큰
+    const loginToken = crypto.randomBytes(32).toString('hex')
+    await db.collection('one_time_logins').insertOne({
+      token: loginToken,
+      email: data.email.trim().toLowerCase(),
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      createdAt: new Date(),
     })
 
     console.log(`[Signup] ✓ 회원가입 완료: ${data.email}`)
@@ -86,9 +107,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: '회원가입이 완료되었습니다. 로그인해주세요.',
-        email: newUser.email,
-        phone: newUser.phone,
+        message: '회원가입이 완료되었습니다.',
+        email: data.email,
+        loginToken, // 자동 로그인용
       },
       { status: 201 }
     )
@@ -108,7 +129,7 @@ export async function POST(req: NextRequest) {
     // MongoDB 중복 키 에러 처리
     if (error instanceof Error && error.message.includes('duplicate key')) {
       return NextResponse.json(
-        { error: '이미 사용 중인 이메일 또는 핸드폰 번호입니다' },
+        { error: '이미 사용 중인 이메일입니다' },
         { status: 409 }
       )
     }

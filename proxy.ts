@@ -31,6 +31,14 @@ export default async function proxy(req: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
+  // 이메일 미인증 사용자는 대시보드 접근 불가
+  if (!session.user?.isVerified) {
+    console.log(`[Proxy] ${pathname} - 이메일 미인증, 로그인 페이지로 리다이렉트`)
+    const loginUrl = new URL('/auth/login', req.url)
+    loginUrl.searchParams.set('error', 'verify_required')
+    return NextResponse.redirect(loginUrl)
+  }
+
   console.log(`[Proxy] ${pathname} - 통과`)
   return NextResponse.next()
 }

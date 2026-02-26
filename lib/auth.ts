@@ -29,6 +29,43 @@ function maskEmail(email: string): string {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
+    // 이메일 인증 완료 후 자동 로그인용
+    Credentials({
+      id: 'email-verify',
+      name: 'EmailVerify',
+      credentials: {
+        token: { label: 'Token', type: 'text' },
+      },
+      async authorize(credentials) {
+        const token = credentials?.token as string | undefined
+        if (!token) return null
+        try {
+          const { connectToDatabase } = await import('./mongodb')
+          const { getUserById } = await import('./userLimits')
+          const { db } = await connectToDatabase()
+          const record = await db.collection('one_time_logins').findOne({
+            token,
+            expiresAt: { $gt: new Date() },
+          })
+          if (!record) return null
+          await db.collection('one_time_logins').deleteOne({ token })
+          const user = await getUserById(record.email)
+          if (!user) return null
+          return {
+            id: user._id?.toString() || record.email,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+            isAdmin: user.isAdmin || false,
+            isApproved: user.isApproved || false,
+            isVerified: user.isVerified || false,
+            phone: user.phone,
+          }
+        } catch {
+          return null
+        }
+      },
+    }),
     Credentials({
       id: 'credentials',
       name: 'Credentials',
@@ -84,6 +121,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               isVerified: user.isVerified || false,
               phone: user.phone,
               _error: 'CredentialsSignin',
+            } as any
+          }
+
+          // 이메일 인증 여부 확인
+          if (!user.isVerified) {
+            console.warn('[Auth] 이메일 미인증')
+            return {
+              id: user._id?.toString() || email,
+              email: user.email,
+              name: user.name,
+              image: user.image,
+              isAdmin: user.isAdmin || false,
+              isApproved: user.isApproved || false,
+              isVerified: false,
+              phone: user.phone,
+              _error: 'EMAIL_NOT_VERIFIED',
             } as any
           }
 

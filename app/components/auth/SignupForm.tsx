@@ -36,13 +36,77 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
 
+  // 이메일 인증
+  const [emailVerified, setEmailVerified] = useState(false)
+  const [emailVerificationToken, setEmailVerificationToken] = useState<string | null>(null)
+  const [verificationCode, setVerificationCode] = useState('')
+  const [sendCodeStatus, setSendCodeStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [verifyCodeStatus, setVerifyCodeStatus] = useState<'idle' | 'verifying' | 'success' | 'error'>('idle')
+
+  // 인증 코드 발송
+  const handleSendCode = async () => {
+    const email = (formData.email || '').trim()
+    if (!email) {
+      setFieldErrors({ email: ['이메일을 입력해주세요'] })
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setFieldErrors({ email: ['올바른 이메일 형식이 아닙니다'] })
+      return
+    }
+    setSendCodeStatus('sending')
+    setFieldErrors({})
+    try {
+      const res = await fetch('/api/auth/send-verification-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '발송 실패')
+      setSendCodeStatus('sent')
+    } catch (err) {
+      setSendCodeStatus('error')
+      setFieldErrors({ email: [err instanceof Error ? err.message : '발송 실패'] })
+    }
+  }
+
+  // 인증 코드 검증
+  const handleVerifyCode = async () => {
+    const email = (formData.email || '').trim()
+    if (!email || !verificationCode.trim()) {
+      setFieldErrors({ verificationCode: ['인증 코드를 입력해주세요'] })
+      return
+    }
+    setVerifyCodeStatus('verifying')
+    setFieldErrors({})
+    try {
+      const res = await fetch('/api/auth/verify-email-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: verificationCode.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '인증 실패')
+      setEmailVerified(true)
+      setEmailVerificationToken(data.emailVerificationToken)
+      setVerifyCodeStatus('success')
+    } catch (err) {
+      setVerifyCodeStatus('error')
+      setFieldErrors({ verificationCode: [err instanceof Error ? err.message : '인증 실패'] })
+    }
+  }
+
   // 다음 단계로 이동
   const goToNextStep = async () => {
     setError('')
     setFieldErrors({})
 
     if (step === 'info') {
-      // 기본 정보 검증
+      if (!emailVerified || !emailVerificationToken) {
+        setFieldErrors({ email: ['이메일 인증을 완료해주세요'] })
+        return
+      }
       const result = infoSchema.safeParse({
         name: formData.name,
         email: formData.email,
@@ -50,12 +114,10 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
         password: formData.password,
         passwordConfirm: formData.passwordConfirm,
       })
-
       if (!result.success) {
         setFieldErrors(result.error.flatten().fieldErrors as any)
         return
       }
-
       setStep('consent')
     }
   }
@@ -83,11 +145,13 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
     setStep('loading')
 
     try {
-      // 회원가입 API 호출
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(result.data),
+        body: JSON.stringify({
+          ...result.data,
+          emailVerificationToken: emailVerificationToken,
+        }),
       })
 
       const data = await response.json()
@@ -96,8 +160,12 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
         throw new Error(data.error || '회원가입 실패')
       }
 
-      // 회원가입 성공 페이지로 이동
-      router.push('/auth/signup-success')
+      // 자동 로그인 후 대시보드로
+      if (data.loginToken) {
+        router.push(`/auth/verify-complete?token=${data.loginToken}`)
+      } else {
+        router.push('/auth/login')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '요청 처리 중 오류가 발생했습니다')
       setStep('consent')
@@ -128,21 +196,74 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
           )}
         </div>
 
-        {/* 이메일 */}
+        {/* 이메일 + 인증하기 */}
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-white/90 mb-2">
             이메일 <span className="text-red-400">*</span>
           </label>
-          <input
-            id="email"
-            type="email"
-            value={formData.email || ''}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            placeholder="example@example.com"
-            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all"
-          />
+          <div className="flex gap-2">
+            <input
+              id="email"
+              type="email"
+              value={formData.email || ''}
+              onChange={(e) => {
+                setFormData({ ...formData, email: e.target.value })
+                setEmailVerified(false)
+                setEmailVerificationToken(null)
+                setVerificationCode('')
+                setSendCodeStatus('idle')
+                setVerifyCodeStatus('idle')
+              }}
+              placeholder="example@example.com"
+              disabled={emailVerified}
+              className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+            />
+            <button
+              type="button"
+              onClick={handleSendCode}
+              disabled={emailVerified || sendCodeStatus === 'sending'}
+              className="px-4 py-3 bg-gradient-to-r from-pink-500 to-cyan-400 text-black rounded-lg font-semibold hover:shadow-[0_0_20px_rgba(254,44,85,0.3)] transition-all disabled:opacity-50 whitespace-nowrap"
+            >
+              {sendCodeStatus === 'sending' && <Loader2 size={18} className="animate-spin inline mr-1" />}
+              {emailVerified ? '인증완료' : sendCodeStatus === 'sent' ? '재발송' : '인증하기'}
+            </button>
+          </div>
           {fieldErrors.email && (
             <p className="text-red-400 text-sm mt-1">{fieldErrors.email[0]}</p>
+          )}
+          {sendCodeStatus === 'sent' && !emailVerified && (
+            <div className="mt-3 space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="6자리 인증 코드"
+                  maxLength={6}
+                  className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-pink-500 text-center tracking-widest"
+                />
+                <button
+                  type="button"
+                  onClick={handleVerifyCode}
+                  disabled={verifyCodeStatus === 'verifying' || verificationCode.length !== 6}
+                  className="px-4 py-2 bg-white/20 text-white rounded-lg font-medium hover:bg-white/30 disabled:opacity-50"
+                >
+                  {verifyCodeStatus === 'verifying' && <Loader2 size={16} className="animate-spin inline" />}
+                  {verifyCodeStatus === 'success' ? '✓' : '확인'}
+                </button>
+              </div>
+              {fieldErrors.verificationCode && (
+                <p className="text-red-400 text-sm">{fieldErrors.verificationCode[0]}</p>
+              )}
+              {verifyCodeStatus === 'success' && (
+                <p className="text-green-400 text-sm">이메일 인증이 완료되었습니다.</p>
+              )}
+            </div>
+          )}
+          {emailVerified && (
+            <p className="text-green-400 text-sm mt-1 flex items-center gap-1">
+              <span>✓</span> 이메일 인증이 완료되었습니다.
+            </p>
           )}
         </div>
 
@@ -185,7 +306,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
               type={showPassword ? 'text' : 'password'}
               value={formData.password || ''}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              placeholder="최소 8자, 소문자, 숫자, 특수문자 포함"
+              placeholder="최소 8자, 소문자, 숫자 포함"
               className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all pr-12"
             />
             <button
@@ -200,12 +321,10 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
             <p className="text-red-400 text-sm mt-1">{fieldErrors.password[0]}</p>
           )}
 
-          {/* 비밀번호 강도 미터 */}
-          {formData.password && (
-            <div className="mt-3">
-              <PasswordStrengthMeter password={formData.password} />
-            </div>
-          )}
+          {/* 비밀번호 강도 미터 - 처음부터 표시 */}
+          <div className="mt-3">
+            <PasswordStrengthMeter password={formData.password || ''} />
+          </div>
         </div>
 
         {/* 비밀번호 확인 */}
@@ -252,7 +371,8 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
         <button
           type="button"
           onClick={goToNextStep}
-          className="w-full px-4 py-3 bg-gradient-to-r from-pink-500 to-cyan-400 text-black rounded-lg hover:shadow-[0_0_20px_rgba(254,44,85,0.5)] transition-all font-semibold mt-4"
+          disabled={!emailVerified}
+          className="w-full px-4 py-3 bg-gradient-to-r from-pink-500 to-cyan-400 text-black rounded-lg hover:shadow-[0_0_20px_rgba(254,44,85,0.5)] transition-all font-semibold mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           다음
         </button>

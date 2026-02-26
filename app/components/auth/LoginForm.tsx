@@ -36,6 +36,8 @@ export default function LoginForm() {
         setError('비활성화된 계정입니다.')
       } else if (errorParam === 'ACCOUNT_WITHDRAWN') {
         setError('탈퇴한 계정입니다.')
+      } else if (errorParam === 'EMAIL_NOT_VERIFIED') {
+        setError('이메일 인증이 필요합니다. 받은 편지함을 확인해주세요.')
       }
     }
   }, [searchParams])
@@ -74,6 +76,8 @@ export default function LoginForm() {
           setError('비활성화된 계정입니다.')
         } else if (errorCode === 'ACCOUNT_WITHDRAWN') {
           setError('탈퇴한 계정입니다.')
+        } else if (errorCode === 'EMAIL_NOT_VERIFIED') {
+          setError('이메일 인증이 필요합니다. 받은 편지함을 확인해주세요.')
         } else if (errorCode === 'INVALID_CREDENTIALS' || errorCode === 'CredentialsSignin') {
           setError('아이디 또는 비밀번호를 확인해주세요.')
         } else {
@@ -105,6 +109,10 @@ export default function LoginForm() {
       } else if (sessionError === 'ACCOUNT_WITHDRAWN') {
         await signOut({ redirect: false })
         setError('탈퇴한 계정입니다.')
+        return
+      } else if (sessionError === 'EMAIL_NOT_VERIFIED') {
+        await signOut({ redirect: false })
+        setError('이메일 인증이 필요합니다. 받은 편지함을 확인해주세요.')
         return
       }
 

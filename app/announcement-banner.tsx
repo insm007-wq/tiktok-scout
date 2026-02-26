@@ -4,8 +4,11 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import styles from "./announcement-banner.module.css";
 
+// 추후 공지사항 노출 시 true로 변경
+const SHOW_ANNOUNCEMENT = false;
+
 export default function AnnouncementBanner() {
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, setIsVisible] = useState(SHOW_ANNOUNCEMENT);
 
   const handleClose = () => {
     setIsVisible(false);
