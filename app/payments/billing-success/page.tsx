@@ -3,31 +3,49 @@
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-export default function PaymentSuccessPage() {
+export default function BillingSuccessPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    const paymentKey = searchParams.get('paymentKey');
-    const orderId = searchParams.get('orderId');
-    const amount = searchParams.get('amount');
+    const authKey = searchParams.get('authKey');
+    const customerKey = searchParams.get('customerKey');
 
-    if (!paymentKey || !orderId || !amount) {
+    if (!authKey || !customerKey) {
       setStatus('error');
       setErrorMessage('결제 정보가 올바르지 않습니다.');
       return;
     }
 
-    fetch('/api/payments/confirm', {
+    let planId = '';
+    let planName = '';
+    let amount = 0;
+
+    try {
+      const pending = sessionStorage.getItem('pending_plan');
+      if (pending) {
+        const parsed = JSON.parse(pending);
+        planId = parsed.planId;
+        planName = parsed.planName;
+        amount = parsed.amount;
+        sessionStorage.removeItem('pending_plan');
+      }
+    } catch {
+      // sessionStorage 파싱 실패 무시
+    }
+
+    if (!planId || !amount) {
+      setStatus('error');
+      setErrorMessage('플랜 정보를 찾을 수 없습니다. 다시 시도해 주세요.');
+      return;
+    }
+
+    fetch('/api/payments/billing-auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        paymentKey,
-        orderId,
-        amount: Number(amount),
-      }),
+      body: JSON.stringify({ authKey, customerKey, planId, planName, amount }),
     })
       .then((res) => res.json())
       .then((data) => {

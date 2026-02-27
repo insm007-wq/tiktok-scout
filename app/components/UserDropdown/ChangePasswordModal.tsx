@@ -98,7 +98,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onConfirm }: Chan
     <div className={styles.overlay}>
       <div className={styles.modal}>
         <div className={styles.header}>
-          <h2 className={styles.title}>비밀번호 변경</h2>
+          <h2 className={styles.title}>패스워드 변경</h2>
           <p className={styles.subtitle}>보안을 위해 새 비밀번호를 설정해주세요</p>
         </div>
 

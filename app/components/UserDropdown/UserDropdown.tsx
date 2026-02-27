@@ -59,7 +59,7 @@ export default function UserDropdown({ onOpenSubscription }: UserDropdownProps) 
     }
 
     if (!response.ok) {
-      throw new Error(data.error || `비밀번호 변경에 실패했습니다. (${response.status})`)
+      throw new Error(data.error || `패스워드 변경에 실패했습니다. (${response.status})`)
     }
 
     // 성공 시 모달이 성공 메시지 표시 후 onClose 호출
@@ -149,7 +149,7 @@ export default function UserDropdown({ onOpenSubscription }: UserDropdownProps) 
             disabled={isWithdrawing}
           >
             <KeyRound size={16} />
-            비밀번호 변경
+            패스워드 변경
           </button>
 
           <button

@@ -22,7 +22,7 @@ export default function ProfilePage() {
     phone: session?.user?.phone || '',
   })
 
-  // 비밀번호 변경
+  // 패스워드 변경
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -85,7 +85,7 @@ export default function ProfilePage() {
     }
   }
 
-  // 비밀번호 변경
+  // 패스워드 변경
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -118,7 +118,7 @@ export default function ProfilePage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || '비밀번호 변경 실패')
+        throw new Error(data.error || '패스워드 변경 실패')
       }
 
       setSuccess('비밀번호가 성공적으로 변경되었습니다.')
@@ -230,9 +230,9 @@ export default function ProfilePage() {
             </form>
           </div>
 
-          {/* 비밀번호 변경 */}
+          {/* 패스워드 변경 */}
           <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8">
-            <h2 className="text-2xl font-bold text-cyan-400 mb-6">비밀번호 변경</h2>
+            <h2 className="text-2xl font-bold text-cyan-400 mb-6">패스워드 변경</h2>
 
             <form onSubmit={handleChangePassword} className="space-y-4">
               {/* Current Password */}
@@ -316,7 +316,7 @@ export default function ProfilePage() {
                 className="w-full px-4 py-3 bg-gradient-to-r from-cyan-500 to-pink-400 text-black rounded-lg hover:shadow-[0_0_20px_rgba(34,211,238,0.5)] transition-all font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {loading && <Loader2 size={20} className="animate-spin" />}
-                비밀번호 변경
+                패스워드 변경
               </button>
             </form>
           </div>

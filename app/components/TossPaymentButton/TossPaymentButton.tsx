@@ -32,46 +32,31 @@ export default function TossPaymentButton({ plan, children, className, disabled 
     setIsLoading(true);
 
     try {
-      const createRes = await fetch('/api/payments/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          planId: plan.id,
-          amount: plan.price,
-          planName: plan.name,
-        }),
-      });
-
-      const createData = await createRes.json();
-      if (!createRes.ok) {
-        if (createRes.status === 503) {
-          window.location.href = `/contact?plan=${plan.id}`;
-          return;
-        }
-        alert(createData.error || '주문 생성에 실패했습니다.');
-        setIsLoading(false);
+      const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
+      if (!clientKey) {
+        window.location.href = `/contact?plan=${plan.id}`;
         return;
       }
-
-      const { orderId, amount, clientKey } = createData;
-      const successUrl = `${window.location.origin}/payments/success`;
-      const failUrl = `${window.location.origin}/payments/fail`;
 
       const customerKey = session?.user?.email
         ? `user-${session.user.email.replace(/[^a-zA-Z0-9._=-]/g, '_')}`
         : `anon-${Date.now()}`;
 
+      // 플랜 정보를 billing-success 페이지에서 복구하기 위해 저장
+      sessionStorage.setItem('pending_plan', JSON.stringify({
+        planId: plan.id,
+        planName: plan.name,
+        amount: plan.price,
+      }));
+
       const { loadTossPayments } = await import('@tosspayments/tosspayments-sdk');
       const tossPayments = await loadTossPayments(clientKey);
       const payment = tossPayments.payment({ customerKey });
 
-      await payment.requestPayment({
+      await payment.requestBillingAuth({
         method: 'CARD',
-        amount: { currency: 'KRW', value: amount },
-        orderId,
-        orderName: `틱톡킬라 ${plan.name} 플랜 구독`,
-        successUrl,
-        failUrl,
+        successUrl: `${window.location.origin}/payments/billing-success`,
+        failUrl: `${window.location.origin}/payments/fail`,
         customerEmail: session?.user?.email ?? undefined,
         customerName: session?.user?.name ?? undefined,
       });

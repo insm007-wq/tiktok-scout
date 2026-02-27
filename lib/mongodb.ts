@@ -16,10 +16,10 @@ export async function connectToDatabase() {
   }
 
   const client = new MongoClient(mongoUri, {
-    maxPoolSize: 500,
-    minPoolSize: 100,
-    maxIdleTimeMS: 60000,
-    waitQueueTimeoutMS: 2000,
+    maxPoolSize: 5,
+    minPoolSize: 0,
+    maxIdleTimeMS: 30000,
+    waitQueueTimeoutMS: 5000,
     compressors: ['zlib'],
     zlibCompressionLevel: 6,
     readPreference: 'secondaryPreferred'
@@ -122,6 +122,8 @@ async function initializeIndexes(db: Db) {
     // subscriptions: email 유니크 (1인 1구독)
     const subscriptionsCollection = db.collection('subscriptions')
     await subscriptionsCollection.createIndex({ email: 1 }, { unique: true })
+    await subscriptionsCollection.createIndex({ status: 1, currentPeriodEnd: 1 })
+    await subscriptionsCollection.createIndex({ billingKey: 1 }, { sparse: true })
 
   } catch (error) {
     if ((error as any).code === 48 || (error as any).code === 68) {

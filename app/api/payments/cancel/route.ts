@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
+import { sendCancelConfirmEmail } from '@/lib/email';
 
 /**
  * POST /api/payments/cancel
@@ -42,6 +43,18 @@ export async function POST(request: NextRequest) {
       : null;
 
     console.log(`[Payments cancel] 구독 취소: ${email}, 만료일: ${periodEnd}`);
+
+    // 취소 확인 이메일 발송
+    if (periodEnd) {
+      try {
+        await sendCancelConfirmEmail(email, {
+          planName: subscription.planId,
+          serviceUntil: periodEnd,
+        });
+      } catch (emailErr) {
+        console.error('[Payments cancel] 이메일 발송 실패:', emailErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,

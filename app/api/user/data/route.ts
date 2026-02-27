@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
       isApproved: user.isApproved,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
+      lastLogin: user.lastLogin ? user.lastLogin.toISOString() : null,
     }
 
     return NextResponse.json(

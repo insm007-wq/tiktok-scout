@@ -2,6 +2,13 @@
  * 날짜 계산 및 포맷팅 유틸리티
  */
 
+/** null, undefined, 0, epoch(1970-01-01) 등 유효하지 않은 날짜인지 확인 */
+export const isNullOrEpochDate = (date: string | Date | number | null | undefined): boolean => {
+  if (date === null || date === undefined) return true
+  const ts = typeof date === 'number' ? date : new Date(date).getTime()
+  return isNaN(ts) || ts <= 0
+}
+
 export const getDaysAgo = (date: string | Date | undefined): number => {
   if (!date) return Infinity;
 
@@ -12,21 +19,21 @@ export const getDaysAgo = (date: string | Date | undefined): number => {
   return (now - publishDate) / (1000 * 60 * 60 * 24);
 };
 
-export const formatDate = (date: string | Date | undefined): string => {
-  if (!date) return "-";
+export const formatDate = (date: string | Date | number | undefined | null): string => {
+  if (isNullOrEpochDate(date)) return "-";
 
   try {
-    return new Date(date).toLocaleDateString("ko-KR");
+    return new Date(date!).toLocaleDateString("ko-KR");
   } catch {
     return "-";
   }
 };
 
-export const formatDateWithTime = (date: string | Date | number | undefined): string => {
-  if (!date) return "-";
+export const formatDateWithTime = (date: string | Date | number | undefined | null): string => {
+  if (isNullOrEpochDate(date)) return "-";
 
   try {
-    const dateObj = typeof date === "number" ? new Date(date) : new Date(date);
+    const dateObj = typeof date === "number" ? new Date(date) : new Date(date!);
     const year = dateObj.getFullYear();
     const month = String(dateObj.getMonth() + 1).padStart(2, "0");
     const day = String(dateObj.getDate()).padStart(2, "0");
@@ -36,6 +43,12 @@ export const formatDateWithTime = (date: string | Date | number | undefined): st
   } catch {
     return "-";
   }
+};
+
+/** 마지막 로그인 표시용: null/undefined/0/epoch이면 "로그인 기록 없음", 아니면 날짜 포맷 */
+export const formatLastLogin = (date: string | Date | number | null | undefined): string => {
+  if (isNullOrEpochDate(date)) return "로그인 기록 없음";
+  return formatDateWithTime(date);
 };
 
 export const isWithinDays = (date: string | Date | undefined, days: number): boolean => {

@@ -159,6 +159,31 @@ export async function decrementUserQuota(email: string): Promise<boolean> {
 }
 
 /**
+ * 로그인 시 lastLogin, lastActive 갱신
+ * Credentials 로그인 성공 시 호출
+ */
+export async function updateLastLogin(email: string): Promise<void> {
+  try {
+    const { db } = await connectToDatabase()
+    const collection = getUsersCollection(db)
+    const now = new Date()
+    await collection.updateOne(
+      { email },
+      {
+        $set: {
+          lastLogin: now,
+          lastActive: now,
+          isOnline: true,
+          updatedAt: now,
+        },
+      }
+    )
+  } catch (error) {
+    console.error(`❌ [updateLastLogin] DB 오류 (${email}):`, error)
+  }
+}
+
+/**
  * 사용자의 lastActive를 갱신
  * 미들웨어에서 API 호출마다 호출되어 실시간 접속 상태 추적
  */

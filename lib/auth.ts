@@ -1,7 +1,7 @@
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import { verifyPassword } from './auth/password'
-import { getUserById } from './userLimits'
+import { getUserById, updateLastLogin } from './userLimits'
 
 declare module 'next-auth' {
   interface User {
@@ -41,7 +41,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!token) return null
         try {
           const { connectToDatabase } = await import('./mongodb')
-          const { getUserById } = await import('./userLimits')
+          const { getUserById, updateLastLogin } = await import('./userLimits')
           const { db } = await connectToDatabase()
           const record = await db.collection('one_time_logins').findOne({
             token,
@@ -51,6 +51,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           await db.collection('one_time_logins').deleteOne({ token })
           const user = await getUserById(record.email)
           if (!user) return null
+          await updateLastLogin(record.email)
           return {
             id: user._id?.toString() || record.email,
             email: user.email,
@@ -231,6 +232,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
 
           console.log('[Auth] 로그인 성공')
+          await updateLastLogin(email)
 
           return {
             id: user._id?.toString() || email,
@@ -255,6 +257,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // 로그인 실패는 간단하게만 로깅 (정상 동작)
       if (error.name === 'CredentialsSignin') {
         console.warn('[Auth] 로그인 실패 - 잘못된 자격 증명')
+        return
+      }
+
+      // 오래된/호환되지 않는 쿠키 복호화 실패 (Auth.js가 자동 처리, 무해)
+      if (error.name === 'JWTSessionError') {
+        console.warn('[Auth] 오래된 세션 쿠키 - 브라우저 쿠키 삭제 필요')
         return
       }
 
