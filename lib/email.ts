@@ -124,26 +124,26 @@ export async function sendBillingSuccessEmail(
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; background: #0a0a0a; color: #ffffff; border-radius: 12px; overflow: hidden;">
         <div style="background: linear-gradient(135deg, #10b981, #06b6d4); padding: 32px 24px; text-align: center;">
-          <h1 style="margin: 0; font-size: 24px; font-weight: 900; color: #ffffff;">${APP_NAME}</h1>
-          <p style="margin: 8px 0 0; color: rgba(255,255,255,0.8); font-size: 14px;">${subtitle}</p>
+          <h1 style="margin: 0; font-size: 24px; font-weight: 900; color: #ffffff; letter-spacing: 0.03em;">${APP_NAME}</h1>
+          <p style="margin: 8px 0 0; color: rgba(255,255,255,0.8); font-size: 14px; letter-spacing: 0.02em;">${subtitle}</p>
         </div>
         <div style="padding: 32px 24px;">
-          <p style="color: #d1d5db; font-size: 16px; line-height: 1.6;">${title}</p>
+          <p style="color: #d1d5db; font-size: 16px; line-height: 1.7; letter-spacing: 0.02em;">${title}</p>
           <div style="background: #1f2937; border-radius: 12px; padding: 24px; margin: 24px 0;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-              <span style="color: #6b7280; font-size: 14px;">플랜</span>
-              <span style="color: #ffffff; font-size: 14px; font-weight: 700;">${planName}</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 16px;">
+              <span style="color: #6b7280; font-size: 14px; letter-spacing: 0.02em;">플랜</span>
+              <span style="color: #ffffff; font-size: 14px; font-weight: 700; letter-spacing: 0.02em;">${planName}</span>
             </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-              <span style="color: #6b7280; font-size: 14px;">결제 금액</span>
-              <span style="color: #10b981; font-size: 14px; font-weight: 700;">₩${amountFormatted}</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 16px;">
+              <span style="color: #6b7280; font-size: 14px; letter-spacing: 0.02em;">결제 금액</span>
+              <span style="color: #10b981; font-size: 14px; font-weight: 700; letter-spacing: 0.05em;">₩ ${amountFormatted}</span>
             </div>
-            <div style="display: flex; justify-content: space-between;">
-              <span style="color: #6b7280; font-size: 14px;">다음 결제일</span>
-              <span style="color: #ffffff; font-size: 14px; font-weight: 700;">${periodEnd}</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+              <span style="color: #6b7280; font-size: 14px; letter-spacing: 0.02em;">다음 결제일</span>
+              <span style="color: #ffffff; font-size: 14px; font-weight: 700; letter-spacing: 0.02em;">${periodEnd}</span>
             </div>
           </div>
-          <p style="color: #6b7280; font-size: 13px; line-height: 1.6;">
+          <p style="color: #6b7280; font-size: 13px; line-height: 1.7; letter-spacing: 0.02em;">
             감사합니다. ${APP_NAME}를 즐겁게 이용해 주세요!
           </p>
         </div>
@@ -187,18 +187,18 @@ export async function sendBillingFailureEmail(
         <div style="padding: 32px 24px;">
           <p style="color: #f87171; font-size: 16px; font-weight: 700;">${title}</p>
           <div style="background: #1f2937; border-radius: 12px; padding: 24px; margin: 24px 0;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-              <span style="color: #6b7280; font-size: 14px;">플랜</span>
-              <span style="color: #ffffff; font-size: 14px; font-weight: 700;">${planName}</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 16px;">
+              <span style="color: #6b7280; font-size: 14px; letter-spacing: 0.02em;">플랜</span>
+              <span style="color: #ffffff; font-size: 14px; font-weight: 700; letter-spacing: 0.02em;">${planName}</span>
             </div>
-            <div style="display: flex; justify-content: space-between;">
-              <span style="color: #6b7280; font-size: 14px;">실패 횟수</span>
-              <span style="color: #f87171; font-size: 14px; font-weight: 700;">${failCount}회</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+              <span style="color: #6b7280; font-size: 14px; letter-spacing: 0.02em;">실패 횟수</span>
+              <span style="color: #f87171; font-size: 14px; font-weight: 700; letter-spacing: 0.02em;">${failCount}회</span>
             </div>
             ${serviceUntil ? `
-            <div style="display: flex; justify-content: space-between; margin-top: 12px;">
-              <span style="color: #6b7280; font-size: 14px;">서비스 이용 가능일</span>
-              <span style="color: #ffffff; font-size: 14px; font-weight: 700;">${serviceUntil}까지</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; gap: 16px;">
+              <span style="color: #6b7280; font-size: 14px; letter-spacing: 0.02em;">서비스 이용 가능일</span>
+              <span style="color: #ffffff; font-size: 14px; font-weight: 700; letter-spacing: 0.02em;">${serviceUntil}까지</span>
             </div>` : ''}
           </div>
           <p style="color: #d1d5db; font-size: 14px; line-height: 1.6;">${bodyText}</p>
@@ -234,13 +234,13 @@ export async function sendCancelConfirmEmail(
         <div style="padding: 32px 24px;">
           <p style="color: #d1d5db; font-size: 16px; line-height: 1.6;">구독이 취소되었습니다.</p>
           <div style="background: #1f2937; border-radius: 12px; padding: 24px; margin: 24px 0;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-              <span style="color: #6b7280; font-size: 14px;">취소된 플랜</span>
-              <span style="color: #ffffff; font-size: 14px; font-weight: 700;">${planName}</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 16px;">
+              <span style="color: #6b7280; font-size: 14px; letter-spacing: 0.02em;">취소된 플랜</span>
+              <span style="color: #ffffff; font-size: 14px; font-weight: 700; letter-spacing: 0.02em;">${planName}</span>
             </div>
-            <div style="display: flex; justify-content: space-between;">
-              <span style="color: #6b7280; font-size: 14px;">서비스 이용 가능일</span>
-              <span style="color: #10b981; font-size: 14px; font-weight: 700;">${serviceUntil}까지</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+              <span style="color: #6b7280; font-size: 14px; letter-spacing: 0.02em;">서비스 이용 가능일</span>
+              <span style="color: #10b981; font-size: 14px; font-weight: 700; letter-spacing: 0.02em;">${serviceUntil}까지</span>
             </div>
           </div>
           <p style="color: #6b7280; font-size: 13px; line-height: 1.6;">
@@ -284,22 +284,22 @@ export async function sendBillingReminderEmail(
             3일 후 구독이 자동으로 갱신될 예정입니다.
           </p>
           <div style="background: #1f2937; border-radius: 12px; padding: 24px; margin: 24px 0;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-              <span style="color: #6b7280; font-size: 14px;">플랜</span>
-              <span style="color: #ffffff; font-size: 14px; font-weight: 700;">${planName}</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 16px;">
+              <span style="color: #6b7280; font-size: 14px; letter-spacing: 0.02em;">플랜</span>
+              <span style="color: #ffffff; font-size: 14px; font-weight: 700; letter-spacing: 0.02em;">${planName}</span>
             </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-              <span style="color: #6b7280; font-size: 14px;">결제 예정 금액</span>
-              <span style="color: #f59e0b; font-size: 14px; font-weight: 700;">₩${amountFormatted}</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 16px;">
+              <span style="color: #6b7280; font-size: 14px; letter-spacing: 0.02em;">결제 예정 금액</span>
+              <span style="color: #f59e0b; font-size: 14px; font-weight: 700; letter-spacing: 0.05em;">₩ ${amountFormatted}</span>
             </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: ${cardLast4 ? '12px' : '0'};">
-              <span style="color: #6b7280; font-size: 14px;">결제 예정일</span>
-              <span style="color: #ffffff; font-size: 14px; font-weight: 700;">${billingDate}</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: ${cardLast4 ? '12px' : '0'}; gap: 16px;">
+              <span style="color: #6b7280; font-size: 14px; letter-spacing: 0.02em;">결제 예정일</span>
+              <span style="color: #ffffff; font-size: 14px; font-weight: 700; letter-spacing: 0.02em;">${billingDate}</span>
             </div>
             ${cardLast4 ? `
-            <div style="display: flex; justify-content: space-between;">
-              <span style="color: #6b7280; font-size: 14px;">결제 카드</span>
-              <span style="color: #ffffff; font-size: 14px; font-weight: 700;">**** ${cardLast4}</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+              <span style="color: #6b7280; font-size: 14px; letter-spacing: 0.02em;">결제 카드</span>
+              <span style="color: #ffffff; font-size: 14px; font-weight: 700; letter-spacing: 0.02em;">**** ${cardLast4}</span>
             </div>` : ''}
           </div>
           <p style="color: #6b7280; font-size: 13px; line-height: 1.6;">
