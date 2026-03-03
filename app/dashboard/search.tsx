@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Download, Play, Heart, MessageCircle, Share2, Info, ExternalLink, Loader, Subtitles, Copy, Bookmark, BookmarkCheck } from "lucide-react";
+import { Download, Play, Heart, MessageCircle, Share2, Info, ExternalLink, Loader, Subtitles, Copy, Bookmark, BookmarkCheck, RefreshCw } from "lucide-react";
 import Toast, { type Toast as ToastType } from "@/app/components/Toast/Toast";
 import ViewCountFilter from "@/app/components/Filters/ViewCountFilter/ViewCountFilter";
 import PeriodFilter from "@/app/components/Filters/PeriodFilter/PeriodFilter";
@@ -91,9 +91,11 @@ export default function Search() {
   const [previewVideoUrls, setPreviewVideoUrls] = useState<Record<string, string>>({});
   const [loadingPreviewId, setLoadingPreviewId] = useState<string | null>(null);
   const [failedThumbnails, setFailedThumbnails] = useState<Set<string>>(new Set());
+  const [refreshingThumbnailId, setRefreshingThumbnailId] = useState<string | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [isBookmarkView, setIsBookmarkView] = useState(false);
   const [bookmarkVideos, setBookmarkVideos] = useState<Video[]>([]);
+  const [isRefreshingAllBookmarks, setIsRefreshingAllBookmarks] = useState(false);
   const [showTranslationPanel, setShowTranslationPanel] = useState(true);
   const [isEngagementPopoverOpen, setIsEngagementPopoverOpen] = useState(false);
   const engagementPopoverRef = useRef<HTMLDivElement>(null);
@@ -230,6 +232,42 @@ export default function Search() {
     setIsBookmarkView(true);
   }, [isBookmarkView])
 
+  // 찜 목록 전체 썸네일/프리뷰 새로고침
+  const handleRefreshAllBookmarks = useCallback(async () => {
+    try {
+      setIsRefreshingAllBookmarks(true);
+
+      const res = await fetch("/api/bookmarks/refresh-all", {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        addToast("error", data?.error || "전체 새로고침에 실패했습니다.", "❌ 전체 새로고침 실패");
+        return;
+      }
+
+      const listRes = await fetch("/api/bookmarks");
+      const listData = await listRes.json();
+      if (listData.bookmarks) {
+        setBookmarkVideos(listData.bookmarks.map((b: any) => ({ ...b.videoData, _platform: b.platform } as Video)));
+        setFailedThumbnails(new Set());
+      }
+
+      addToast(
+        "success",
+        `썸네일/프리뷰 ${data.updatedCount ?? 0}개 새로고침 완료`,
+        "🔄 전체 새로고침",
+        3500,
+      );
+    } catch (error) {
+      console.error("[Search] Refresh all bookmarks error:", error);
+      addToast("error", "전체 새로고침 중 오류가 발생했습니다.", "❌ 전체 새로고침 실패");
+    } finally {
+      setIsRefreshingAllBookmarks(false);
+    }
+  }, [addToast]);
+
   // 썸네일 로드 실패 처리 (thumbnail이 객체로 올 수 있어 문자열로만 다룸)
   const handleThumbnailError = useCallback(
     async (video: Video, e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -257,6 +295,77 @@ export default function Search() {
       e.currentTarget.alt = "썸네일을 불러올 수 없습니다";
     },
     [platform],
+  );
+
+  // 찜 목록에서 썸네일만 새로고침 (CDN 만료 대응)
+  const handleRefreshBookmarkThumbnail = useCallback(
+    async (video: Video) => {
+      // 찜 목록 뷰에서만 동작
+      if (!isBookmarkView) {
+        addToast("info", "썸네일 새로고침은 찜 목록에서만 지원합니다.", "ℹ️ 안내");
+        return;
+      }
+
+      try {
+        setRefreshingThumbnailId(video.id);
+
+        const bookmarkPlatform = video._platform ?? platform;
+
+        const res = await fetch("/api/bookmarks/refresh-thumbnail", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            videoId: video.id,
+            platform: bookmarkPlatform,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.thumbnail) {
+          const message = data?.error || "새 썸네일을 가져오지 못했습니다.";
+          addToast("error", message, "❌ 갱신 실패");
+          return;
+        }
+
+        // 찜 목록 상태 내 썸네일/프리뷰 URL 교체
+        setBookmarkVideos((prev) =>
+          prev.map((v) =>
+            v.id === video.id
+              ? {
+                  ...v,
+                  thumbnail: data.thumbnail as string,
+                  ...(data.videoUrl ? { videoUrl: data.videoUrl as string } : {}),
+                }
+              : v,
+          ),
+        );
+
+        if (data.videoUrl) {
+          setPreviewVideoUrls((prev) => ({
+            ...prev,
+            [video.id]: data.videoUrl as string,
+          }));
+        }
+
+        // 실패 목록에서 제거
+        setFailedThumbnails((prev) => {
+          const next = new Set(prev);
+          next.delete(video.id);
+          return next;
+        });
+
+        addToast("success", "썸네일을 새로고침했습니다.", "🔄 갱신 완료", 2500);
+      } catch (error) {
+        console.error("[Search] Refresh bookmark thumbnail error:", error);
+        addToast("error", "썸네일 새로고침 중 오류가 발생했습니다.", "❌ 갱신 실패");
+      } finally {
+        setRefreshingThumbnailId(null);
+      }
+    },
+    [addToast, isBookmarkView, platform],
   );
 
   /** 표시할 썸네일 URL. API 썸네일 사용 (xhscdn 등 CDN) */
@@ -1804,6 +1913,29 @@ export default function Search() {
                 <Bookmark size={16} style={{ display: "inline", marginRight: "4px" }} />
                 찜 목록
               </button>
+              {isBookmarkView && (
+                <button
+                  className="btn-bookmarks"
+                  onClick={handleRefreshAllBookmarks}
+                  disabled={isRefreshingAllBookmarks}
+                  title="찜한 영상 전체 썸네일/프리뷰 새로고침"
+                >
+                  {isRefreshingAllBookmarks ? (
+                    <>
+                      <Loader
+                        className="card-action-icon animate-spin"
+                        style={{ width: 16, height: 16, marginRight: 4, color: "#facc15" }}
+                      />
+                      전체 새로고침 중...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw size={16} style={{ display: "inline", marginRight: "4px" }} />
+                      전체 새로고침
+                    </>
+                  )}
+                </button>
+              )}
               <div ref={viewCountPopoverRef} className="header-filter-popover">
                 <button
                   type="button"
@@ -2016,6 +2148,28 @@ export default function Search() {
                             {/* 오른쪽 액션 버튼 */}
                           </div>
                           <div className="card-actions-vertical">
+                            {/* 썸네일 새로고침 버튼 (찜 목록 + 썸네일 실패 시) */}
+                            {isBookmarkView && failedThumbnails.has(video.id) && (
+                              <button
+                                className="card-action-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRefreshBookmarkThumbnail(video);
+                                }}
+                                disabled={refreshingThumbnailId === video.id}
+                                title="썸네일 새로고침"
+                              >
+                                {refreshingThumbnailId === video.id ? (
+                                  <Loader className="card-action-icon animate-spin" />
+                                ) : (
+                                  <RefreshCw className="card-action-icon" />
+                                )}
+                                <span className="card-action-label">
+                                  {refreshingThumbnailId === video.id ? "갱신중" : "새로고침"}
+                                </span>
+                              </button>
+                            )}
+
                             {/* URL 복사 버튼 */}
                             <button
                               className="card-action-btn"

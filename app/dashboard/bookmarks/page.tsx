@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ArrowLeft, Play, Heart, MessageCircle, Share2, Bookmark, ExternalLink } from "lucide-react";
+import type React from "react";
+import { ArrowLeft, Play, Heart, MessageCircle, Share2, Bookmark, ExternalLink, Loader } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Toast, { type Toast as ToastType } from "@/app/components/Toast/Toast";
 import { formatNumber, formatVideoDuration } from "@/lib/formatters";
 import { getRelativeDateString } from "@/lib/dateUtils";
+import { isCdnUrl } from "@/lib/utils/validateMediaUrl";
 import "./bookmarks.css";
 
 interface Video {
@@ -40,6 +42,9 @@ export default function BookmarksPage() {
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [toasts, setToasts] = useState<ToastType[]>([]);
+  const [failedThumbnails, setFailedThumbnails] = useState<Set<string>>(new Set());
+  const [refreshingThumbnailId, setRefreshingThumbnailId] = useState<string | null>(null);
+  const [isRefreshingAll, setIsRefreshingAll] = useState(false);
 
   const addToast = useCallback((type: "success" | "error" | "warning" | "info", message: string, title?: string, duration = 3000) => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -53,6 +58,115 @@ export default function BookmarksPage() {
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  const handleThumbnailError = useCallback(
+    (item: BookmarkItem, e: React.SyntheticEvent<HTMLImageElement>) => {
+      setFailedThumbnails((prev) => {
+        const next = new Set(prev);
+        next.add(item._id);
+        return next;
+      });
+
+      e.currentTarget.src =
+        'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect fill="%23111111" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" font-size="50" fill="%23999"%3E🎬%3C/text%3E%3C/svg%3E';
+      e.currentTarget.alt = "썸네일을 불러올 수 없습니다";
+    },
+    [],
+  );
+
+  const handleRefreshThumbnail = useCallback(
+    async (item: BookmarkItem) => {
+      try {
+        setRefreshingThumbnailId(item._id);
+
+        const res = await fetch("/api/bookmarks/refresh-thumbnail", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            videoId: item.videoId,
+            platform: item.platform,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.thumbnail) {
+          const message = data?.error || "새 썸네일을 가져오지 못했습니다.";
+          addToast("error", message, "❌ 갱신 실패");
+          return;
+        }
+
+        // 북마크 상태 안의 썸네일/프리뷰 URL 갱신
+        setBookmarks((prev) =>
+          prev.map((b) =>
+            b._id === item._id
+              ? {
+                  ...b,
+                  videoData: {
+                    ...b.videoData,
+                    thumbnail: data.thumbnail as string,
+                    ...(data.videoUrl ? { videoUrl: data.videoUrl as string } : {}),
+                  },
+                }
+              : b,
+          ),
+        );
+
+        // 실패 목록에서 제거
+        setFailedThumbnails((prev) => {
+          const next = new Set(prev);
+          next.delete(item._id);
+          return next;
+        });
+
+        addToast("success", "썸네일을 새로고침했습니다.", "🔄 갱신 완료", 2500);
+      } catch (error) {
+        console.error("[Bookmarks] Refresh thumbnail error:", error);
+        addToast("error", "썸네일 새로고침 중 오류가 발생했습니다.", "❌ 갱신 실패");
+      } finally {
+        setRefreshingThumbnailId(null);
+      }
+    },
+    [addToast],
+  );
+
+  const handleRefreshAll = useCallback(async () => {
+    try {
+      setIsRefreshingAll(true);
+
+      const res = await fetch("/api/bookmarks/refresh-all", {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        addToast("error", data?.error || "전체 새로고침에 실패했습니다.", "❌ 전체 새로고침 실패");
+        return;
+      }
+
+      // 최신 북마크 목록 다시 가져오기
+      const listRes = await fetch("/api/bookmarks");
+      const listData = await listRes.json();
+      if (listData.bookmarks) {
+        setBookmarks(listData.bookmarks);
+        setFailedThumbnails(new Set());
+      }
+
+      addToast(
+        "success",
+        `썸네일/프리뷰 ${data.updatedCount ?? 0}개 새로고침 완료`,
+        "🔄 전체 새로고침",
+        3500,
+      );
+    } catch (error) {
+      console.error("[Bookmarks] Refresh all error:", error);
+      addToast("error", "전체 새로고침 중 오류가 발생했습니다.", "❌ 전체 새로고침 실패");
+    } finally {
+      setIsRefreshingAll(false);
+    }
+  }, [addToast]);
 
   useEffect(() => {
     fetch("/api/bookmarks")
@@ -94,7 +208,29 @@ export default function BookmarksPage() {
         </button>
         <h1 className="bookmarks-title">즐겨찾기</h1>
         {!isLoading && (
-          <span className="bookmarks-count">총 {bookmarks.length}개</span>
+          <>
+            <span className="bookmarks-count">총 {bookmarks.length}개</span>
+            {bookmarks.length > 0 && (
+              <button
+                type="button"
+                className="bookmarks-refresh-all-btn"
+                onClick={handleRefreshAll}
+                disabled={isRefreshingAll}
+              >
+                {isRefreshingAll ? (
+                  <>
+                    <Loader
+                      className="spinner-icon"
+                      style={{ width: 14, height: 14, marginRight: 6, color: "#facc15" }}
+                    />
+                    전체 새로고침 중...
+                  </>
+                ) : (
+                  <>전체 새로고침</>
+                )}
+              </button>
+            )}
+          </>
         )}
       </div>
 
@@ -111,6 +247,7 @@ export default function BookmarksPage() {
           {bookmarks.map((item) => {
             const video = item.videoData;
             const thumb = getDisplayThumbnail(video);
+            const isCdnThumb = thumb ? isCdnUrl(thumb) : false;
             return (
               <div key={`${item.platform}-${item.videoId}`} className="bookmark-card">
                 <div
@@ -124,9 +261,30 @@ export default function BookmarksPage() {
                       className="bookmark-thumbnail"
                       loading="lazy"
                       referrerPolicy="no-referrer"
+                      onError={(e) => handleThumbnailError(item, e)}
                     />
                   ) : (
                     <div className="bookmark-thumbnail-fallback">🎬</div>
+                  )}
+
+                  {failedThumbnails.has(item._id) && (
+                    <div
+                      className="bookmark-refresh-overlay"
+                      onClick={(e) => {
+                        // 카드 전체 클릭(영상 열기)와 분리
+                        e.stopPropagation();
+                      }}
+                    >
+                      <span className="bookmark-refresh-text">썸네일이 만료되었어요</span>
+                      <button
+                        className="bookmark-refresh-button"
+                        type="button"
+                        onClick={() => handleRefreshThumbnail(item)}
+                        disabled={refreshingThumbnailId === item._id}
+                      >
+                        {refreshingThumbnailId === item._id ? "갱신 중..." : "썸네일 새로고침"}
+                      </button>
+                    </div>
                   )}
 
                   <div className="bookmark-duration-badge">{formatVideoDuration(video.videoDuration)}</div>
@@ -171,6 +329,15 @@ export default function BookmarksPage() {
                       <ExternalLink className="bookmark-action-icon" />
                       열기
                     </a>
+                  )}
+                  {thumb && isCdnThumb && (
+                    <button
+                      className="bookmark-action-btn"
+                      onClick={() => handleRefreshThumbnail(item)}
+                      disabled={refreshingThumbnailId === item._id}
+                    >
+                      {refreshingThumbnailId === item._id ? "썸네일 갱신 중..." : "썸네일 새로고침"}
+                    </button>
                   )}
                   <button
                     className="bookmark-action-btn danger"

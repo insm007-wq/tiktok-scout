@@ -45,6 +45,31 @@
   margin-left: auto;
 }
 
+.bookmarks-refresh-all-btn {
+  padding: 6px 10px;
+  margin-left: 8px;
+  background: #252525;
+  border-radius: 8px;
+  border: 1px solid #333333;
+  color: #f0f0f0;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.bookmarks-refresh-all-btn:hover:not(:disabled) {
+  background: #2f2f2f;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.bookmarks-refresh-all-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}
+
 .bookmarks-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -150,6 +175,57 @@
   flex-wrap: wrap;
 }
 
+.bookmark-refresh-overlay {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+.bookmark-refresh-text {
+  font-size: 11px;
+  color: #f5f5f5;
+  text-align: center;
+}
+
+.bookmark-refresh-button {
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, #f97316, #fb923c);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-shadow: 0 3px 10px rgba(249, 115, 22, 0.6);
+  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.bookmark-refresh-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #fb923c, #fdba74);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 16px rgba(249, 115, 22, 0.85);
+}
+
+.bookmark-refresh-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+  box-shadow: 0 2px 6px rgba(148, 163, 184, 0.5);
+}
+
 .bookmark-stat-item {
   display: flex;
   align-items: center;
@@ -167,6 +243,7 @@
   display: flex;
   gap: 8px;
   padding: 8px;
+  flex-wrap: wrap;
 }
 
 .bookmark-action-btn {
