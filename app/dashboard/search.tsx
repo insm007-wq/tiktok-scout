@@ -677,19 +677,19 @@ export default function Search() {
     setIsLoading(true);
     setError("");
 
-    // 검색 시 필터/정렬 초기화: 조회수·기간·길이·인기도 전체, 조회수순
-    setFilters({
+    // 검색 시 필터/정렬 초기화 (기간은 유지: 같은 키워드+같은 기간이면 캐시 사용, 기간 다르면 새 검색)
+    setFilters((prev) => ({
       minPlayCount: 0,
       maxPlayCount: null,
-      uploadPeriod: "all",
+      uploadPeriod: prev.uploadPeriod,
       videoLength: "all",
       engagementScore: ["all"],
-    });
+    }));
     setSortBy("plays");
 
     try {
-      // 새로운 비동기 큐 API 호출 (필터 초기화했으므로 기간 전체)
-      const dateRange = "all";
+      // 선택한 업로드 기간을 dateRange로 전달 → 캐시 키에 포함되어, 기간이 다르면 새로 검색됨
+      const dateRange = filters.uploadPeriod;
 
       const response = await fetch("/api/search", {
         method: "POST",
@@ -697,7 +697,7 @@ export default function Search() {
         body: JSON.stringify({
           query: searchQuery,
           platform,
-          dateRange: dateRange,
+          dateRange,
         }),
         signal: abortControllerRef.current.signal,
       });
