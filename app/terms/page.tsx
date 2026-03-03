@@ -17,7 +17,7 @@ export default function TermsPage() {
         <div className="mb-6">
           <Link
             href="/"
-            className="inline-flex items-center px-6 py-2 text-white/70 hover:text-white border border-white/20 hover:border-white/40 rounded-lg transition-all text-sm font-medium"
+            className="inline-flex items-center px-6 py-2 text-white bg-white/25 hover:bg-white/35 border border-white/50 hover:border-white/60 rounded-lg transition-all text-sm font-semibold shadow-sm"
           >
             ← 메인으로
           </Link>
@@ -297,10 +297,6 @@ export default function TermsPage() {
             </div>
           </section>
 
-          {/* 동의 섹션 */}
-          <div className="bg-cyan-500/20 border border-cyan-500/50 rounded-lg p-4 mt-8">
-            <p className="text-white text-center">본 서비스 이용약관에 동의하시고 서비스를 이용하시게 됩니다.</p>
-          </div>
         </div>
       </div>
     </div>

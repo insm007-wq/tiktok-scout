@@ -24,7 +24,7 @@ export default function HomeContent() {
       gradient: "from-[#FE2C55] to-[#25F4EE]",
       title: "TikTok Global",
       description: "전세계 트렌드를 실시간으로",
-      features: ["글로벌 바이럴 영상", "해시태그 분석", "크리에이터 통계"],
+      features: ["키워드·해시태그 검색", "영상 다운로드", "AI 자막 추출"],
     },
     {
       id: 1,
@@ -33,7 +33,7 @@ export default function HomeContent() {
       gradient: "from-[#EE1D51] to-[#FF6B9D]",
       title: "Douyin China",
       description: "중국 시장의 모든 것",
-      features: ["중국 트렌드 발굴", "한중 번역 지원", "로컬 인사이트"],
+      features: ["중국 트렌드 검색", "한·중 자동 번역", "AI 자막 추출"],
     },
   ];
 
@@ -70,7 +70,7 @@ export default function HomeContent() {
         {/* 히어로 섹션 */}
         <div className={styles.heroSection}>
           <h2 className={styles.heroTitle}>숏폼의 모든 것을 한눈에</h2>
-          <p className={styles.heroSubtitle}>TikTok · Douyin | 2개 플랫폼, 무한한 인사이트</p>
+          <p className={styles.heroSubtitle}>TikTok · Douyin 검색 · 다운로드 · AI 자막 추출</p>
 
           {/* 통계 하이라이트 */}
           <div className={styles.statsHighlight}>
@@ -79,11 +79,11 @@ export default function HomeContent() {
             </span>
             <span className={styles.divider}>•</span>
             <span className={styles.statItem}>
-              <span className={styles.neonText}>∞</span> 영상
+              <span className={styles.neonText}>검색</span> · 다운로드
             </span>
             <span className={styles.divider}>•</span>
             <span className={styles.statItem}>
-              <span className={styles.neonText}>실시간</span> 분석
+              <span className={styles.neonText}>AI</span> 자막 추출
             </span>
           </div>
         </div>
@@ -122,7 +122,7 @@ export default function HomeContent() {
         </div>
 
         {/* CTA 버튼 */}
-        <Link href="/dashboard" className={styles.neonCtaButton}>
+        <Link href="/auth/signup" className={styles.neonCtaButton}>
           <span className={styles.ctaText}>지금 시작하기</span>
           <span className={styles.ctaArrow}>→</span>
         </Link>

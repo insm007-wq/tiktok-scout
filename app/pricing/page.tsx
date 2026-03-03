@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
-import TossPaymentButton from '@/app/components/TossPaymentButton/TossPaymentButton';
 
 export default function PricingPage() {
   const router = useRouter();
@@ -86,7 +85,7 @@ export default function PricingPage() {
         <div className="mb-8">
           <button
             onClick={() => router.push('/')}
-            className="px-6 py-2 text-white/70 hover:text-white border border-white/20 hover:border-white/40 rounded-lg transition-all text-sm font-medium"
+            className="px-6 py-2 text-white bg-white/25 hover:bg-white/35 border border-white/50 hover:border-white/60 rounded-lg transition-all text-sm font-semibold shadow-sm"
           >
             ← 메인으로
           </button>
@@ -180,7 +179,7 @@ export default function PricingPage() {
                 </div>
 
                 {/* Features - flex-1 to grow and push button down */}
-                <ul className="space-y-3 mb-8 flex-1">
+                <ul className="space-y-3 mb-0">
                   {plan.features.map((feature, idx) => (
                     <li key={idx} className="flex gap-3 text-white/80 text-sm">
                       <svg
@@ -199,22 +198,6 @@ export default function PricingPage() {
                   ))}
                 </ul>
 
-                {/* Subscribe button - stays at bottom */}
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  className="mt-auto"
-                >
-                  <TossPaymentButton
-                    plan={{ id: plan.id, name: plan.name, price: plan.price }}
-                    className={`w-full py-3 rounded-lg font-semibold transition-all duration-300 ${
-                      selectedPlan === plan.id
-                        ? 'bg-gradient-to-r from-cyan-500 to-pink-400 text-black hover:shadow-[0_0_20px_rgba(34,211,238,0.5)]'
-                        : 'bg-white/10 text-white border border-white/20 hover:bg-white/20 hover:border-white/40'
-                    }`}
-                  >
-                    {selectedPlan === plan.id ? '✓ 결제하기' : '구독하기'}
-                  </TossPaymentButton>
-                </div>
               </div>
               </div>
             </div>

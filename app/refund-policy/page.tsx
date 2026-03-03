@@ -18,7 +18,7 @@ export default function RefundPolicyPage() {
         <div className="mb-6">
           <Link
             href="/"
-            className="inline-flex items-center px-6 py-2 text-white/70 hover:text-white border border-white/20 hover:border-white/40 rounded-lg transition-all text-sm font-medium"
+            className="inline-flex items-center px-6 py-2 text-white bg-white/25 hover:bg-white/35 border border-white/50 hover:border-white/60 rounded-lg transition-all text-sm font-semibold shadow-sm"
           >
             ← 메인으로
           </Link>
