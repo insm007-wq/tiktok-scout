@@ -9,7 +9,6 @@ import dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 dotenv.config()
 
-process.env.NODE_ENV = 'development'
 if (!process.env.WORKER_CONCURRENCY) {
   process.env.WORKER_CONCURRENCY = '2'
 }
