@@ -10,7 +10,7 @@ interface ApiUsageRecord {
   email: string  // Primary Key (email 기반)
   date: string   // YYYY-MM-DD
   count: number
-  searches?: Array<{ query: string; timestamp: Date }>
+  searches?: Array<{ query?: string; type: 'search' | 'download' | 'subtitles'; timestamp: Date }>
   createdAt?: Date
   updatedAt?: Date
 }
@@ -136,6 +136,7 @@ export async function checkApiUsage(email: string): Promise<ApiUsageResponse> {
           { email },
           {
             $set: {
+              todayUsed: 0,
               lastResetDate: today,
               updatedAt: new Date()
             }
@@ -169,7 +170,11 @@ export async function checkApiUsage(email: string): Promise<ApiUsageResponse> {
  * 사용자의 API 사용량을 1 증가시킴 (Email 기반)
  * Atomic 연산 사용으로 동시성 보장
  */
-export async function incrementApiUsage(email: string, query?: string): Promise<ApiUsageResponse> {
+export async function incrementApiUsage(
+  email: string,
+  query?: string,
+  type: 'search' | 'download' | 'subtitles' = 'search'
+): Promise<ApiUsageResponse> {
   try {
     if (!email) {
       throw new Error('email은 필수입니다')
@@ -190,7 +195,7 @@ export async function incrementApiUsage(email: string, query?: string): Promise<
       },
       {
         $inc: { count: 1 },
-        $push: query ? { searches: { query, timestamp: new Date() } } : {},
+        $push: { searches: { ...(query ? { query } : {}), type, timestamp: new Date() } },
         $set: { updatedAt: new Date() },
         $setOnInsert: {
           email,
@@ -214,12 +219,10 @@ export async function incrementApiUsage(email: string, query?: string): Promise<
         { email },
         {
           $set: {
+            todayUsed: updatedCount,
             remainingLimit: remaining,
             lastResetDate: today,
             updatedAt: new Date()
-          },
-          $unset: {
-            todayUsed: ""  // ✅ todayUsed 필드 제거 (중복 데이터)
           }
         }
       )

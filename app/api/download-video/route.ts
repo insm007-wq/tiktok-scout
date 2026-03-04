@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       }
 
       // 3. 사용량 증가 (다운로드 요청 시 차감)
-      await incrementApiUsage(session.user.email, 'download-video');
+      await incrementApiUsage(session.user.email, undefined, 'download');
     }
 
     const { videoUrl, videoId, platform = 'tiktok', webVideoUrl } = await req.json();

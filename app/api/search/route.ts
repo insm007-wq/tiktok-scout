@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     // 캐시 미스 → 할당량 차감
     if (!session.user.isAdmin) {
-      await incrementApiUsage(session.user.email, query.trim())
+      await incrementApiUsage(session.user.email, query.trim(), 'search')
     }
 
     console.log(`[SearchAPI] ❌ Cache MISS (재스크래핑 필요)`, {

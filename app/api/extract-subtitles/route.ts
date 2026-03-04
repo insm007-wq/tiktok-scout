@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       }
 
       // 3. 사용량 증가 (자막 추출 요청 시 차감)
-      await incrementApiUsage(session.user.email, 'extract-subtitles');
+      await incrementApiUsage(session.user.email, undefined, 'subtitles');
     }
 
     const { videoUrl, videoId, platform = 'tiktok', webVideoUrl, format = 'text' } = await req.json();
