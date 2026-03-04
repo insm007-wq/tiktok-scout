@@ -40,6 +40,10 @@ export default function TossPaymentButton({ plan, children, className, disabled 
 
     try {
       const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
+      if (!clientKey) {
+        // 타입 안전성을 위해 재검증 (이 경우에도 결제는 진행하지 않음)
+        throw new Error('Toss Payments client key is not configured');
+      }
       const customerKey = session?.user?.email
         ? `user-${session.user.email.replace(/[^a-zA-Z0-9._=-]/g, '_')}`
         : `anon-${Date.now()}`;
