@@ -1,10 +1,11 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AlertCircle, ArrowLeft } from 'lucide-react'
 
-export default function ErrorPage() {
+function ErrorPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const error = searchParams?.get('error')
@@ -88,7 +89,7 @@ export default function ErrorPage() {
         <div className="text-center mt-6">
           <Link
             href="/"
-            className="inline-flex items-center justify-center px-6 py-2 text-sm font-semibold text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 border border-gray-300 hover:border-gray-400 rounded-lg transition-all"
+            className="inline-flex items-center justify-center px-6 py-2 text-sm font-semibold text-gray-700 hover:text-gray-900 bg:white hover:bg-gray-50 border border-gray-300 hover:border-gray-400 rounded-lg transition-all"
           >
             ← 메인으로
           </Link>
@@ -105,5 +106,22 @@ export default function ErrorPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ErrorPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center p-4">
+          <div className="w-full max-w-md text-center">
+            <p className="text-gray-700 mb-4">오류 정보를 불러오는 중입니다...</p>
+            <div className="w-12 h-12 border-4 border-red-400 border-t-transparent rounded-full animate-spin mx-auto" />
+          </div>
+        </div>
+      }
+    >
+      <ErrorPageContent />
+    </Suspense>
   )
 }

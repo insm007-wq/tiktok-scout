@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { CheckCircle, Loader2 } from 'lucide-react'
 
-export default function VerifyCompletePage() {
+function VerifyCompleteContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const token = searchParams?.get('token') ?? null
@@ -73,5 +73,22 @@ export default function VerifyCompletePage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function VerifyCompletePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-black flex items-center justify-center p-4">
+          <div className="w-full max-w-md text-center">
+            <p className="text-white/60 mb-4">인증 링크를 확인하는 중입니다...</p>
+            <Loader2 size={24} className="animate-spin text-cyan-400 mx-auto" />
+          </div>
+        </div>
+      }
+    >
+      <VerifyCompleteContent />
+    </Suspense>
   )
 }

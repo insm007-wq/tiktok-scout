@@ -1,9 +1,9 @@
 'use client';
 
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
 
-export default function BillingSuccessPage() {
+function BillingSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -98,7 +98,7 @@ export default function BillingSuccessPage() {
             <div className="flex gap-4 justify-center">
               <button
                 onClick={() => router.push('/pricing')}
-                className="px-6 py-3 bg-white/10 text-white border border-white/30 rounded-lg font-medium hover:bg-white/20"
+                className="px-6 py-3 bg-white/10 text:white border border-white/30 rounded-lg font-medium hover:bg-white/20"
               >
                 요금제 다시 보기
               </button>
@@ -113,5 +113,22 @@ export default function BillingSuccessPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function BillingSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-b from-black via-gray-950 to-black flex items-center justify-center p-4">
+          <div className="max-w-md w-full text-center">
+            <p className="text-white/80 text-lg mb-4">결제 정보를 확인하는 중입니다...</p>
+            <div className="w-16 h-16 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
+          </div>
+        </div>
+      }
+    >
+      <BillingSuccessContent />
+    </Suspense>
   );
 }
