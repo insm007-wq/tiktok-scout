@@ -10,8 +10,8 @@ export default function BillingSuccessPage() {
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    const authKey = searchParams.get('authKey');
-    const customerKey = searchParams.get('customerKey');
+    const authKey = searchParams?.get('authKey') || '';
+    const customerKey = searchParams?.get('customerKey') || '';
 
     if (!authKey || !customerKey) {
       setStatus('error');
