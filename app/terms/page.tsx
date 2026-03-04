@@ -189,7 +189,7 @@ export default function TermsPage() {
                 </li>
                 <li className="flex gap-3">
                   <span className="text-pink-400">•</span>
-                  <span>외부 API(Apify, Bright Data 등) 장애로 인한 서비스 중단</span>
+                  <span>외부 API(제3자 데이터 서비스 등) 장애로 인한 서비스 중단</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="text-pink-400">•</span>

@@ -1,5 +1,5 @@
 /**
- * Apify Actor 실행 유틸리티
+ * Actor 실행 유틸리티
  * - Run → Polling (지수 백오프) → Dataset 패턴 추상화
  * - 재사용 가능한 함수로 제공
  */
@@ -21,7 +21,7 @@ export interface ApifyRunResult<T = any> {
 }
 
 /**
- * Apify Actor 실행 및 결과 조회
+ * Actor 실행 및 결과 조회
  * @param options Actor 실행 옵션
  * @returns 실행 결과 (성공/실패 여부 및 데이터)
  */
@@ -39,7 +39,7 @@ export async function runApifyActor<T = any>(
 
   try {
     // Step 1: Actor Run 시작
-    console.log(`[Apify] Starting actor: ${actorId}`);
+    console.log(`[Scraper] Starting actor: ${actorId}`);
 
     const runRes = await fetch(
       `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
@@ -52,7 +52,7 @@ export async function runApifyActor<T = any>(
 
     if (!runRes.ok) {
       const errorData = await runRes.json();
-      console.error('[Apify] Run creation failed:', errorData);
+      console.error('[Scraper] Run creation failed:', errorData);
       return {
         success: false,
         error: `Failed to start actor: ${runRes.statusText}`,
@@ -62,7 +62,7 @@ export async function runApifyActor<T = any>(
     const runData = await runRes.json();
     const runId = runData.data.id;
 
-    console.log(`[Apify] Run created: ${runId}`);
+    console.log(`[Scraper] Run created: ${runId}`);
 
     // Step 2: 폴링 (지수 백오프)
     let status = 'RUNNING';
@@ -75,7 +75,7 @@ export async function runApifyActor<T = any>(
       );
 
       if (!statusRes.ok) {
-        console.error('[Apify] Status check failed:', statusRes.status);
+        console.error('[Scraper] Status check failed:', statusRes.status);
         return {
           success: false,
           error: 'Failed to check actor status',
@@ -88,19 +88,19 @@ export async function runApifyActor<T = any>(
       attempt++;
 
       console.log(
-        `[Apify] Status check #${attempt}: ${status} (waited ${waitTime}ms)`
+        `[Scraper] Status check #${attempt}: ${status} (waited ${waitTime}ms)`
       );
 
       // 성공
       if (status === 'SUCCEEDED') {
-        console.log(`[Apify] Actor completed successfully`);
+        console.log(`[Scraper] Actor completed successfully`);
         break;
       }
 
       // 실패
       if (status === 'FAILED' || status === 'ABORTED') {
         const message = statusData.data.statusMessage || 'Unknown error';
-        console.error(`[Apify] Actor failed: ${message}`);
+        console.error(`[Scraper] Actor failed: ${message}`);
         return {
           success: false,
           error: `Actor execution failed: ${message}`,
@@ -119,7 +119,7 @@ export async function runApifyActor<T = any>(
     // 타임아웃 확인
     if (status !== 'SUCCEEDED') {
       console.error(
-        `[Apify] Actor timeout (status: ${status}, attempts: ${attempt})`
+        `[Scraper] Actor timeout (status: ${status}, attempts: ${attempt})`
       );
       return {
         success: false,
@@ -129,14 +129,14 @@ export async function runApifyActor<T = any>(
     }
 
     // Step 3: Dataset 조회
-    console.log(`[Apify] Fetching dataset for run: ${runId}`);
+    console.log(`[Scraper] Fetching dataset for run: ${runId}`);
 
     const datasetRes = await fetch(
       `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`
     );
 
     if (!datasetRes.ok) {
-      console.error('[Apify] Dataset fetch failed:', datasetRes.status);
+      console.error('[Scraper] Dataset fetch failed:', datasetRes.status);
       return {
         success: false,
         error: 'Failed to fetch dataset',
@@ -147,15 +147,15 @@ export async function runApifyActor<T = any>(
     const dataset = await datasetRes.json();
 
     if (!Array.isArray(dataset)) {
-      console.error('[Apify] Unexpected response format:', typeof dataset);
+      console.error('[Scraper] Unexpected response format:', typeof dataset);
       return {
         success: false,
-        error: 'Unexpected response format from Apify',
+        error: 'Unexpected response format from scraper',
         runId,
       };
     }
 
-    console.log(`[Apify] Successfully retrieved ${dataset.length} items`);
+    console.log(`[Scraper] Successfully retrieved ${dataset.length} items`);
 
     return {
       success: true,
@@ -163,7 +163,7 @@ export async function runApifyActor<T = any>(
       runId,
     };
   } catch (error) {
-    console.error('[Apify] Unexpected error:', error);
+    console.error('[Scraper] Unexpected error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred',

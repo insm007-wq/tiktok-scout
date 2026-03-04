@@ -674,7 +674,7 @@ export default function Search() {
       pollIntervalRef.current = null;
     }
 
-    // 3. 백엔드 취소 API 호출 (Apify abort + job 제거 + 캐시 삭제)
+    // 3. 백엔드 취소 API 호출 (스크래핑 작업 중단 + job 제거 + 캐시 삭제)
     if (jobIdToCancel) {
       try {
         await fetch("/api/search/cancel", {
@@ -687,7 +687,7 @@ export default function Search() {
             dateRange: filters.uploadPeriod,
           }),
         });
-        console.log("[Search] Cancel API 호출 완료 (Apify abort 포함)");
+        console.log("[Search] Cancel API 호출 완료 (스크래핑 작업 중단 포함)");
         addToast("info", "검색이 취소되었습니다.", "⏹️ 취소됨");
       } catch (error) {
         console.error("[Search] Cancel API 실패:", error);
@@ -952,13 +952,13 @@ export default function Search() {
 
               // 에러 타입별 토스트 메시지 표시
               if (errorType === "RATE_LIMIT") {
-                addToast("warning", "Apify API 할당량이 제한되었습니다. 30초 후 다시 시도해주세요.", "⏳ 잠시만요");
+                addToast("warning", "검색 API 할당량이 제한되었습니다. 30초 후 다시 시도해주세요.", "⏳ 잠시만요");
               } else if (errorType === "NETWORK_ERROR") {
                 addToast("error", "네트워크 연결을 확인해주세요.", "❌ 연결 오류");
               } else if (errorType === "AUTH_ERROR") {
                 addToast("error", "API 인증에 실패했습니다. 관리자에게 연락해주세요.", "❌ 인증 오류");
               } else if (errorType === "APIFY_ERROR") {
-                addToast("warning", "Apify 서비스가 일시적으로 불안정합니다.\n몇 분 후 다시 시도해주세요.", "🔧 서비스 점검 중");
+                addToast("warning", "검색 서비스가 일시적으로 불안정합니다.\n몇 분 후 다시 시도해주세요.", "🔧 서비스 점검 중");
               } else if (errorType === "NO_RESULTS") {
                 addToast("info", "검색어를 바꿔서 다시 시도해보세요.", "🔍 결과 없음");
               } else {

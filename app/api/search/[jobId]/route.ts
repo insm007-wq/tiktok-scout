@@ -74,7 +74,7 @@ export async function GET(
         userMessage = '🌐 인터넷 연결을 확인해주세요.\n\nDNS 해석에 실패했습니다.'
         errorType = 'DNS_ERROR'
       } else if (failedReason.includes('APIFY_ERROR')) {
-        userMessage = '⚙️ Apify 스크래핑 서비스에 일시적 문제가 있습니다.\n\n몇 분 후 다시 시도해주세요.'
+        userMessage = '⚙️ 검색 서비스에 일시적 문제가 있습니다.\n\n몇 분 후 다시 시도해주세요.'
         errorType = 'APIFY_ERROR'
       } else if (failedReason.includes('empty') || failedReason.includes('no results')) {
         userMessage = '🔍 검색 결과를 찾을 수 없습니다.\n\n다른 키워드로 시도해주세요.'

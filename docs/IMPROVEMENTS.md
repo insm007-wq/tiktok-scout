@@ -4,14 +4,9 @@
 
 ---
 
-## 1. 회원 탈퇴 시 구독 연동 (중요)
+## 1. 회원 탈퇴 시 구독 연동 (중요) ✅ 완료
 
-**현재:** `withdrawUser()`는 `users`만 갱신하고, `subscriptions`/빌링은 건드리지 않음.  
-**문제:** 구독 중인 사용자가 탈퇴해도 다음 달에 크론이 빌링키로 자동 결제 시도 가능.
-
-**보강:**
-- 탈퇴 API(`/api/auth/withdraw`)에서, 해당 이메일의 `subscriptions`가 `active`이면 구독 취소 처리 후 탈퇴 진행.
-- 또는 `withdrawUser()` 내부에서 `subscriptions`를 `status: 'cancelled'`, `cancelledAt: now`로 업데이트.
+**적용:** 탈퇴 API(`/api/auth/withdraw`)에서 비밀번호 확인 후, 해당 이메일의 `subscriptions`가 활성 상태이면 `status: 'cancelled'`, `cancelledAt` 설정 후 회원 탈퇴 진행. (탈퇴 후 자동 결제 방지)
 
 ---
 
@@ -52,7 +47,7 @@
 
 **현재:** `.env.example`에 MongoDB, NextAuth, Resend, 토스, CRON_SECRET만 있음.  
 **보강:**
-- Redis, Apify, 기타 필수 env를 `.env.example`에 주석으로라도 명시하면 배포 시 실수 감소.
+- Redis, 기타 필수 env를 `.env.example`에 주석으로라도 명시하면 배포 시 실수 감소.
 - `README` 또는 운영 문서에 “유료 오픈 전 점검 목록”(결제 테스트, 크론 등)을 적어두면 좋음.
 
 ---

@@ -4,7 +4,7 @@ import { clearSearchCache } from '@/lib/cache'
 
 const APIFY_ABORT_URL = 'https://api.apify.com/v2/actor-runs'
 
-/** 취소 시 Apify 실행도 중단 (RUNNING/READY 상태만 중단 가능) */
+/** 취소 시 스크래핑 실행도 중단 (RUNNING/READY 상태만 중단 가능) */
 async function abortApifyRuns(runIds: string[], apiKey: string): Promise<void> {
   await Promise.all(
     runIds.map((runId) =>
@@ -33,9 +33,9 @@ export async function POST(request: NextRequest) {
       if (runIds.length > 0 && apiKey) {
         try {
           await abortApifyRuns(runIds, apiKey)
-          console.log('[CancelAPI] Apify run(s) aborted:', runIds)
+          console.log('[CancelAPI] 스크래핑 작업 중단됨:', runIds)
         } catch (err) {
-          console.warn('[CancelAPI] Apify abort failed (run may already be finished):', err)
+          console.warn('[CancelAPI] 스크래핑 작업 중단 실패 (이미 완료되었을 수 있음):', err)
         }
       }
 

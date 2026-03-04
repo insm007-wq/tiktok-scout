@@ -3,9 +3,14 @@ import { fetchSingleVideoUrl } from '@/lib/utils/fetch-single-video-url';
 import { auth } from '@/lib/auth';
 import { checkApiUsage, incrementApiUsage } from '@/lib/apiUsage';
 
+const VALID_PLATFORMS = ['tiktok', 'douyin'] as const;
+const isDev = process.env.NODE_ENV !== 'production';
+
 export async function POST(req: NextRequest) {
   try {
-    console.log('[Download] ========== POST request received ==========');
+    if (isDev) {
+      console.log('[Download] ========== POST request received ==========');
+    }
 
     // 1. 세션 확인
     const session = await auth();
@@ -36,26 +41,46 @@ export async function POST(req: NextRequest) {
     }
 
     const { videoUrl, videoId, platform = 'tiktok', webVideoUrl } = await req.json();
-    console.log('[Download] Request body:', { videoUrl, videoId, platform, webVideoUrl });
+
+    if (!VALID_PLATFORMS.includes(platform)) {
+      return NextResponse.json(
+        { error: '유효하지 않은 플랫폼입니다.' },
+        { status: 400 }
+      );
+    }
+
+    if (isDev) {
+      console.log('[Download] Request body:', { videoUrl, videoId, platform, webVideoUrl });
+    }
 
     let finalVideoUrl = videoUrl;
 
     // Handle on-demand video URL fetching for all platforms when videoUrl is not provided
     if (!videoUrl && webVideoUrl) {
-      console.log(`[Download] 🚀 ${platform}: Fetching video URL from web URL: ${webVideoUrl}`);
+      if (isDev) {
+        console.log(`[Download] 🚀 ${platform}: Fetching video URL from web URL: ${webVideoUrl}`);
+      }
 
       try {
-        console.log('[Download] 📍 Checking APIFY_API_KEY...');
+        if (isDev) {
+          console.log('[Download] 📍 Checking APIFY_API_KEY...');
+        }
         const apiKey = process.env.APIFY_API_KEY;
         if (!apiKey) {
           throw new Error('APIFY_API_KEY not configured');
         }
-        console.log('[Download] ✓ API key found');
+        if (isDev) {
+          console.log('[Download] ✓ API key found');
+        }
 
-        // Use Apify to fetch the actual CDN video URL from the web page
-        console.log(`[Download] 📡 Calling fetchSingleVideoUrl for ${platform}...`);
+        // Fetch the actual CDN video URL from the web page
+        if (isDev) {
+          console.log(`[Download] 📡 Calling fetchSingleVideoUrl for ${platform}...`);
+        }
         const result = await fetchSingleVideoUrl(webVideoUrl, platform as any, apiKey);
-        console.log('[Download] 📥 fetchSingleVideoUrl result:', JSON.stringify(result));
+        if (isDev) {
+          console.log('[Download] 📥 fetchSingleVideoUrl result:', JSON.stringify(result));
+        }
 
         if (result.error) {
           console.error(`[Download] ❌ fetchSingleVideoUrl returned error:`, result.error);
@@ -68,7 +93,7 @@ export async function POST(req: NextRequest) {
           throw new Error('Could not extract video URL from page');
         }
 
-        if (finalVideoUrl) {
+        if (finalVideoUrl && isDev) {
           console.log(`[Download] ✅ ${platform} video URL extracted successfully:`, finalVideoUrl.substring(0, 100));
         }
 
@@ -123,7 +148,9 @@ export async function POST(req: NextRequest) {
           });
 
           if (retryResponse.ok) {
-            console.log('[Download] ✅ Retry successful');
+            if (isDev) {
+              console.log('[Download] ✅ Retry successful');
+            }
             videoResponse = retryResponse;
           }
         }
@@ -153,7 +180,9 @@ export async function POST(req: NextRequest) {
 
     // Validate Content-Type
     const contentType = videoResponse.headers.get('Content-Type');
-    console.log('[Download] Content-Type:', contentType);
+    if (isDev) {
+      console.log('[Download] Content-Type:', contentType);
+    }
 
     if (!contentType || !(contentType.includes('video') || contentType.includes('octet-stream'))) {
       console.error('[Download] Invalid Content-Type:', contentType);
@@ -176,7 +205,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('[Download] Video file size:', buffer.byteLength, 'bytes');
+    if (isDev) {
+      console.log('[Download] Video file size:', buffer.byteLength, 'bytes');
+    }
 
     // 파일명 생성 (플랫폼별)
     const filePrefix = platform === 'douyin' ? 'douyin' : 'tiktok';

@@ -4,6 +4,9 @@ import { fetchSingleVideoUrl } from '@/lib/utils/fetch-single-video-url';
 import { auth } from '@/lib/auth';
 import { checkApiUsage, incrementApiUsage } from '@/lib/apiUsage';
 
+const VALID_PLATFORMS = ['tiktok', 'douyin'] as const;
+const isDev = process.env.NODE_ENV !== 'production';
+
 // SRT를 순수 텍스트로 변환 (시간, 씬 번호 제거)
 function parseSrtToText(srtContent: string): string {
   return srtContent
@@ -53,7 +56,7 @@ export async function POST(req: NextRequest) {
 
     const { videoUrl, videoId, platform = 'tiktok', webVideoUrl, format = 'text' } = await req.json();
 
-    if (platform !== 'tiktok' && platform !== 'douyin') {
+    if (!VALID_PLATFORMS.includes(platform)) {
       return NextResponse.json(
         { error: `${platform}은(는) 자막 추출을 지원하지 않습니다.` },
         { status: 400 }
@@ -62,9 +65,11 @@ export async function POST(req: NextRequest) {
 
     let finalVideoUrl = videoUrl;
 
-    // webVideoUrl만 있을 경우 Apify로 CDN URL 조회 (download-video와 동일 방식)
+    // webVideoUrl만 있을 경우 CDN URL 조회 (download-video와 동일 방식)
     if (!finalVideoUrl && webVideoUrl) {
-      console.log('[ExtractSubtitles] 🚀 webVideoUrl에서 CDN URL 조회:', webVideoUrl);
+      if (isDev) {
+        console.log('[ExtractSubtitles] 🚀 webVideoUrl에서 CDN URL 조회:', webVideoUrl);
+      }
       const apiKey = process.env.APIFY_API_KEY;
       if (!apiKey) {
         return NextResponse.json({ error: '서버 설정 오류: APIFY_API_KEY가 없습니다.' }, { status: 500 });
@@ -74,7 +79,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: result.error || '영상 URL을 가져올 수 없습니다.' }, { status: 400 });
       }
       finalVideoUrl = result.videoUrl;
-      console.log('[ExtractSubtitles] ✅ CDN URL 조회 성공:', finalVideoUrl.substring(0, 100));
+      if (isDev && finalVideoUrl) {
+        console.log('[ExtractSubtitles] ✅ CDN URL 조회 성공:', finalVideoUrl.substring(0, 100));
+      }
     }
 
     if (!finalVideoUrl) {
@@ -84,7 +91,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('[ExtractSubtitles] Starting subtitle extraction for video:', videoId);
+    if (isDev) {
+      console.log('[ExtractSubtitles] Starting subtitle extraction for video:', videoId);
+    }
 
     // 플랫폼별 Referer 설정
     const refererMap: Record<string, string> = {
@@ -119,7 +128,9 @@ export async function POST(req: NextRequest) {
         });
 
         if (retryResponse.ok) {
-          console.log('[ExtractSubtitles] Retry successful');
+          if (isDev) {
+            console.log('[ExtractSubtitles] Retry successful');
+          }
           videoResponse = retryResponse;
         }
       }
@@ -178,7 +189,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('[ExtractSubtitles] Video file size:', (buffer.byteLength / (1024 * 1024)).toFixed(2), 'MB');
+    if (isDev) {
+      console.log('[ExtractSubtitles] Video file size:', (buffer.byteLength / (1024 * 1024)).toFixed(2), 'MB');
+    }
 
     // OpenAI Whisper API를 사용한 자막 추출
     const openaiApiKey = process.env.OPENAI_API_KEY;
@@ -197,7 +210,9 @@ export async function POST(req: NextRequest) {
     formData.append('response_format', 'srt');
     // 언어 자동 감지 - language 파라미터 생략
 
-    console.log('[ExtractSubtitles] Calling OpenAI Whisper API...');
+    if (isDev) {
+      console.log('[ExtractSubtitles] Calling OpenAI Whisper API...');
+    }
 
     const whisperResponse = await fetchWithRetry(
       'https://api.openai.com/v1/audio/transcriptions',
@@ -254,7 +269,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('[ExtractSubtitles] ✅ Subtitle extraction successful');
+    if (isDev) {
+      console.log('[ExtractSubtitles] ✅ Subtitle extraction successful');
+    }
 
     // 포맷에 따라 변환
     const filePrefix = platform === 'douyin' ? 'douyin' : 'tiktok';

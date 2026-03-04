@@ -10,9 +10,9 @@ import { fetchWithRetry, fetchPostWithRetry, fetchGetWithRetry } from '@/lib/uti
  * - 1초, 2초, 4초... 대기
  */
 export interface SearchScraperOptions {
-  /** 검색 취소 시 Apify run 중단용으로 runId 전달 */
+  /** 검색 취소 시 run 중단용으로 runId 전달 */
   onRunStarted?: (runId: string) => void;
-  /** Apify 수집 대기 중 진행률 (15~70) — UI에 "아직 수집 중" 표시용 */
+  /** 수집 대기 중 진행률 (15~70) — UI에 "아직 수집 중" 표시용 */
   onProgress?: (percent: number) => void;
 }
 

@@ -8,13 +8,11 @@ interface SingleVideoResult {
 }
 
 /**
- * Fetch video URL using Apify Download Actors
- * - TikTok: epctex/tiktok-video-downloader (highest-rated: 4.9★ 643 reviews)
- * - Douyin: scrapearchitect/douyin-video-downloader
+ * Fetch video URL using download actors
  *
  * @param webVideoUrl - The web page URL (e.g., https://www.tiktok.com/@user/video/123456)
  * @param platform - The platform (tiktok, douyin)
- * @param apiKey - Apify API key
+ * @param apiKey - API key
  * @returns Object with videoUrl (CDN URL) or error
  */
 export async function fetchSingleVideoUrl(
@@ -35,14 +33,14 @@ export async function fetchSingleVideoUrl(
     }
 
     const tiktokActorId = 'epctex~tiktok-video-downloader';
-    console.log(`[fetchSingleVideoUrl] Using ${platform} download actor: ${tiktokActorId}`);
+    console.log(`[fetchSingleVideoUrl] Using ${platform} download actor`);
 
     // Step 1: Start the actor run
     const runRes = await fetchPostWithRetry(
       `https://api.apify.com/v2/acts/${tiktokActorId}/runs?token=${apiKey}`,
       {
         startUrls: [webVideoUrl],
-        proxy: { useApifyProxy: true },  // Required for epctex TikTok actor
+        proxy: { useApifyProxy: true },  // Required for TikTok actor
       },
       {},
       { maxRetries: 3, initialDelayMs: 1000 }

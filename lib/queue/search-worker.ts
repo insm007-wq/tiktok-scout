@@ -64,7 +64,7 @@ const worker = new Worker<SearchJobData>(
     let videos: any[] = []
 
     try {
-      // Use local scrapers (via Apify API)
+      // Use local scrapers (via external API)
       if (!APIFY_KEY) {
         throw new Error('APIFY_KEY environment variable not configured')
       }

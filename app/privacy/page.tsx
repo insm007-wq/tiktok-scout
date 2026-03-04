@@ -90,7 +90,7 @@ export default function PrivacyPage() {
               <ul className="space-y-2 text-white/80">
                 <li className="flex gap-3">
                   <span className="text-pink-400">•</span>
-                  <span><strong>Apify & Bright Data:</strong> 데이터 수집 API 제공자 (TikTok, Douyin, YouTube 영상 메타데이터 수집)</span>
+                  <span><strong>토스페이먼츠:</strong> 결제·정산 및 자동결제(빌링) 처리 목적으로 이메일, 이름, 결제 정보를 제공합니다. 카드 정보는 토스페이먼츠에 저장되며, 회사는 결제 이력만 보관합니다.</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="text-pink-400">•</span>

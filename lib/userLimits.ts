@@ -4,8 +4,12 @@ import { connectToDatabase } from './mongodb'
 // 환경변수에서 기본 일일 할당량 설정
 const DEFAULT_DAILY_LIMIT = parseInt(process.env.DEFAULT_DAILY_LIMIT || '20', 10)
 
-/** 회원가입 시 제공하는 무료 검색/다운로드 횟수 (env: FREE_SIGNUP_LIMIT) */
-export const FREE_SIGNUP_LIMIT = parseInt(process.env.FREE_SIGNUP_LIMIT || '10', 10)
+/**
+ * 회원가입 시 제공하는 무료 검색/다운로드 횟수
+ * - 베타 기간 동안 기본값 50회
+ * - 필요 시 FREE_SIGNUP_LIMIT 환경변수로 조정 가능
+ */
+export const FREE_SIGNUP_LIMIT = parseInt(process.env.FREE_SIGNUP_LIMIT || '50', 10)
 
 interface User {
   _id?: ObjectId
