@@ -21,8 +21,15 @@ export default function TossPaymentButton({ plan, children, className, disabled 
   const { data: session, status } = useSession();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const hasClientKey = !!process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
 
   const handlePay = async () => {
+    // 토스 클라이언트 키가 없으면 결제 기능 비활성화
+    if (!hasClientKey) {
+      alert('온라인 결제 기능이 아직 준비되지 않았습니다. 관리자에게 문의해주세요.');
+      return;
+    }
+
     if (status === 'unauthenticated') {
       router.push('/auth/signin?callbackUrl=/pricing');
       return;
@@ -33,11 +40,6 @@ export default function TossPaymentButton({ plan, children, className, disabled 
 
     try {
       const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
-      if (!clientKey) {
-        window.location.href = `/contact?plan=${plan.id}`;
-        return;
-      }
-
       const customerKey = session?.user?.email
         ? `user-${session.user.email.replace(/[^a-zA-Z0-9._=-]/g, '_')}`
         : `anon-${Date.now()}`;
@@ -81,7 +83,7 @@ export default function TossPaymentButton({ plan, children, className, disabled 
     <button
       type="button"
       onClick={handlePay}
-      disabled={disabled || isLoading || status === 'loading'}
+      disabled={disabled || isLoading || status === 'loading' || !hasClientKey}
       className={className}
     >
       {isLoading || status === 'loading' ? '처리 중...' : children}

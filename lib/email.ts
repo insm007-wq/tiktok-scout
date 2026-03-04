@@ -2,7 +2,8 @@ import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-const FROM_EMAIL = 'onboarding@resend.dev'
+// 운영에서는 반드시 본인 도메인의 발신 주소를 사용하세요 (예: no-reply@your-domain.com)
+const FROM_EMAIL = process.env.EMAIL_FROM || 'onboarding@resend.dev'
 const APP_NAME = '틱톡 킬라'
 
 function getBaseUrl() {
