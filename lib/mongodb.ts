@@ -16,10 +16,10 @@ export async function connectToDatabase() {
   }
 
   const client = new MongoClient(mongoUri, {
-    maxPoolSize: 500,
-    minPoolSize: 100,
-    maxIdleTimeMS: 60000,
-    waitQueueTimeoutMS: 2000,
+    maxPoolSize: 5,
+    minPoolSize: 0,
+    maxIdleTimeMS: 30000,
+    waitQueueTimeoutMS: 5000,
     compressors: ['zlib'],
     zlibCompressionLevel: 6,
     readPreference: 'secondaryPreferred'
@@ -105,6 +105,25 @@ async function initializeIndexes(db: Db) {
 
     // video_cache: 최근 접근순 정렬용
     await cacheCollection.createIndex({ lastAccessedAt: -1 })
+
+    // bookmarks: 유저별 비디오 고유 인덱스
+    const bookmarksCollection = db.collection('bookmarks')
+    await bookmarksCollection.createIndex(
+      { email: 1, videoId: 1, platform: 1 },
+      { unique: true }
+    )
+    await bookmarksCollection.createIndex({ email: 1, createdAt: -1 })
+
+    // payment_orders: orderId 유니크, email+status 조회
+    const paymentOrdersCollection = db.collection('payment_orders')
+    await paymentOrdersCollection.createIndex({ orderId: 1 }, { unique: true })
+    await paymentOrdersCollection.createIndex({ email: 1, status: 1 })
+
+    // subscriptions: email 유니크 (1인 1구독)
+    const subscriptionsCollection = db.collection('subscriptions')
+    await subscriptionsCollection.createIndex({ email: 1 }, { unique: true })
+    await subscriptionsCollection.createIndex({ status: 1, currentPeriodEnd: 1 })
+    await subscriptionsCollection.createIndex({ billingKey: 1 }, { sparse: true })
 
   } catch (error) {
     if ((error as any).code === 48 || (error as any).code === 68) {

@@ -88,19 +88,10 @@ export async function POST(req: NextRequest) {
         )
       }
 
-      // 새 비밀번호 검증
-      if (
-        body.newPassword.length < 8 ||
-        body.newPassword.length > 50 ||
-        !/[a-z]/.test(body.newPassword) ||
-        !/[0-9]/.test(body.newPassword) ||
-        !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(body.newPassword)
-      ) {
+      // 새 비밀번호 검증 (회원가입과 동일: 8~50자)
+      if (body.newPassword.length < 8 || body.newPassword.length > 50) {
         return NextResponse.json(
-          {
-            error:
-              '새 비밀번호는 8자 이상 50자 이하이며, 소문자, 숫자, 특수문자를 포함해야 합니다',
-          },
+          { error: '새 비밀번호는 8자 이상 50자 이하여야 합니다.' },
           { status: 400 }
         )
       }

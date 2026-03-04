@@ -32,7 +32,7 @@ export default function PasswordStrengthMeter({ password }: PasswordStrengthMete
       <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
         <div
           className={`h-full transition-all duration-300 ${strengthColors[strength.level]}`}
-          style={{ width: `${(strength.score / 7) * 100}%` }}
+          style={{ width: `${(strength.score / 5) * 100}%` }}
         />
       </div>
 
@@ -69,10 +69,6 @@ export default function PasswordStrengthMeter({ password }: PasswordStrengthMete
         <div className={`flex items-center gap-2 ${/[0-9]/.test(password) ? 'text-green-400' : ''}`}>
           <span>{/[0-9]/.test(password) ? '✓' : '○'}</span>
           <span>숫자 포함</span>
-        </div>
-        <div className={`flex items-center gap-2 ${/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) ? 'text-green-400' : ''}`}>
-          <span>{/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) ? '✓' : '○'}</span>
-          <span>특수문자 포함</span>
         </div>
       </div>
     </div>

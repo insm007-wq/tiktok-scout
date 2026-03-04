@@ -7,11 +7,14 @@ import { fetchPostWithRetry, fetchGetWithRetry } from '@/lib/utils/fetch-with-re
  *
  * ✅ 429 Rate Limit 자동 재시도 (Exponential Backoff)
  */
+import type { SearchScraperOptions } from './tiktok';
+
 export async function searchDouyinVideos(
   query: string,
   limit: number,
   apiKey: string,
-  dateRange?: string
+  dateRange?: string,
+  options?: SearchScraperOptions
 ): Promise<VideoResult[]> {
   try {
     const actorId = 'natanielsantos~douyin-scraper';
@@ -54,6 +57,7 @@ export async function searchDouyinVideos(
     }
 
     const runId = runData.data.id;
+    options?.onRunStarted?.(runId);
 
     // 2️⃣ 완료 대기 (Polling with exponential backoff)
     let status = 'RUNNING';
@@ -151,11 +155,18 @@ export async function searchDouyinVideos(
  * 인기순(most_liked) + 최신순(most_recent) + 관련성순(most_relevant)
  * → 150개 raw → 60-80개 unique → 50개 반환
  */
+export interface SearchDouyinParallelOptions {
+  onRunStarted?: (runIds: string[]) => void;
+  /** 수집 대기 중 진행률 (15~70) */
+  onProgress?: (percent: number) => void;
+}
+
 export async function searchDouyinVideosParallel(
   query: string,
   limit: number,
   apiKey: string,
-  dateRange?: string
+  dateRange?: string,
+  options?: SearchDouyinParallelOptions
 ): Promise<VideoResult[]> {
   try {
     const actorId = 'natanielsantos~douyin-scraper';
@@ -205,17 +216,20 @@ export async function searchDouyinVideosParallel(
     });
 
     const runs = await Promise.all(runPromises);
-    const validRuns = runs.filter(r => r.runId !== null);
+    const validRuns = runs.filter((r): r is { runId: string; sortFilter: string } => r.runId !== null);
 
     if (validRuns.length === 0) {
       return [];
     }
 
+    const runIds = validRuns.map(r => r.runId);
+    options?.onRunStarted?.(runIds);
+
     // 2️⃣ 모든 Run 병렬 폴링
-    const datasetPromises = validRuns.map(async ({ runId, sortFilter }) => {
+    const maxAttempts = 120;
+    const datasetPromises = validRuns.map(async ({ runId, sortFilter }, runIndex) => {
       let status = 'RUNNING';
       let attempt = 0;
-      const maxAttempts = 120;
       let waitTime = 500;
       const maxWaitTime = 5000;
 
@@ -228,6 +242,12 @@ export async function searchDouyinVideosParallel(
         const statusData = await statusRes.json();
         status = statusData.data.status;
         attempt++;
+
+        // 첫 번째 run 기준으로 진행률 갱신 (15~70%)
+        if (runIndex === 0 && attempt % 3 === 0) {
+          const waitPercent = 15 + Math.floor((55 * attempt) / maxAttempts);
+          options?.onProgress?.(Math.min(waitPercent, 70));
+        }
 
         if (status === 'SUCCEEDED') break;
         if (status === 'FAILED' || status === 'ABORTED') {

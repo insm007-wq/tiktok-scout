@@ -1,7 +1,9 @@
 'use client'
 
+import Link from 'next/link'
+
 const LAST_UPDATED = '2026-02-11'
-const SUPPORT_EMAIL = 'aiyumisejong@gmail.com'
+const SUPPORT_EMAIL = 'synergynano2026@gmail.com'
 
 export default function PrivacyPage() {
   return (
@@ -13,6 +15,14 @@ export default function PrivacyPage() {
       </div>
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-12">
+        <div className="mb-6">
+          <Link
+            href="/"
+            className="inline-flex items-center px-6 py-2 text-white bg-white/25 hover:bg-white/35 border border-white/50 hover:border-white/60 rounded-lg transition-all text-sm font-semibold shadow-sm"
+          >
+            ← 메인으로
+          </Link>
+        </div>
         {/* Main content */}
         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 md:p-12 text-white space-y-8">
           <div>
@@ -80,7 +90,7 @@ export default function PrivacyPage() {
               <ul className="space-y-2 text-white/80">
                 <li className="flex gap-3">
                   <span className="text-pink-400">•</span>
-                  <span><strong>Apify & Bright Data:</strong> 데이터 수집 API 제공자 (TikTok, Douyin, Xiaohongshu 영상 메타데이터 수집)</span>
+                  <span><strong>토스페이먼츠:</strong> 결제·정산 및 자동결제(빌링) 처리 목적으로 이메일, 이름, 결제 정보를 제공합니다. 카드 정보는 토스페이먼츠에 저장되며, 회사는 결제 이력만 보관합니다.</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="text-pink-400">•</span>
@@ -226,22 +236,6 @@ export default function PrivacyPage() {
             </div>
           </section>
 
-          {/* 동의 섹션 */}
-          <div className="bg-pink-500/20 border border-pink-500/50 rounded-lg p-4 mt-8">
-            <p className="text-white text-center">
-              본 개인정보 처리방침에 동의하시고 서비스를 이용하시게 됩니다.
-            </p>
-          </div>
-
-          {/* 동의하고 창 닫기 버튼 */}
-          <div className="flex gap-3 mt-8">
-            <button
-              onClick={() => window.close()}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-pink-500 to-cyan-400 text-black rounded-lg hover:shadow-[0_0_20px_rgba(254,44,85,0.5)] transition-all font-semibold"
-            >
-              동의하고 계속하기
-            </button>
-          </div>
         </div>
       </div>
     </div>

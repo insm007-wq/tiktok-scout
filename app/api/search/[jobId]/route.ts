@@ -3,12 +3,16 @@ import { searchQueue } from '@/lib/queue/search-queue'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ jobId: string }> }
+  context: { params: Promise<{ jobId: string }> }
 ) {
   try {
-    const { jobId } = await params
+    const params = await context.params
+    const jobId = typeof params?.jobId === 'string' ? params.jobId : Array.isArray(params?.jobId) ? params.jobId[0] : undefined
+    if (!jobId || !String(jobId).trim()) {
+      return NextResponse.json({ error: 'jobId is required' }, { status: 400 })
+    }
 
-    const job = await searchQueue.getJob(jobId)
+    const job = await searchQueue.getJob(String(jobId).trim())
 
     if (!job) {
       return NextResponse.json(
@@ -25,13 +29,28 @@ export async function GET(
     // 완료된 경우
     if (state === 'completed') {
       const result = job.returnvalue
-      return NextResponse.json({
-        status: 'completed',
-        jobId,
-        progress: 100,
-        data: result,
-        timestamp: Date.now()
-      })
+      try {
+        // 직렬화 가능한지 먼저 검사 (circular ref 등 방지)
+        const payload = {
+          status: 'completed' as const,
+          jobId,
+          progress: 100,
+          data: result,
+          timestamp: Date.now()
+        }
+        JSON.stringify(payload)
+        return NextResponse.json(payload)
+      } catch (serializeError) {
+        const msg = serializeError instanceof Error ? serializeError.message : String(serializeError)
+        console.error('[StatusAPI] Completed result serialize error:', msg)
+        return NextResponse.json(
+          {
+            error: '결과를 반환하는 중 오류가 발생했습니다.',
+            ...(process.env.NODE_ENV === 'development' && { detail: msg })
+          },
+          { status: 500 }
+        )
+      }
     }
 
     // 실패한 경우
@@ -55,7 +74,7 @@ export async function GET(
         userMessage = '🌐 인터넷 연결을 확인해주세요.\n\nDNS 해석에 실패했습니다.'
         errorType = 'DNS_ERROR'
       } else if (failedReason.includes('APIFY_ERROR')) {
-        userMessage = '⚙️ Apify 스크래핑 서비스에 일시적 문제가 있습니다.\n\n몇 분 후 다시 시도해주세요.'
+        userMessage = '⚙️ 검색 서비스에 일시적 문제가 있습니다.\n\n몇 분 후 다시 시도해주세요.'
         errorType = 'APIFY_ERROR'
       } else if (failedReason.includes('empty') || failedReason.includes('no results')) {
         userMessage = '🔍 검색 결과를 찾을 수 없습니다.\n\n다른 키워드로 시도해주세요.'
@@ -89,9 +108,14 @@ export async function GET(
       timestamp: Date.now()
     })
   } catch (error) {
-    console.error('[StatusAPI] Error:', error)
+    const message = error instanceof Error ? error.message : String(error)
+    const stack = error instanceof Error ? error.stack : undefined
+    console.error('[StatusAPI] Error:', message, stack)
     return NextResponse.json(
-      { error: '상태 조회 중 오류가 발생했습니다.' },
+      {
+        error: '상태 조회 중 오류가 발생했습니다.',
+        ...(process.env.NODE_ENV === 'development' && { detail: message }),
+      },
       { status: 500 }
     )
   }

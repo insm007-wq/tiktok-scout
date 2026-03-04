@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { AlertCircle, Loader2, Download, CheckCircle } from 'lucide-react'
+import { formatLastLogin } from '@/lib/dateUtils'
 
 interface UserData {
   _id?: string
@@ -18,6 +19,7 @@ interface UserData {
   isApproved: boolean
   createdAt: string
   updatedAt: string
+  lastLogin?: string | null
 }
 
 export default function UserDataPage() {
@@ -212,13 +214,6 @@ export default function UserDataPage() {
                 </div>
 
                 <div>
-                  <p className="font-semibold text-white">마케팅 동의</p>
-                  <p className="text-white/70 text-sm">
-                    이벤트 및 프로모션 정보 수신 동의 여부
-                  </p>
-                </div>
-
-                <div>
                   <p className="font-semibold text-white">교재 수령 희망</p>
                   <p className="text-white/70 text-sm">무료 교재 우편 배송 수령 희망 여부</p>
                 </div>
@@ -226,6 +221,11 @@ export default function UserDataPage() {
                 <div>
                   <p className="font-semibold text-white">계정 상태</p>
                   <p className="text-white/70 text-sm">활성, 차단, 승인 상태 등 계정 상태 정보</p>
+                </div>
+
+                <div>
+                  <p className="font-semibold text-white">마지막 로그인</p>
+                  <p className="text-white/70 text-sm">{formatLastLogin(userData.lastLogin)}</p>
                 </div>
 
                 <div>

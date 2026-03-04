@@ -5,7 +5,7 @@ import { Search, Loader2, MoreVertical } from "lucide-react";
 
 const POLL_INTERVAL_MS = 1000;
 
-type Platform = "tiktok" | "douyin" | "xiaohongshu";
+type Platform = "tiktok" | "douyin";
 
 interface SearchResult {
   id: string;

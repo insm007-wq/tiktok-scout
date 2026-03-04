@@ -5,10 +5,9 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { signupSchema, infoSchema, type SignupFormData } from '@/lib/validations/auth'
 import PasswordStrengthMeter from './PasswordStrengthMeter'
-import AddressInput from './AddressInput'
 import { AlertCircle, Eye, EyeOff, Loader2, ExternalLink } from 'lucide-react'
 
-type FormStep = 'info' | 'textbook' | 'consent' | 'loading'
+type FormStep = 'info' | 'consent' | 'loading'
 
 interface SignupFormProps {
   onSuccess?: () => void
@@ -27,21 +26,76 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
     phone: '',
     password: '',
     passwordConfirm: '',
-    invitationCode: '',
-    wantsTextbook: false,
-    address: {
-      zipCode: '',
-      address: '',
-      detailAddress: '',
-    },
     marketingConsent: false,
     termsConsent: false,
     privacyConsent: false,
+    ageConsent: false,
   })
 
   const [showPassword, setShowPassword] = useState(false)
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
+
+  // 이메일 인증
+  const [emailVerified, setEmailVerified] = useState(false)
+  const [emailVerificationToken, setEmailVerificationToken] = useState<string | null>(null)
+  const [verificationCode, setVerificationCode] = useState('')
+  const [sendCodeStatus, setSendCodeStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [verifyCodeStatus, setVerifyCodeStatus] = useState<'idle' | 'verifying' | 'success' | 'error'>('idle')
+
+  // 인증 코드 발송
+  const handleSendCode = async () => {
+    const email = (formData.email || '').trim()
+    if (!email) {
+      setFieldErrors({ email: ['이메일을 입력해주세요'] })
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setFieldErrors({ email: ['올바른 이메일 형식이 아닙니다'] })
+      return
+    }
+    setSendCodeStatus('sending')
+    setFieldErrors({})
+    try {
+      const res = await fetch('/api/auth/send-verification-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '발송 실패')
+      setSendCodeStatus('sent')
+    } catch (err) {
+      setSendCodeStatus('error')
+      setFieldErrors({ email: [err instanceof Error ? err.message : '발송 실패'] })
+    }
+  }
+
+  // 인증 코드 검증
+  const handleVerifyCode = async () => {
+    const email = (formData.email || '').trim()
+    if (!email || !verificationCode.trim()) {
+      setFieldErrors({ verificationCode: ['인증 코드를 입력해주세요'] })
+      return
+    }
+    setVerifyCodeStatus('verifying')
+    setFieldErrors({})
+    try {
+      const res = await fetch('/api/auth/verify-email-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: verificationCode.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '인증 실패')
+      setEmailVerified(true)
+      setEmailVerificationToken(data.emailVerificationToken)
+      setVerifyCodeStatus('success')
+    } catch (err) {
+      setVerifyCodeStatus('error')
+      setFieldErrors({ verificationCode: [err instanceof Error ? err.message : '인증 실패'] })
+    }
+  }
 
   // 다음 단계로 이동
   const goToNextStep = async () => {
@@ -49,47 +103,28 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
     setFieldErrors({})
 
     if (step === 'info') {
-      // 기본 정보 검증
+      if (!emailVerified || !emailVerificationToken) {
+        setFieldErrors({ email: ['이메일 인증을 완료해주세요'] })
+        return
+      }
       const result = infoSchema.safeParse({
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
         passwordConfirm: formData.passwordConfirm,
-        invitationCode: formData.invitationCode,
       })
-
       if (!result.success) {
         setFieldErrors(result.error.flatten().fieldErrors as any)
         return
       }
-
-      setStep('textbook')
-    } else if (step === 'textbook') {
-      // 교재 수령 선택 검증
-      if (formData.wantsTextbook) {
-        if (!formData.address?.zipCode) {
-          setFieldErrors({ address: ['우편번호를 입력해주세요'] })
-          return
-        }
-        if (!formData.address?.address) {
-          setFieldErrors({ address: ['주소를 입력해주세요'] })
-          return
-        }
-        if (!formData.address?.detailAddress) {
-          setFieldErrors({ address: ['상세주소를 입력해주세요'] })
-          return
-        }
-      }
-
       setStep('consent')
     }
   }
 
   // 이전 단계로 이동
   const goToPreviousStep = () => {
-    if (step === 'textbook') setStep('info')
-    else if (step === 'consent') setStep('textbook')
+    if (step === 'consent') setStep('info')
   }
 
   // 회원가입 제출
@@ -110,11 +145,13 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
     setStep('loading')
 
     try {
-      // 회원가입 API 호출
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(result.data),
+        body: JSON.stringify({
+          ...result.data,
+          emailVerificationToken: emailVerificationToken,
+        }),
       })
 
       const data = await response.json()
@@ -123,8 +160,12 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
         throw new Error(data.error || '회원가입 실패')
       }
 
-      // 회원가입 성공 페이지로 이동
-      router.push('/auth/signup-success')
+      // 자동 로그인 후 대시보드로
+      if (data.loginToken) {
+        router.push(`/auth/verify-complete?token=${data.loginToken}`)
+      } else {
+        router.push('/auth/login')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '요청 처리 중 오류가 발생했습니다')
       setStep('consent')
@@ -155,21 +196,74 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
           )}
         </div>
 
-        {/* 이메일 */}
+        {/* 이메일 + 인증하기 */}
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-white/90 mb-2">
             이메일 <span className="text-red-400">*</span>
           </label>
-          <input
-            id="email"
-            type="email"
-            value={formData.email || ''}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            placeholder="example@example.com"
-            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all"
-          />
+          <div className="flex gap-2">
+            <input
+              id="email"
+              type="email"
+              value={formData.email || ''}
+              onChange={(e) => {
+                setFormData({ ...formData, email: e.target.value })
+                setEmailVerified(false)
+                setEmailVerificationToken(null)
+                setVerificationCode('')
+                setSendCodeStatus('idle')
+                setVerifyCodeStatus('idle')
+              }}
+              placeholder="example@example.com"
+              disabled={emailVerified}
+              className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+            />
+            <button
+              type="button"
+              onClick={handleSendCode}
+              disabled={emailVerified || sendCodeStatus === 'sending'}
+              className="px-4 py-3 bg-gradient-to-r from-pink-500 to-cyan-400 text-black rounded-lg font-semibold hover:shadow-[0_0_20px_rgba(254,44,85,0.3)] transition-all disabled:opacity-50 whitespace-nowrap"
+            >
+              {sendCodeStatus === 'sending' && <Loader2 size={18} className="animate-spin inline mr-1" />}
+              {emailVerified ? '인증완료' : sendCodeStatus === 'sent' ? '재발송' : '인증하기'}
+            </button>
+          </div>
           {fieldErrors.email && (
             <p className="text-red-400 text-sm mt-1">{fieldErrors.email[0]}</p>
+          )}
+          {sendCodeStatus === 'sent' && !emailVerified && (
+            <div className="mt-3 space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="6자리 인증 코드"
+                  maxLength={6}
+                  className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-pink-500 text-center tracking-widest"
+                />
+                <button
+                  type="button"
+                  onClick={handleVerifyCode}
+                  disabled={verifyCodeStatus === 'verifying' || verificationCode.length !== 6}
+                  className="px-4 py-2 bg-white/20 text-white rounded-lg font-medium hover:bg-white/30 disabled:opacity-50"
+                >
+                  {verifyCodeStatus === 'verifying' && <Loader2 size={16} className="animate-spin inline" />}
+                  {verifyCodeStatus === 'success' ? '✓' : '확인'}
+                </button>
+              </div>
+              {fieldErrors.verificationCode && (
+                <p className="text-red-400 text-sm">{fieldErrors.verificationCode[0]}</p>
+              )}
+              {verifyCodeStatus === 'success' && (
+                <p className="text-green-400 text-sm">이메일 인증이 완료되었습니다.</p>
+              )}
+            </div>
+          )}
+          {emailVerified && (
+            <p className="text-green-400 text-sm mt-1 flex items-center gap-1">
+              <span>✓</span> 이메일 인증이 완료되었습니다.
+            </p>
           )}
         </div>
 
@@ -212,7 +306,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
               type={showPassword ? 'text' : 'password'}
               value={formData.password || ''}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              placeholder="최소 8자, 소문자, 숫자, 특수문자 포함"
+              placeholder="최소 8자, 소문자, 숫자 포함"
               className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all pr-12"
             />
             <button
@@ -227,12 +321,10 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
             <p className="text-red-400 text-sm mt-1">{fieldErrors.password[0]}</p>
           )}
 
-          {/* 비밀번호 강도 미터 */}
-          {formData.password && (
-            <div className="mt-3">
-              <PasswordStrengthMeter password={formData.password} />
-            </div>
-          )}
+          {/* 비밀번호 강도 미터 - 처음부터 표시 */}
+          <div className="mt-3">
+            <PasswordStrengthMeter password={formData.password || ''} />
+          </div>
         </div>
 
         {/* 비밀번호 확인 */}
@@ -262,25 +354,6 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
           )}
         </div>
 
-        {/* 초대 코드 */}
-        <div>
-          <label htmlFor="invitationCode" className="block text-sm font-medium text-white/90 mb-2">
-            초대 코드 <span className="text-red-400">*</span>
-          </label>
-          <input
-            id="invitationCode"
-            type="text"
-            value={formData.invitationCode || ''}
-            onChange={(e) => setFormData({ ...formData, invitationCode: e.target.value.toUpperCase() })}
-            placeholder=""
-            maxLength={20}
-            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all uppercase"
-          />
-          {fieldErrors.invitationCode && (
-            <p className="text-red-400 text-sm mt-1">{fieldErrors.invitationCode[0]}</p>
-          )}
-        </div>
-
         {error && (
           <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 flex gap-2">
             <AlertCircle size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
@@ -293,16 +366,13 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
           <div className="text-pink-400 font-semibold">1단계</div>
           <div className="text-white/30">▸</div>
           <div>2단계</div>
-          <div className="text-white/30">▸</div>
-          <div>3단계</div>
-          <div className="text-white/30">▸</div>
-          <div>4단계</div>
         </div>
 
         <button
           type="button"
           onClick={goToNextStep}
-          className="w-full px-4 py-3 bg-gradient-to-r from-pink-500 to-cyan-400 text-black rounded-lg hover:shadow-[0_0_20px_rgba(254,44,85,0.5)] transition-all font-semibold mt-4"
+          disabled={!emailVerified}
+          className="w-full px-4 py-3 bg-gradient-to-r from-pink-500 to-cyan-400 text-black rounded-lg hover:shadow-[0_0_20px_rgba(254,44,85,0.5)] transition-all font-semibold mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           다음
         </button>
@@ -310,77 +380,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
     )
   }
 
-  // Step 2: 교재 수령 선택
-  if (step === 'textbook') {
-    return (
-      <form onSubmit={(e) => { e.preventDefault(); }} className="space-y-4">
-        {/* 교재 수령 여부 */}
-        <div className="space-y-3">
-          <label className="flex items-start gap-3 p-4 border border-white/20 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
-            <input
-              type="checkbox"
-              checked={formData.wantsTextbook || false}
-              onChange={(e) => setFormData({ ...formData, wantsTextbook: e.target.checked })}
-              className="w-5 h-5 bg-white/10 border border-white/30 rounded accent-pink-500 mt-0.5 cursor-pointer"
-            />
-            <div>
-              <p className="font-medium text-white">무료 교재를 우편으로 받고 싶습니다 <span className="text-white/50 text-sm font-normal">(선택)</span></p>
-              <p className="text-sm text-white/70">선택하면 교재 배송을 위한 주소 정보를 입력하게 됩니다</p>
-            </div>
-          </label>
-        </div>
-
-        {/* 교재 수령 선택 시 주소 입력 표시 */}
-        {formData.wantsTextbook && (
-          <div className="space-y-4 p-4 border border-pink-500/30 bg-pink-500/10 rounded-lg">
-            <p className="text-white font-medium">교재 배송 주소</p>
-            <AddressInput
-              value={formData.address || { zipCode: '', address: '', detailAddress: '' }}
-              onChange={(address) => setFormData({ ...formData, address })}
-              error={fieldErrors.address?.[0]}
-            />
-          </div>
-        )}
-
-        {error && (
-          <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 flex gap-2">
-            <AlertCircle size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
-            <p className="text-red-400 text-sm">{error}</p>
-          </div>
-        )}
-
-        {/* 진행률 */}
-        <div className="flex gap-2 justify-center text-sm text-white/70">
-          <div className="text-cyan-400 font-semibold">1단계</div>
-          <div className="text-white/30">▸</div>
-          <div className="text-pink-400 font-semibold">2단계</div>
-          <div className="text-white/30">▸</div>
-          <div>3단계</div>
-          <div className="text-white/30">▸</div>
-          <div>4단계</div>
-        </div>
-
-        <div className="flex gap-3 mt-6">
-          <button
-            type="button"
-            onClick={goToPreviousStep}
-            className="flex-1 px-4 py-3 border border-white/30 text-white rounded-lg hover:bg-white/10 transition-colors font-medium"
-          >
-            이전
-          </button>
-          <button
-            type="button"
-            onClick={goToNextStep}
-            className="flex-1 px-4 py-3 bg-gradient-to-r from-pink-500 to-cyan-400 text-black rounded-lg hover:shadow-[0_0_20px_rgba(254,44,85,0.5)] transition-all font-semibold"
-          >
-            다음
-          </button>
-        </div>
-      </form>
-    )
-  }
-
-  // Step 4: 동의사항
+  // Step 2: 동의사항
   if (step === 'consent') {
     return (
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -410,6 +410,20 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
                 </Link>
               </div>
               <p className="text-sm text-white/70">틱톡 킬라 서비스 이용약관에 동의합니다</p>
+            </div>
+          </label>
+
+          {/* 만 14세 미만 제한 동의 */}
+          <label className="flex items-start gap-3 p-4 border border-white/20 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
+            <input
+              type="checkbox"
+              checked={formData.ageConsent || false}
+              onChange={(e) => setFormData({ ...formData, ageConsent: e.target.checked })}
+              className="w-5 h-5 bg-white/10 border border-white/30 rounded accent-pink-500 mt-0.5 cursor-pointer flex-shrink-0"
+            />
+            <div>
+              <p className="font-medium text-white">만 14세 미만 제한 <span className="text-red-400">*</span></p>
+              <p className="text-sm text-white/70">만 14세 이상만 서비스를 이용할 수 있습니다</p>
             </div>
           </label>
 
@@ -467,6 +481,9 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
         {fieldErrors.privacyConsent && (
           <div className="text-red-400 text-sm">{fieldErrors.privacyConsent[0]}</div>
         )}
+        {fieldErrors.ageConsent && (
+          <div className="text-red-400 text-sm">{fieldErrors.ageConsent[0]}</div>
+        )}
 
         {error && (
           <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 flex gap-2">
@@ -479,11 +496,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
         <div className="flex gap-2 justify-center text-sm text-white/70">
           <div className="text-cyan-400 font-semibold">1단계</div>
           <div className="text-white/30">▸</div>
-          <div className="text-cyan-400 font-semibold">2단계</div>
-          <div className="text-white/30">▸</div>
-          <div className="text-cyan-400 font-semibold">3단계</div>
-          <div className="text-white/30">▸</div>
-          <div className="text-pink-400 font-semibold">4단계</div>
+          <div className="text-pink-400 font-semibold">2단계</div>
         </div>
 
         <div className="flex gap-3 mt-6">

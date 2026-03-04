@@ -5,6 +5,10 @@ import { searchQueue } from '@/lib/queue/search-queue'
 import { Platform } from '@/types/video'
 import { checkApiUsage, incrementApiUsage } from '@/lib/apiUsage'
 
+const VALID_PLATFORMS: Platform[] = ['tiktok', 'douyin']
+const MAX_QUERY_LENGTH = 100
+const isDev = process.env.NODE_ENV !== 'production'
+
 interface SearchRequest {
   query: string
   platform: Platform
@@ -34,10 +38,27 @@ export async function POST(request: NextRequest) {
     const body: SearchRequest = await request.json()
     const { query, platform, dateRange } = body
 
-    // 입력 유효성 검사
-    if (!query || !query.trim()) {
+    const trimmedQuery = query?.trim()
+
+    // 입력 유효성 검사 - 검색어
+    if (!trimmedQuery) {
       return NextResponse.json(
         { error: '검색어를 입력해주세요.' },
+        { status: 400 }
+      )
+    }
+
+    if (trimmedQuery.length > MAX_QUERY_LENGTH) {
+      return NextResponse.json(
+        { error: `검색어는 최대 ${MAX_QUERY_LENGTH}자까지 입력 가능합니다.` },
+        { status: 400 }
+      )
+    }
+
+    // 입력 유효성 검사 - 플랫폼
+    if (!platform || !VALID_PLATFORMS.includes(platform)) {
+      return NextResponse.json(
+        { error: '유효하지 않은 플랫폼입니다.' },
         { status: 400 }
       )
     }
@@ -60,15 +81,17 @@ export async function POST(request: NextRequest) {
     }
 
     // ✅ IMPROVED: 캐시 먼저 확인
-    let cached = await getVideoFromCache(query, platform, dateRange)
+    let cached = await getVideoFromCache(trimmedQuery, platform, dateRange)
 
     if (cached) {
-      console.log(`[SearchAPI] ✅ Cache HIT (L1 메모리)`, {
-        query: query.substring(0, 30),
-        platform,
-        videoCount: cached.videos.length,
-        timestamp: new Date().toISOString()
-      })
+      if (isDev) {
+        console.log(`[SearchAPI] ✅ Cache HIT (L1 메모리)`, {
+          query: trimmedQuery.substring(0, 30),
+          platform,
+          videoCount: cached.videos.length,
+          timestamp: new Date().toISOString()
+        })
+      }
       return NextResponse.json({
         status: 'completed',
         data: cached.videos,
@@ -78,14 +101,16 @@ export async function POST(request: NextRequest) {
     }
 
     // L2 MongoDB 캐시 확인
-    const mongoCache = await getVideoFromMongoDB(query, platform, dateRange)
+    const mongoCache = await getVideoFromMongoDB(trimmedQuery, platform, dateRange)
     if (mongoCache) {
-      console.log(`[SearchAPI] ✅ Cache HIT (L2 MongoDB)`, {
-        query: query.substring(0, 30),
-        platform,
-        videoCount: mongoCache.videos.length,
-        timestamp: new Date().toISOString()
-      })
+      if (isDev) {
+        console.log(`[SearchAPI] ✅ Cache HIT (L2 MongoDB)`, {
+          query: trimmedQuery.substring(0, 30),
+          platform,
+          videoCount: mongoCache.videos.length,
+          timestamp: new Date().toISOString()
+        })
+      }
       return NextResponse.json({
         status: 'completed',
         data: mongoCache.videos,
@@ -96,18 +121,20 @@ export async function POST(request: NextRequest) {
 
     // 캐시 미스 → 할당량 차감
     if (!session.user.isAdmin) {
-      await incrementApiUsage(session.user.email, query.trim())
+      await incrementApiUsage(session.user.email, trimmedQuery, 'search')
     }
 
-    console.log(`[SearchAPI] ❌ Cache MISS (재스크래핑 필요)`, {
-      query: query.substring(0, 30),
-      platform,
-      dateRange: dateRange || 'all',
-      timestamp: new Date().toISOString()
-    })
+    if (isDev) {
+      console.log(`[SearchAPI] ❌ Cache MISS (재스크래핑 필요)`, {
+        query: trimmedQuery.substring(0, 30),
+        platform,
+        dateRange: dateRange || 'all',
+        timestamp: new Date().toISOString()
+      })
+    }
 
     const job = await searchQueue.add('search', {
-      query: query.trim(),
+      query: trimmedQuery,
       platform,
       dateRange,
     })
@@ -116,14 +143,16 @@ export async function POST(request: NextRequest) {
     const queueLength = await searchQueue.getWaitingCount()
     const estimatedWaitSeconds = Math.max(15, queueLength * 2)
 
-    console.log(`[SearchAPI] 📋 작업을 Queue에 추가`, {
-      jobId: job.id,
-      query: query.substring(0, 30),
-      platform,
-      queuePosition: queueLength + 1,
-      estimatedWaitSeconds,
-      timestamp: new Date().toISOString()
-    })
+    if (isDev) {
+      console.log(`[SearchAPI] 📋 작업을 Queue에 추가`, {
+        jobId: job.id,
+        query: trimmedQuery.substring(0, 30),
+        platform,
+        queuePosition: queueLength + 1,
+        estimatedWaitSeconds,
+        timestamp: new Date().toISOString()
+      })
+    }
 
     return NextResponse.json({
       status: 'queued',

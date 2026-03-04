@@ -1,28 +1,23 @@
 import { fetchPostWithRetry, fetchGetWithRetry } from '@/lib/utils/fetch-with-retry';
-import { searchXiaohongshuVideosParallel } from '@/lib/scrapers/xiaohongshu';
-import type { VideoResult } from '@/types/video';
 
 interface SingleVideoResult {
   videoUrl?: string;
   webVideoUrl?: string;
-  platform: 'tiktok' | 'douyin' | 'xiaohongshu';
+  platform: 'tiktok' | 'douyin';
   error?: string;
 }
 
 /**
- * Fetch video URL using Apify Download Actors
- * - TikTok: epctex/tiktok-video-downloader (highest-rated: 4.9★ 643 reviews)
- * - Douyin: scrapearchitect/douyin-video-downloader
- * - Xiaohongshu: fallback to search (web-based protection)
+ * Fetch video URL using download actors
  *
  * @param webVideoUrl - The web page URL (e.g., https://www.tiktok.com/@user/video/123456)
- * @param platform - The platform (tiktok, douyin, xiaohongshu)
- * @param apiKey - Apify API key
+ * @param platform - The platform (tiktok, douyin)
+ * @param apiKey - API key
  * @returns Object with videoUrl (CDN URL) or error
  */
 export async function fetchSingleVideoUrl(
   webVideoUrl: string,
-  platform: 'tiktok' | 'douyin' | 'xiaohongshu',
+  platform: 'tiktok' | 'douyin',
   apiKey: string
 ): Promise<SingleVideoResult> {
   if (!apiKey) {
@@ -32,57 +27,20 @@ export async function fetchSingleVideoUrl(
   try {
     console.log(`[fetchSingleVideoUrl] Fetching ${platform} video from URL:`, webVideoUrl);
 
-    // Xiaohongshu: Use search-based fallback (web-based protection prevents direct download)
-    if (platform === 'xiaohongshu') {
-      console.log(`[fetchSingleVideoUrl] Xiaohongshu: Using search-based approach (web protection)`);
-
-      const match = webVideoUrl.match(/\/explore\/(\w+)/);
-      const videoId = match ? match[1] : null;
-
-      if (!videoId) {
-        return { platform, webVideoUrl, error: '유효하지 않은 Xiaohongshu URL입니다.' };
-      }
-
-      try {
-        const results = await searchXiaohongshuVideosParallel(videoId, 3, apiKey);
-        if (results.length > 0 && results[0].videoUrl) {
-          return { videoUrl: results[0].videoUrl, webVideoUrl: results[0].webVideoUrl || webVideoUrl, platform };
-        }
-      } catch (e) {
-        console.warn(`[fetchSingleVideoUrl] Xiaohongshu search failed, returning web fallback`);
-      }
-
-      return {
-        platform,
-        webVideoUrl,
-        error: undefined,  // No error - fallback to browser
-      };
-    }
-
-    // TikTok: Use epctex download actor
-    // Only TikTok download is supported
+    // TikTok only: Douyin single-video URL fetch not supported here
     if (platform !== 'tiktok') {
-      return { platform, webVideoUrl, error: `${platform}은 다운로드를 지원하지 않습니다. TikTok만 다운로드 가능합니다.` };
+      return { platform, webVideoUrl, error: `${platform}은 단일 영상 URL 조회를 지원하지 않습니다.` };
     }
 
-    const actorConfig = {
-      'tiktok': {
-        actorId: 'epctex~tiktok-video-downloader',
-        paramName: 'startUrls',
-        urlField: 'downloadUrl',
-      },
-    };
-
-    const config = actorConfig['tiktok'];
-
-    console.log(`[fetchSingleVideoUrl] Using ${platform} download actor: ${config.actorId}`);
+    const tiktokActorId = 'epctex~tiktok-video-downloader';
+    console.log(`[fetchSingleVideoUrl] Using ${platform} download actor`);
 
     // Step 1: Start the actor run
     const runRes = await fetchPostWithRetry(
-      `https://api.apify.com/v2/acts/${config.actorId}/runs?token=${apiKey}`,
+      `https://api.apify.com/v2/acts/${tiktokActorId}/runs?token=${apiKey}`,
       {
         startUrls: [webVideoUrl],
-        proxy: { useApifyProxy: true },  // Required for epctex TikTok actor
+        proxy: { useApifyProxy: true },  // Required for TikTok actor
       },
       {},
       { maxRetries: 3, initialDelayMs: 1000 }
@@ -152,27 +110,16 @@ export async function fetchSingleVideoUrl(
     }
 
     const result = dataset[0];
-    console.log(`[fetchSingleVideoUrl] ✅ Full response:`, JSON.stringify(result, null, 2));
-    console.log(`[fetchSingleVideoUrl] All available keys:`, Object.keys(result));
-    console.log(`[fetchSingleVideoUrl] Looking for field: ${config.urlField}`);
-    console.log(`[fetchSingleVideoUrl] Result[${config.urlField}]:`, result[config.urlField]);
-    console.log(`[fetchSingleVideoUrl] result.downloadUrl:`, result.downloadUrl);
-    console.log(`[fetchSingleVideoUrl] result.videoUrl:`, result.videoUrl);
-    console.log(`[fetchSingleVideoUrl] result.videourl:`, result.videourl);
-    console.log(`[fetchSingleVideoUrl] result.downloadAddress:`, result.downloadAddress);
 
     // Enhanced videoUrl extraction with multiple fallbacks for different actor response formats
     const videoUrl =
-      result[config.urlField] ||     // Priority 1: configured field
-      result.videoUrl ||              // Priority 2: videoUrl (uppercase)
-      result.videourl ||              // Priority 3: videourl (lowercase for douyin)
-      result.downloadUrl ||           // Priority 4: downloadUrl (epctex fallback)
-      result.downloadAddress;         // Priority 5: downloadAddress (epctex alternative)
+      result.videoUrl ||              // Priority 1: videoUrl (uppercase)
+      result.videourl ||              // Priority 2: videourl (lowercase for douyin)
+      result.downloadUrl ||           // Priority 3: downloadUrl (epctex fallback)
+      result.downloadAddress;         // Priority 4: downloadAddress (epctex alternative)
 
     if (!videoUrl) {
       console.error(`[fetchSingleVideoUrl] No video URL in response`);
-      console.log(`[fetchSingleVideoUrl] Response keys:`, Object.keys(result));
-      console.log(`[fetchSingleVideoUrl] All response values:`, result);
       return { platform, webVideoUrl, error: `비디오 다운로드 링크를 가져올 수 없습니다.` };
     }
 

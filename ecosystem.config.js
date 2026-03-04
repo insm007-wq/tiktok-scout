@@ -15,7 +15,7 @@ module.exports = {
     },
     {
       name: 'tiktalk-killa-worker',
-      script: 'lib/queue/search-worker.ts',
+      script: 'lib/queue/search-worker.ts', // 배포용 워커 (큐: video-search). 로컬 개발은 npm run worker:dev
       interpreter: 'tsx',
       instances: 3,
       exec_mode: 'cluster',

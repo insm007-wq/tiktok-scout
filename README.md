@@ -1,6 +1,6 @@
 # TikTalk Killa
 
-TikTok, Douyin, Xiaohongshu 비디오 검색 및 분석 도구입니다.
+TikTok, Douyin 비디오 검색 및 분석 도구입니다.
 
 ## 📁 프로젝트 구조
 

@@ -1,17 +1,16 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { LayoutGrid, Table2, Download, Play, Heart, MessageCircle, Share2, Info, ExternalLink, Loader, Subtitles } from "lucide-react";
+import { Download, Play, Heart, MessageCircle, Share2, Info, ExternalLink, Loader, Subtitles, Copy, Bookmark, BookmarkCheck, RefreshCw } from "lucide-react";
 import Toast, { type Toast as ToastType } from "@/app/components/Toast/Toast";
-import Spinner from "@/app/components/ui/Spinner";
 import ViewCountFilter from "@/app/components/Filters/ViewCountFilter/ViewCountFilter";
 import PeriodFilter from "@/app/components/Filters/PeriodFilter/PeriodFilter";
-import VideoLengthFilter from "@/app/components/Filters/VideoLengthFilter/VideoLengthFilter";
 import EngagementRatioFilter from "@/app/components/Filters/EngagementRatioFilter/EngagementRatioFilter";
 import DownloadVideoModal from "@/app/components/DownloadVideoModal/DownloadVideoModal";
 import { formatDateWithTime, getRelativeDateString } from "@/lib/dateUtils";
 import { formatNumber, formatVideoDuration } from "@/lib/formatters";
 import UserDropdown from "@/app/components/UserDropdown/UserDropdown";
+import SubscriptionModal from "@/app/components/SubscriptionModal/SubscriptionModal";
 import { SearchProgress } from "@/components/SearchProgress";
 import { validateKeyword } from "@/lib/utils/validateKeyword";
 import "./search.css";
@@ -30,7 +29,7 @@ const SEARCH_TIMING = {
   searchTimeoutMs: 180000,
 } as const;
 
-type Platform = "tiktok" | "douyin" | "xiaohongshu";
+type Platform = "tiktok" | "douyin";
 type Language = "ko" | "zh" | "en";
 
 interface Video {
@@ -50,6 +49,7 @@ interface Video {
   thumbnail?: string;
   videoUrl?: string;
   webVideoUrl?: string;
+  _platform?: Platform; // 찜 목록에서 저장 시점 플랫폼 보존용
 }
 
 interface FilterState {
@@ -65,7 +65,6 @@ export default function Search() {
   const [platform, setPlatform] = useState<Platform>("tiktok");
   const [isLoading, setIsLoading] = useState(false);
   const [videos, setVideos] = useState<Video[]>([]);
-  const [viewMode, setViewMode] = useState<"card" | "table">("card");
   const [sortBy, setSortBy] = useState("plays");
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [isTitleRefreshing, setIsTitleRefreshing] = useState(false);
@@ -88,8 +87,20 @@ export default function Search() {
   const [toasts, setToasts] = useState<ToastType[]>([]);
   const [hoveredVideoId, setHoveredVideoId] = useState<string | null>(null);
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+  /** 미리보기용으로 조회한 비디오 URL (videoId -> url) */
+  const [previewVideoUrls, setPreviewVideoUrls] = useState<Record<string, string>>({});
+  const [loadingPreviewId, setLoadingPreviewId] = useState<string | null>(null);
   const [failedThumbnails, setFailedThumbnails] = useState<Set<string>>(new Set());
+  const [refreshingThumbnailId, setRefreshingThumbnailId] = useState<string | null>(null);
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
+  const [isBookmarkView, setIsBookmarkView] = useState(false);
+  const [bookmarkVideos, setBookmarkVideos] = useState<Video[]>([]);
+  const [isRefreshingAllBookmarks, setIsRefreshingAllBookmarks] = useState(false);
   const [showTranslationPanel, setShowTranslationPanel] = useState(true);
+  const [isEngagementPopoverOpen, setIsEngagementPopoverOpen] = useState(false);
+  const engagementPopoverRef = useRef<HTMLDivElement>(null);
+  const [isViewCountPopoverOpen, setIsViewCountPopoverOpen] = useState(false);
+  const viewCountPopoverRef = useRef<HTMLDivElement>(null);
   const [jobStatus, setJobStatus] = useState<{
     jobId: string;
     status: "waiting" | "active" | "delayed" | "paused";
@@ -104,13 +115,21 @@ export default function Search() {
   const resizeRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const abortControllerRef = useRef<AbortController | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // 구독 상태 (null = 로딩 중, true = 구독 중, false = 미구독)
+  const [isSubscribed, setIsSubscribed] = useState<boolean | null>(null);
+  const [subscriptionPlanName, setSubscriptionPlanName] = useState<string | null>(null);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+
   // 링크 갱신 cooldown 관리 (같은 query에 대해 짧은 시간 내 중복 갱신 방지)
   const recrawlCooldownRef = useRef<Map<string, number>>(new Map());
+  // 취소한 jobId — 이미 날아간 폴링 응답이 도착해도 "검색 완료"로 처리하지 않도록 무시
+  const cancelledJobIdRef = useRef<string | null>(null);
 
   /**
    * 검색 타임아웃 타이머 정리 (early definition for use in cleanup effect)
@@ -138,28 +157,224 @@ export default function Search() {
     }, duration);
   }, []);
 
-  // 썸네일 로드 실패 처리
-  const handleThumbnailError = useCallback(async (video: Video, e: React.SyntheticEvent<HTMLImageElement>) => {
-    // ✅ ENHANCED: 상세 로깅
-    const thumbnailUrl = video.thumbnail;
-    const urlType = thumbnailUrl?.includes('.r2.dev') ? 'R2' :
-                    (thumbnailUrl?.includes('tiktokcdn') ||
-                     thumbnailUrl?.includes('douyinpic') ||
-                     thumbnailUrl?.includes('xhscdn') ? 'CDN' : 'Unknown');
+  // 마운트 시 구독 상태 조회
+  useEffect(() => {
+    fetch('/api/user/subscription')
+      .then(r => r.json())
+      .then(data => {
+        setIsSubscribed(data.isSubscribed ?? false);
+        setSubscriptionPlanName(data.subscription?.planName ?? null);
+      })
+      .catch(() => {
+        setIsSubscribed(false);
+        setSubscriptionPlanName(null);
+      });
+  }, []);
 
-    console.error(`[Frontend] ❌ Thumbnail load failed`, {
-      videoId: video.id,
-      urlType,
-      thumbnailPreview: thumbnailUrl?.substring(0, 60),
-      platform,
-      creator: video.creator,
-    });
+  // 마운트 시 북마크 로드
+  useEffect(() => {
+    fetch('/api/bookmarks')
+      .then(r => r.json())
+      .then(data => {
+        if (data.bookmarks) {
+          setBookmarkedIds(new Set(data.bookmarks.map((b: any) => b.videoId)))
+        }
+      })
+      .catch(() => {})
+  }, [])
 
-    // 폴백: 썸네일 로딩 실패
-    setFailedThumbnails(prev => new Set(prev).add(video.id));
-    e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect fill="%23f0f0f0" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" font-size="50" fill="%23999"%3E🎬%3C/text%3E%3C/svg%3E';
-    e.currentTarget.alt = '썸네일을 불러올 수 없습니다';
-  }, [platform]);
+  // URL 복사
+  const handleCopyUrl = useCallback((video: Video) => {
+    const url = video.webVideoUrl || ''
+    navigator.clipboard.writeText(url)
+    addToast('success', 'URL이 복사되었습니다', '✅ 복사 완료', 2000)
+  }, [addToast])
+
+  // 북마크 토글
+  const handleToggleBookmark = useCallback(async (video: Video) => {
+    const isBookmarked = bookmarkedIds.has(video.id)
+    if (isBookmarked) {
+      await fetch(`/api/bookmarks/${video.id}?platform=${video._platform ?? platform}`, { method: 'DELETE' })
+      setBookmarkedIds(prev => { const s = new Set(prev); s.delete(video.id); return s })
+      setBookmarkVideos(prev => prev.filter(v => v.id !== video.id))
+      addToast('info', '즐겨찾기에서 제거되었습니다', '🗑️ 제거', 2000)
+    } else {
+      if (bookmarkedIds.size >= 50) {
+        addToast('warning', '찜 목록은 최대 50개까지 저장할 수 있습니다.', '⚠️ 한도 초과', 3000)
+        return
+      }
+      const res = await fetch('/api/bookmarks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId: video.id, platform, videoData: video })
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        addToast('error', data.error || '저장에 실패했습니다.', '❌ 오류', 3000)
+        return
+      }
+      setBookmarkedIds(prev => new Set(prev).add(video.id))
+      addToast('success', '즐겨찾기에 저장되었습니다', '⭐ 저장', 2000)
+    }
+  }, [bookmarkedIds, platform, addToast])
+
+  // 찜 목록 뷰 토글
+  const handleToggleBookmarkView = useCallback(async () => {
+    if (isBookmarkView) {
+      setIsBookmarkView(false);
+      return;
+    }
+    const res = await fetch('/api/bookmarks');
+    const data = await res.json();
+    if (data.bookmarks) {
+      setBookmarkVideos(data.bookmarks.map((b: any) => ({ ...b.videoData, _platform: b.platform } as Video)));
+    }
+    setIsBookmarkView(true);
+  }, [isBookmarkView])
+
+  // 찜 목록 전체 썸네일/프리뷰 새로고침
+  const handleRefreshAllBookmarks = useCallback(async () => {
+    try {
+      setIsRefreshingAllBookmarks(true);
+
+      const res = await fetch("/api/bookmarks/refresh-all", {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        addToast("error", data?.error || "전체 새로고침에 실패했습니다.", "❌ 전체 새로고침 실패");
+        return;
+      }
+
+      const listRes = await fetch("/api/bookmarks");
+      const listData = await listRes.json();
+      if (listData.bookmarks) {
+        setBookmarkVideos(listData.bookmarks.map((b: any) => ({ ...b.videoData, _platform: b.platform } as Video)));
+        setFailedThumbnails(new Set());
+      }
+
+      addToast(
+        "success",
+        `썸네일/프리뷰 ${data.updatedCount ?? 0}개 새로고침 완료`,
+        "🔄 전체 새로고침",
+        3500,
+      );
+    } catch (error) {
+      console.error("[Search] Refresh all bookmarks error:", error);
+      addToast("error", "전체 새로고침 중 오류가 발생했습니다.", "❌ 전체 새로고침 실패");
+    } finally {
+      setIsRefreshingAllBookmarks(false);
+    }
+  }, [addToast]);
+
+  // 썸네일 로드 실패 처리 (thumbnail이 객체로 올 수 있어 문자열로만 다룸)
+  const handleThumbnailError = useCallback(
+    async (video: Video, e: React.SyntheticEvent<HTMLImageElement>) => {
+      const raw = video.thumbnail;
+      const thumbnailUrl =
+        typeof raw === "string" ? raw : raw && typeof raw === "object" && "url" in raw ? (raw as { url: string }).url : "";
+      const urlType = thumbnailUrl.includes(".r2.dev")
+        ? "R2"
+        : thumbnailUrl.includes("tiktokcdn") || thumbnailUrl.includes("douyinpic")
+          ? "CDN"
+          : "Unknown";
+
+      console.error(`[Frontend] ❌ Thumbnail load failed`, {
+        videoId: video.id,
+        urlType,
+        thumbnailPreview: thumbnailUrl ? thumbnailUrl.substring(0, 60) : "",
+        platform,
+        creator: video.creator,
+      });
+
+      // 폴백: 썸네일 로딩 실패
+      setFailedThumbnails((prev) => new Set(prev).add(video.id));
+      e.currentTarget.src =
+        'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect fill="%23f0f0f0" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" font-size="50" fill="%23999"%3E🎬%3C/text%3E%3C/svg%3E';
+      e.currentTarget.alt = "썸네일을 불러올 수 없습니다";
+    },
+    [platform],
+  );
+
+  // 찜 목록에서 썸네일만 새로고침 (CDN 만료 대응)
+  const handleRefreshBookmarkThumbnail = useCallback(
+    async (video: Video) => {
+      // 찜 목록 뷰에서만 동작
+      if (!isBookmarkView) {
+        addToast("info", "썸네일 새로고침은 찜 목록에서만 지원합니다.", "ℹ️ 안내");
+        return;
+      }
+
+      try {
+        setRefreshingThumbnailId(video.id);
+
+        const bookmarkPlatform = video._platform ?? platform;
+
+        const res = await fetch("/api/bookmarks/refresh-thumbnail", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            videoId: video.id,
+            platform: bookmarkPlatform,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.thumbnail) {
+          const message = data?.error || "새 썸네일을 가져오지 못했습니다.";
+          addToast("error", message, "❌ 갱신 실패");
+          return;
+        }
+
+        // 찜 목록 상태 내 썸네일/프리뷰 URL 교체
+        setBookmarkVideos((prev) =>
+          prev.map((v) =>
+            v.id === video.id
+              ? {
+                  ...v,
+                  thumbnail: data.thumbnail as string,
+                  ...(data.videoUrl ? { videoUrl: data.videoUrl as string } : {}),
+                }
+              : v,
+          ),
+        );
+
+        if (data.videoUrl) {
+          setPreviewVideoUrls((prev) => ({
+            ...prev,
+            [video.id]: data.videoUrl as string,
+          }));
+        }
+
+        // 실패 목록에서 제거
+        setFailedThumbnails((prev) => {
+          const next = new Set(prev);
+          next.delete(video.id);
+          return next;
+        });
+
+        addToast("success", "썸네일을 새로고침했습니다.", "🔄 갱신 완료", 2500);
+      } catch (error) {
+        console.error("[Search] Refresh bookmark thumbnail error:", error);
+        addToast("error", "썸네일 새로고침 중 오류가 발생했습니다.", "❌ 갱신 실패");
+      } finally {
+        setRefreshingThumbnailId(null);
+      }
+    },
+    [addToast, isBookmarkView, platform],
+  );
+
+  /** 표시할 썸네일 URL. API 썸네일 사용 (xhscdn 등 CDN) */
+  const getDisplayThumbnail = useCallback((video: Video, plat: Platform): string | undefined => {
+    const raw = video.thumbnail;
+    const thumbStr =
+      typeof raw === "string" ? raw : raw && typeof raw === "object" && "url" in raw ? (raw as { url: string }).url : undefined;
+    return thumbStr || undefined;
+  }, []);
 
   const handleTitleClick = () => {
     setIsTitleRefreshing(true);
@@ -169,27 +384,50 @@ export default function Search() {
     }, 600);
   };
 
-  const handleVideoCardMouseEnter = useCallback((video: Video) => {
-    setHoveredVideoId(video.id);
-    hoverTimeoutRef.current = setTimeout(() => {
-      if (video.videoUrl && platform !== "douyin" && platform !== "xiaohongshu") {
-        setPlayingVideoId(video.id);
-      }
-    }, SEARCH_TIMING.hoverPlayDelayMs);
-  }, [platform]);
+  // Douyin은 프리뷰 미지원 → TikTok만 호버 시 재생
+  const handleVideoCardMouseEnter = useCallback(
+    (video: Video) => {
+      setHoveredVideoId(video.id);
 
-  // 비디오 카드 마우스 아웃 핸들러
+      hoverTimeoutRef.current = setTimeout(() => {
+        if ((video._platform ?? platform) !== "tiktok") return;
+        const el = videoRefs.current.get(video.id);
+        if (el) {
+          el.preload = "auto";
+          el.play().catch(() => {});
+        }
+        setPlayingVideoId(video.id);
+      }, SEARCH_TIMING.hoverPlayDelayMs);
+    },
+    [platform],
+  );
+
   const handleVideoCardMouseLeave = useCallback(() => {
-    // 타이머 취소
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
       hoverTimeoutRef.current = null;
     }
-
-    // 상태 초기화
+    if (playingVideoId) {
+      const el = videoRefs.current.get(playingVideoId);
+      if (el) {
+        el.pause();
+        el.preload = "metadata";
+      }
+    }
     setHoveredVideoId(null);
     setPlayingVideoId(null);
-  }, []);
+    setLoadingPreviewId(null);
+  }, [playingVideoId]);
+
+  // 카드/썸네일 클릭: 항상 새 탭으로 페이지 열기 (호버로 프리뷰, 클릭으로 이동)
+  const handleVideoCardClick = useCallback(
+    (video: Video) => {
+      if (video.webVideoUrl) {
+        window.open(video.webVideoUrl, "_blank", "noopener,noreferrer");
+      }
+    },
+    [],
+  );
 
   // 언어 감지 함수
   const detectLanguage = (text: string): Language => {
@@ -311,6 +549,30 @@ export default function Search() {
     setFilters((prev) => ({ ...prev, uploadPeriod: "all" }));
   }, [platform]);
 
+  // 인기도 팝오버: 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!isEngagementPopoverOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (engagementPopoverRef.current && !engagementPopoverRef.current.contains(e.target as Node)) {
+        setIsEngagementPopoverOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isEngagementPopoverOpen]);
+
+  // 조회수 팝오버: 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!isViewCountPopoverOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (viewCountPopoverRef.current && !viewCountPopoverRef.current.contains(e.target as Node)) {
+        setIsViewCountPopoverOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isViewCountPopoverOpen]);
+
   // 영상 필터링 함수
   const filterVideos = (items: Video[], filterState: FilterState) => {
     return items.filter((video) => {
@@ -338,9 +600,12 @@ export default function Search() {
 
         // 5단계 구분 (TikTok 업계 표준 기준, 2026)
         let level = 1;
-        if (engagementRatio >= 0.1) level = 5;   // 10% 이상 - 최고
-        else if (engagementRatio >= 0.06) level = 4; // 6~10% - 매우좋음
-        else if (engagementRatio >= 0.04) level = 3; // 4~6% - 좋음
+        if (engagementRatio >= 0.1)
+          level = 5; // 10% 이상 - 최고
+        else if (engagementRatio >= 0.06)
+          level = 4; // 6~10% - 매우좋음
+        else if (engagementRatio >= 0.04)
+          level = 3; // 4~6% - 좋음
         else if (engagementRatio >= 0.02) level = 2; // 2~4% - 중간
         // else level = 1; // 2% 미만 - 낮음
 
@@ -379,14 +644,21 @@ export default function Search() {
   };
 
   const results = useMemo(() => {
+    if (isBookmarkView) {
+      return sortVideos(bookmarkVideos, sortBy);
+    }
     // 중복 제거 (같은 ID를 가진 영상이 여러 번 나타나는 경우 방지)
     const uniqueVideos = Array.from(new Map(videos.map((video) => [video.id, video])).values());
     const filtered = filterVideos(uniqueVideos, filters);
     return sortVideos(filtered, sortBy);
-  }, [videos, filters, sortBy]);
+  }, [videos, filters, sortBy, isBookmarkView, bookmarkVideos]);
 
   const handleCancelSearch = useCallback(async () => {
-    // 타임아웃 타이머 정리 (추가)
+    // 취소한 jobId 기록 → 이후 도착하는 폴링 응답은 "검색 완료"로 처리하지 않음
+    const jobIdToCancel = jobStatus?.jobId ?? null;
+    if (jobIdToCancel) cancelledJobIdRef.current = jobIdToCancel;
+
+    // 타임아웃 타이머 정리
     clearSearchTimeout();
 
     // 1. HTTP 요청 중단
@@ -402,55 +674,45 @@ export default function Search() {
       pollIntervalRef.current = null;
     }
 
-    // 3. 백엔드 취소 API 호출 (job 제거 + 캐시 삭제)
-    if (jobStatus?.jobId) {
+    // 3. 백엔드 취소 API 호출 (스크래핑 작업 중단 + job 제거 + 캐시 삭제)
+    if (jobIdToCancel) {
       try {
-        await fetch('/api/search/cancel', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        await fetch("/api/search/cancel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            jobId: jobStatus.jobId,
+            jobId: jobIdToCancel,
             query: searchInput,
             platform,
-            dateRange: filters.uploadPeriod
-          })
+            dateRange: filters.uploadPeriod,
+          }),
         });
-        console.log('[Search] Cancel API 호출 완료');
+        console.log("[Search] Cancel API 호출 완료 (스크래핑 작업 중단 포함)");
+        addToast("info", "검색이 취소되었습니다.", "⏹️ 취소됨");
       } catch (error) {
-        console.error('[Search] Cancel API 실패:', error);
-        // 실패해도 프론트엔드 상태는 이미 정리되었으므로 계속 진행
+        console.error("[Search] Cancel API 실패:", error);
+        addToast("warning", "취소 요청이 완료되지 않았을 수 있습니다.", "⏹️ 취소");
       }
     }
 
     // 4. 상태 초기화
     setJobStatus(null);
-  }, [
-    clearSearchTimeout,
-    jobStatus?.jobId,
-    searchInput,
-    platform,
-    filters.uploadPeriod
-  ]);
+  }, [clearSearchTimeout, jobStatus?.jobId, searchInput, platform, filters.uploadPeriod, addToast]);
 
   /**
    * 자동 타임아웃 처리 (3분 초과)
    */
   const handleAutoTimeout = useCallback(async () => {
-    console.log('[Search] Auto timeout after 3 minutes');
+    console.log("[Search] Auto timeout after 3 minutes");
 
     // 기존 취소 로직 재사용 (백엔드 취소 API + 캐시 삭제)
     await handleCancelSearch();
 
     // 사용자 안내 토스트
-    addToast(
-      'warning',
-      '검색 시간이 초과되었습니다.\n잠시 후 다시 시도해주세요.',
-      '⏱️ 타임아웃',
-      5000
-    );
+    addToast("warning", "검색 시간이 초과되었습니다.\n잠시 후 다시 시도해주세요.", "⏱️ 타임아웃", 5000);
 
     // 에러 메시지 표시
-    setError('검색 시간이 초과되었습니다. 서버 상태를 확인하거나 잠시 후 다시 시도해주세요.');
+    setError("검색 시간이 초과되었습니다. 서버 상태를 확인하거나 잠시 후 다시 시도해주세요.");
   }, [handleCancelSearch, addToast]);
 
   const handleSearch = useCallback(async () => {
@@ -460,12 +722,7 @@ export default function Search() {
       setError(validation.error || "잘못된 검색어입니다");
 
       // 🔔 토스트 알람 추가!
-      addToast(
-        "warning",
-        validation.error || "잘못된 검색어입니다",
-        "⚠️ 입력 오류",
-        4000
-      );
+      addToast("warning", validation.error || "잘못된 검색어입니다", "⚠️ 입력 오류", 4000);
       return;
     }
 
@@ -528,12 +785,20 @@ export default function Search() {
 
     setIsLoading(true);
     setError("");
-    // setVideos([]);  // ← 주석 처리: 이전 결과 유지로 UX 개선
+
+    // 검색 시 필터/정렬 초기화 (기간은 유지: 같은 키워드+같은 기간이면 캐시 사용, 기간 다르면 새 검색)
+    setFilters((prev) => ({
+      minPlayCount: 0,
+      maxPlayCount: null,
+      uploadPeriod: prev.uploadPeriod,
+      videoLength: "all",
+      engagementScore: ["all"],
+    }));
+    setSortBy("plays");
 
     try {
-      // 새로운 비동기 큐 API 호출
-      // Xiaohongshu는 기간 필터를 지원하지 않으므로 "all"로 고정
-      const dateRange = platform === "xiaohongshu" ? "all" : filters.uploadPeriod;
+      // 선택한 업로드 기간을 dateRange로 전달 → 캐시 키에 포함되어, 기간이 다르면 새로 검색됨
+      const dateRange = filters.uploadPeriod;
 
       const response = await fetch("/api/search", {
         method: "POST",
@@ -541,7 +806,7 @@ export default function Search() {
         body: JSON.stringify({
           query: searchQuery,
           platform,
-          dateRange: dateRange,
+          dateRange,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -562,15 +827,19 @@ export default function Search() {
         setIsLoading(false);
 
         if (data.data && data.data.length > 0) {
-          const urlStats = data.data.reduce((acc: any, video: Video) => {
-            const thumbnailUrl = video.thumbnail;
-            if (thumbnailUrl?.includes('.r2.dev')) acc.r2++;
-            else if (thumbnailUrl?.includes('tiktokcdn') ||
-                     thumbnailUrl?.includes('douyinpic') ||
-                     thumbnailUrl?.includes('xhscdn')) acc.cdn++;
-            else acc.unknown++;
-            return acc;
-          }, { r2: 0, cdn: 0, unknown: 0 });
+          const urlStats = data.data.reduce(
+            (acc: any, video: Video) => {
+              const raw = video.thumbnail;
+              const thumbnailUrl =
+                typeof raw === "string" ? raw : raw && typeof raw === "object" && "url" in raw ? (raw as { url: string }).url : "";
+              if (thumbnailUrl.includes(".r2.dev")) acc.r2++;
+              else if (thumbnailUrl.includes("tiktokcdn") || thumbnailUrl.includes("douyinpic") || thumbnailUrl.includes("xhscdn"))
+                acc.cdn++;
+              else acc.unknown++;
+              return acc;
+            },
+            { r2: 0, cdn: 0, unknown: 0 },
+          );
 
           console.log(`[Frontend] 📥 Search results received`, {
             platform,
@@ -593,17 +862,13 @@ export default function Search() {
 
         // 초기 큐 크기 저장
         const initialQueueSize = data.totalQueueSize || data.queueSize;
+        cancelledJobIdRef.current = null; // 새 검색 시작 시 취소 플래그 초기화
 
         // ========== 타임아웃 타이머 시작 (추가) ==========
 
         warningTimeoutRef.current = setTimeout(() => {
           if (isLoading) {
-            addToast(
-              "info",
-              "검색이 오래 걸리고 있습니다.\n30초 후 자동으로 취소됩니다.",
-              "⏳ 잠시만요",
-              5000
-            );
+            addToast("info", "검색이 오래 걸리고 있습니다.\n30초 후 자동으로 취소됩니다.", "⏳ 잠시만요", 5000);
           }
         }, SEARCH_TIMING.warningTimeoutMs);
 
@@ -622,6 +887,9 @@ export default function Search() {
             if (!statusRes.ok) return;
 
             const statusData = await statusRes.json();
+
+            // 취소한 job이면 응답 무시 (나중에 도착한 "completed"로 검색 완료 처리하지 않음)
+            if (cancelledJobIdRef.current === data.jobId) return;
 
             // 실시간 상태 업데이트
             if (statusData.status && statusData.queuePosition !== undefined) {
@@ -644,15 +912,19 @@ export default function Search() {
               clearInterval(pollInterval);
 
               if (statusData.data && statusData.data.length > 0) {
-                const urlStats = statusData.data.reduce((acc: any, video: Video) => {
-                  const thumbnailUrl = video.thumbnail;
-                  if (thumbnailUrl?.includes('.r2.dev')) acc.r2++;
-                  else if (thumbnailUrl?.includes('tiktokcdn') ||
-                           thumbnailUrl?.includes('douyinpic') ||
-                           thumbnailUrl?.includes('xhscdn')) acc.cdn++;
-                  else acc.unknown++;
-                  return acc;
-                }, { r2: 0, cdn: 0, unknown: 0 });
+                const urlStats = statusData.data.reduce(
+                  (acc: any, video: Video) => {
+                    const raw = video.thumbnail;
+                    const thumbnailUrl =
+                      typeof raw === "string" ? raw : raw && typeof raw === "object" && "url" in raw ? (raw as { url: string }).url : "";
+                    if (thumbnailUrl.includes(".r2.dev")) acc.r2++;
+                    else if (thumbnailUrl.includes("tiktokcdn") || thumbnailUrl.includes("douyinpic") || thumbnailUrl.includes("xhscdn"))
+                      acc.cdn++;
+                    else acc.unknown++;
+                    return acc;
+                  },
+                  { r2: 0, cdn: 0, unknown: 0 },
+                );
 
                 console.log(`[Frontend] 📥 Search results received (via polling)`, {
                   platform,
@@ -680,13 +952,13 @@ export default function Search() {
 
               // 에러 타입별 토스트 메시지 표시
               if (errorType === "RATE_LIMIT") {
-                addToast("warning", "Apify API 할당량이 제한되었습니다. 30초 후 다시 시도해주세요.", "⏳ 잠시만요");
+                addToast("warning", "검색 API 할당량이 제한되었습니다. 30초 후 다시 시도해주세요.", "⏳ 잠시만요");
               } else if (errorType === "NETWORK_ERROR") {
                 addToast("error", "네트워크 연결을 확인해주세요.", "❌ 연결 오류");
               } else if (errorType === "AUTH_ERROR") {
                 addToast("error", "API 인증에 실패했습니다. 관리자에게 연락해주세요.", "❌ 인증 오류");
               } else if (errorType === "APIFY_ERROR") {
-                addToast("warning", "Apify 서비스가 일시적으로 불안정합니다.\n몇 분 후 다시 시도해주세요.", "🔧 서비스 점검 중");
+                addToast("warning", "검색 서비스가 일시적으로 불안정합니다.\n몇 분 후 다시 시도해주세요.", "🔧 서비스 점검 중");
               } else if (errorType === "NO_RESULTS") {
                 addToast("info", "검색어를 바꿔서 다시 시도해보세요.", "🔍 결과 없음");
               } else {
@@ -739,16 +1011,7 @@ export default function Search() {
       }
       setIsLoading(false);
     }
-  }, [
-    searchInput,
-    platform,
-    targetLanguage,
-    searchHistory,
-    filters.uploadPeriod,
-    addToast,
-    clearSearchTimeout,
-    handleAutoTimeout
-  ]);
+  }, [searchInput, platform, targetLanguage, searchHistory, filters.uploadPeriod, addToast, clearSearchTimeout, handleAutoTimeout]);
 
   const debouncedSearch = useCallback(() => {
     if (searchTimeoutRef.current) {
@@ -831,7 +1094,7 @@ export default function Search() {
         setIsDownloading(false);
       }
     },
-    [addToast, platform]
+    [addToast, platform],
   );
 
   const handleExcelDownload = () => {
@@ -896,11 +1159,7 @@ export default function Search() {
   };
 
   // 🆕 링크 갱신 트리거 및 완료 대기 (CDN URL 만료 시 자동 갱신)
-  const handleRecrawl = async (
-    query: string,
-    platform: Platform,
-    dateRange: string
-  ): Promise<{ success: boolean; videos?: Video[] }> => {
+  const handleRecrawl = async (query: string, platform: Platform, dateRange: string): Promise<{ success: boolean; videos?: Video[] }> => {
     try {
       console.log("[Refresh] Starting refresh for:", query, platform, dateRange);
       addToast("info", "링크를 갱신하는 중입니다...", "⏳ 잠시만 기다려주세요", 5000);
@@ -924,7 +1183,7 @@ export default function Search() {
       console.log("[Refresh] Job started:", jobId);
 
       // Job 상태 폴링 (최대 30초 - Railway 타임아웃 120초 고려)
-      const maxAttempts = 15;  // 2초 × 15 = 30초
+      const maxAttempts = 15; // 2초 × 15 = 30초
       let attempt = 0;
 
       while (attempt < maxAttempts) {
@@ -933,10 +1192,7 @@ export default function Search() {
         const statusRes = await fetch(`/api/search/${jobId}`);
         const statusData = await statusRes.json();
 
-        console.log(
-          `[Refresh] Poll attempt ${attempt + 1}/${maxAttempts}, status:`,
-          statusData.status
-        );
+        console.log(`[Refresh] Poll attempt ${attempt + 1}/${maxAttempts}, status:`, statusData.status);
 
         if (statusData.status === "completed") {
           console.log("[Refresh] ✅ Completed");
@@ -959,12 +1215,7 @@ export default function Search() {
 
         if (statusData.status === "failed") {
           console.error("[Refresh] Failed:", statusData.error);
-          addToast(
-            "error",
-            statusData.error || "데이터를 가져오는데 실패했습니다",
-            "❌ 실패",
-            5000
-          );
+          addToast("error", statusData.error || "데이터를 가져오는데 실패했습니다", "❌ 실패", 5000);
           return { success: false };
         }
 
@@ -973,12 +1224,7 @@ export default function Search() {
 
       // 타임아웃
       console.warn("[Refresh] Timeout after 30 seconds");
-      addToast(
-        "warning",
-        "서버가 느리게 응답하고 있습니다. 잠시 후 다시 시도해주세요.",
-        "⏱️ 타임아웃",
-        5000
-      );
+      addToast("warning", "서버가 느리게 응답하고 있습니다. 잠시 후 다시 시도해주세요.", "⏱️ 타임아웃", 5000);
       return { success: false };
     } catch (error) {
       console.error("[Refresh] Error:", error);
@@ -988,12 +1234,12 @@ export default function Search() {
     }
   };
 
-  // 영상 페이지로 이동
-  const handleOpenVideo = (video: Video) => {
+  // 영상으로 이동: 바로 해당 URL로 새 탭 열기
+  const handleOpenVideo = useCallback((video: Video) => {
     if (video.webVideoUrl) {
-      window.open(video.webVideoUrl, "_blank");
+      window.open(video.webVideoUrl, "_blank", "noopener,noreferrer");
     }
-  };
+  }, []);
 
   // 영상 다운로드 (클립보드 복사 + 외부 다운로더 열기)
   const handleDownloadVideo = async (video: Video) => {
@@ -1014,7 +1260,7 @@ export default function Search() {
           videoUrl: video.videoUrl,
           videoId: video.id,
           platform,
-          webVideoUrl: video.webVideoUrl, // Pass webVideoUrl for Xiaohongshu
+          webVideoUrl: video.webVideoUrl,
         }),
       });
 
@@ -1029,27 +1275,17 @@ export default function Search() {
           const cacheKey = `${platform}:${searchInput}:${filters.uploadPeriod}`;
           const lastRecrawlTime = recrawlCooldownRef.current.get(cacheKey);
           const now = Date.now();
-          const COOLDOWN_MS = 1 * 60 * 1000;  // 1분 (갱신 완료 후 중복 방지용)
+          const COOLDOWN_MS = 1 * 60 * 1000; // 1분 (갱신 완료 후 중복 방지용)
 
-          if (lastRecrawlTime && (now - lastRecrawlTime) < COOLDOWN_MS) {
+          if (lastRecrawlTime && now - lastRecrawlTime < COOLDOWN_MS) {
             const waitSeconds = Math.ceil((COOLDOWN_MS - (now - lastRecrawlTime)) / 1000);
             console.log(`[Download] Refresh cooldown active, wait ${waitSeconds}s more`);
-            addToast(
-              "warning",
-              `방금 링크 갱신을 시도했습니다. ${waitSeconds}초 후 다시 시도해주세요.`,
-              "⏳ 재시도 필요",
-              5000
-            );
+            addToast("warning", `방금 링크 갱신을 시도했습니다. ${waitSeconds}초 후 다시 시도해주세요.`, "⏳ 재시도 필요", 5000);
             setDownloadingVideoId(null);
             return;
           }
 
-          addToast(
-            "info",
-            "링크가 만료되어 최신 링크로 갱신 중입니다.",
-            "🔄 링크 갱신",
-            4000
-          );
+          addToast("info", "링크가 만료되어 최신 링크로 갱신 중입니다.", "🔄 링크 갱신", 4000);
 
           // 링크 갱신 실행 (현재 검색어와 필터 사용)
           // ⚠️ 중요: setDownloadingVideoId(null) 하지 않음 (즉시 재시도 가능하게)
@@ -1060,23 +1296,18 @@ export default function Search() {
             console.log("[Download] DEBUG: Video matching info:", {
               originalVideoId: video.id,
               freshVideosCount: result.videos.length,
-              freshVideoIds: result.videos.slice(0, 3).map(v => v.id),
-              idMatch: result.videos.some(v => v.id === video.id),
+              freshVideoIds: result.videos.slice(0, 3).map((v) => v.id),
+              idMatch: result.videos.some((v) => v.id === video.id),
             });
 
             // ✅ ID로 새 결과에서 같은 비디오 찾기
-            const freshVideo = result.videos.find(v => v.id === video.id);
+            const freshVideo = result.videos.find((v) => v.id === video.id);
 
             if (freshVideo) {
               console.log("[Download] Fresh video found, retrying with new URL");
               recrawlCooldownRef.current.set(cacheKey, Date.now());
 
-              addToast(
-                "info",
-                "최신 링크로 다시 다운로드를 시도합니다...",
-                "🔄 다시 시도",
-                2000
-              );
+              addToast("info", "최신 링크로 다시 다운로드를 시도합니다...", "🔄 다시 시도", 2000);
 
               setDownloadingVideoId(null);
               await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -1085,24 +1316,14 @@ export default function Search() {
               return handleDownloadVideo(freshVideo);
             } else {
               console.warn("[Download] Video not found in fresh results");
-              addToast(
-                "warning",
-                "링크 갱신 후 해당 영상을 찾을 수 없습니다.",
-                "⚠️ 경고",
-                5000
-              );
+              addToast("warning", "링크 갱신 후 해당 영상을 찾을 수 없습니다.", "⚠️ 경고", 5000);
             }
           } else {
             // 링크 갱신 실패: cooldown 무효화 (더 빨리 재시도 가능하게)
             recrawlCooldownRef.current.delete(cacheKey);
 
             console.error("[Download] Refresh failed");
-            addToast(
-              "error",
-              "링크를 갱신하지 못했습니다. 잠시 후 다시 시도해주세요.",
-              "❌ 링크 갱신 실패",
-              5000
-            );
+            addToast("error", "링크를 갱신하지 못했습니다. 잠시 후 다시 시도해주세요.", "❌ 링크 갱신 실패", 5000);
           }
         } else {
           throw new Error("영상을 불러올 수 없습니다.");
@@ -1111,8 +1332,8 @@ export default function Search() {
       }
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "다운로드 실패");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "다운로드 실패");
       }
 
       // Blob으로 변환
@@ -1122,7 +1343,7 @@ export default function Search() {
       link.href = url;
 
       // 플랫폼별 파일명 설정
-      const filePrefix = platform === "douyin" ? "douyin" : platform === "xiaohongshu" ? "xiaohongshu" : "tiktok";
+      const filePrefix = platform === "douyin" ? "douyin" : "tiktok";
       link.download = `${filePrefix}_${video.id}.mp4`;
 
       document.body.appendChild(link);
@@ -1141,15 +1362,14 @@ export default function Search() {
     }
   };
 
-  // 자막 추출 핸들러
+  // 자막 추출 핸들러 (Whisper AI 사용)
   const handleExtractSubtitles = async (video: Video) => {
-    // TikTok과 Douyin만 지원
-    if (platform !== 'tiktok' && platform !== 'douyin') {
-      addToast("info", "자막 추출은 현재 TikTok과 Douyin만 지원합니다.", "ℹ️ 안내");
+    if (platform !== "tiktok" && platform !== "douyin") {
+      addToast("info", "자막 추출은 TikTok, Douyin만 지원합니다.", "ℹ️ 안내");
       return;
     }
 
-    if (!video.videoUrl) {
+    if (!video.videoUrl && !video.webVideoUrl) {
       addToast("error", "영상 정보를 불러올 수 없습니다.", "❌ 오류");
       return;
     }
@@ -1164,6 +1384,7 @@ export default function Search() {
           videoUrl: video.videoUrl,
           videoId: video.id,
           platform,
+          webVideoUrl: video.webVideoUrl,
           format: "text",
         }),
       });
@@ -1179,17 +1400,12 @@ export default function Search() {
           const cacheKey = `${platform}:${searchInput}:${filters.uploadPeriod}`;
           const lastRecrawlTime = recrawlCooldownRef.current.get(cacheKey);
           const now = Date.now();
-          const COOLDOWN_MS = 5 * 60 * 1000;  // 5분
+          const COOLDOWN_MS = 5 * 60 * 1000; // 5분
 
-          if (lastRecrawlTime && (now - lastRecrawlTime) < COOLDOWN_MS) {
+          if (lastRecrawlTime && now - lastRecrawlTime < COOLDOWN_MS) {
             const waitSeconds = Math.ceil((COOLDOWN_MS - (now - lastRecrawlTime)) / 1000);
             console.log(`[ExtractSubtitles] Refresh cooldown active, wait ${waitSeconds}s more`);
-            addToast(
-              "warning",
-              `방금 링크 갱신을 시도했습니다. ${waitSeconds}초 후 다시 시도해주세요.`,
-              "⏳ 재시도 필요",
-              5000
-            );
+            addToast("warning", `방금 링크 갱신을 시도했습니다. ${waitSeconds}초 후 다시 시도해주세요.`, "⏳ 재시도 필요", 5000);
             setExtractingSubtitleId(null);
             return;
           }
@@ -1197,12 +1413,7 @@ export default function Search() {
           // Cooldown 시간 기록
           recrawlCooldownRef.current.set(cacheKey, now);
 
-          addToast(
-            "info",
-            "링크가 만료되어 최신 링크로 갱신 중입니다.",
-            "🔄 링크 갱신",
-            4000
-          );
+          addToast("info", "링크가 만료되어 최신 링크로 갱신 중입니다.", "🔄 링크 갱신", 4000);
 
           const result = await handleRecrawl(searchInput, platform, filters.uploadPeriod);
 
@@ -1210,17 +1421,12 @@ export default function Search() {
             console.log("[ExtractSubtitles] Refresh completed, searching for fresh video data...");
 
             // ✅ ID로 새 결과에서 같은 비디오 찾기
-            const freshVideo = result.videos.find(v => v.id === video.id);
+            const freshVideo = result.videos.find((v) => v.id === video.id);
 
             if (freshVideo) {
               console.log("[ExtractSubtitles] Fresh video found, retrying with new URL");
 
-              addToast(
-                "info",
-                "최신 링크로 다시 자막 추출을 시도합니다...",
-                "🔄 다시 시도",
-                2000
-              );
+              addToast("info", "최신 링크로 다시 자막 추출을 시도합니다...", "🔄 다시 시도", 2000);
 
               setExtractingSubtitleId(null);
               await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -1229,22 +1435,12 @@ export default function Search() {
               return handleExtractSubtitles(freshVideo);
             } else {
               console.warn("[ExtractSubtitles] Video not found in fresh results");
-              addToast(
-                "warning",
-                "링크 갱신 후 해당 영상을 찾을 수 없습니다.",
-                "⚠️ 경고",
-                5000
-              );
+              addToast("warning", "링크 갱신 후 해당 영상을 찾을 수 없습니다.", "⚠️ 경고", 5000);
             }
           } else {
             // 링크 갱신 실패
             console.error("[ExtractSubtitles] Refresh failed");
-            addToast(
-              "error",
-              "링크를 갱신하지 못했습니다. 잠시 후 다시 시도해주세요.",
-              "❌ 링크 갱신 실패",
-              5000
-            );
+            addToast("error", "링크를 갱신하지 못했습니다. 잠시 후 다시 시도해주세요.", "❌ 링크 갱신 실패", 5000);
           }
         } else {
           throw new Error("영상을 불러올 수 없습니다.");
@@ -1262,7 +1458,7 @@ export default function Search() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      const filePrefix = platform === 'douyin' ? 'douyin' : 'tiktok';
+      const filePrefix = platform === "douyin" ? "douyin" : "tiktok";
       link.download = `${filePrefix}_${video.id}_subtitles.txt`;
       document.body.appendChild(link);
       link.click();
@@ -1540,22 +1736,6 @@ export default function Search() {
                   <span className="platform-icon">🐉</span>
                   <span className="platform-name">Douyin</span>
                 </label>
-                <label
-                  className="platform-option"
-                  style={{ opacity: 0.5, cursor: "not-allowed", pointerEvents: "none" }}
-                  title="현재 사용 불가"
-                >
-                  <input
-                    type="radio"
-                    name="platform"
-                    value="xiaohongshu"
-                    disabled
-                    style={{ display: "none" }}
-                  />
-                  <span className="platform-icon">❤️</span>
-                  <span className="platform-name">Xiaohongshu</span>
-                  <span style={{ fontSize: "10px", marginLeft: "4px", color: "#999" }}>(준비중)</span>
-                </label>
               </div>
             </div>
 
@@ -1607,21 +1787,18 @@ export default function Search() {
                   fontSize: "12px",
                   marginTop: "6px",
                   padding: "8px 10px",
-                  backgroundColor:
-                    (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" ? "rgba(0, 229, 115, 0.1)" : "transparent",
-                  border: (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" ? "1px solid rgba(0, 229, 115, 0.2)" : "none",
+                  backgroundColor: platform === "douyin" && targetLanguage !== "zh" ? "rgba(0, 229, 115, 0.1)" : "transparent",
+                  border: platform === "douyin" && targetLanguage !== "zh" ? "1px solid rgba(0, 229, 115, 0.2)" : "none",
                   borderRadius: "4px",
                   minHeight: "32px",
-                  opacity: (platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" ? 1 : 0,
+                  opacity: platform === "douyin" && targetLanguage !== "zh" ? 1 : 0,
                   transition: "opacity 0.2s ease, background-color 0.2s ease",
                   display: "flex",
                   alignItems: "center",
                 }}
               >
-                {(platform === "douyin" || platform === "xiaohongshu") && targetLanguage !== "zh" && (
-                  <span style={{ color: "#00E573", fontWeight: "600" }}>
-                    💡 팁: {platform === "douyin" ? "Douyin" : "Xiaohongshu"}은 중국어 검색이 더 정확합니다
-                  </span>
+                {platform === "douyin" && targetLanguage !== "zh" && (
+                  <span style={{ color: "#00E573", fontWeight: "600" }}>💡 팁: Douyin은 중국어 검색이 더 정확합니다</span>
                 )}
               </div>
             </div>
@@ -1664,92 +1841,15 @@ export default function Search() {
                       letterSpacing: "0.4px",
                     }}
                   >
-                    조회수
+                    기간
                   </div>
-                  <ViewCountFilter
-                    minValue={filters.minPlayCount}
-                    maxValue={filters.maxPlayCount}
-                    onChange={(min, max) => setFilters({ ...filters, minPlayCount: min, maxPlayCount: max })}
+                  <PeriodFilter
+                    value={filters.uploadPeriod}
+                    onChange={(value) => setFilters({ ...filters, uploadPeriod: value })}
+                    platform={platform}
                   />
                 </div>
 
-                {platform !== "xiaohongshu" && (
-                  <div
-                    style={{
-                      background: "linear-gradient(135deg, rgba(37, 37, 48, 0.6) 0%, rgba(26, 26, 36, 0.6) 100%)",
-                      borderRadius: "8px",
-                      padding: "10px 8px",
-                      border: "1px solid rgba(255, 255, 255, 0.08)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: "600",
-                        color: "rgba(255, 255, 255, 0.75)",
-                        marginBottom: "6px",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.4px",
-                      }}
-                    >
-                      기간
-                    </div>
-                    <PeriodFilter
-                      value={filters.uploadPeriod}
-                      onChange={(value) => setFilters({ ...filters, uploadPeriod: value })}
-                      platform={platform}
-                    />
-                  </div>
-                )}
-
-                <div
-                  style={{
-                    background: "linear-gradient(135deg, rgba(37, 37, 48, 0.6) 0%, rgba(26, 26, 36, 0.6) 100%)",
-                    borderRadius: "8px",
-                    padding: "10px 8px",
-                    border: "1px solid rgba(255, 255, 255, 0.08)",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: "600",
-                      color: "rgba(255, 255, 255, 0.75)",
-                      marginBottom: "6px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.4px",
-                    }}
-                  >
-                    길이
-                  </div>
-                  <VideoLengthFilter value={filters.videoLength} onChange={(value) => setFilters({ ...filters, videoLength: value })} />
-                </div>
-
-                <div
-                  style={{
-                    background: "linear-gradient(135deg, rgba(37, 37, 48, 0.6) 0%, rgba(26, 26, 36, 0.6) 100%)",
-                    borderRadius: "8px",
-                    padding: "10px 8px",
-                    border: "1px solid rgba(255, 255, 255, 0.08)",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: "600",
-                      color: "rgba(255, 255, 255, 0.75)",
-                      marginBottom: "6px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.4px",
-                    }}
-                  >
-                    인기도
-                  </div>
-                  <EngagementRatioFilter
-                    selectedValues={filters.engagementScore}
-                    onChange={(values) => setFilters({ ...filters, engagementScore: values })}
-                  />
-                </div>
               </div>
             </div>
 
@@ -1777,22 +1877,112 @@ export default function Search() {
 
         {/* 오른쪽 컨텐츠 영역 */}
         <div className="content">
-          <div className="content-header">
-            <div className="content-title">검색결과</div>
+          <div className={`content-header${isBookmarkView ? " bookmark-view" : ""}`}>
+            <div className={`content-title${isBookmarkView ? " bookmark-view" : ""}`}>
+              {isBookmarkView ? (
+                <>
+                  <BookmarkCheck size={18} style={{ display: "inline", marginRight: "6px", verticalAlign: "middle", color: "#FFD700" }} />
+                  찜 목록
+                </>
+              ) : "검색결과"}
+            </div>
             <div className="controls-right">
+              <div className="subscription-status-wrap">
+                <button
+                  type="button"
+                  className="btn-subscription"
+                  onClick={() => setShowSubscriptionModal(true)}
+                >
+                  구독
+                </button>
+                <span
+                  className={`subscription-status-badge ${isSubscribed && subscriptionPlanName ? "subscribed" : "unsubscribed"}`}
+                >
+                  {isSubscribed === null ? "—" : isSubscribed && subscriptionPlanName ? subscriptionPlanName : "미구독 중"}
+                </span>
+              </div>
               <button className="btn-video-download" onClick={handleVideoDownload}>
                 <Download size={16} style={{ display: "inline", marginRight: "4px" }} />
-                영상 다운로드
+                영상 자막 추출
               </button>
-              <div className="view-toggle">
-                <button className={`view-btn ${viewMode === "card" ? "active" : ""}`} onClick={() => setViewMode("card")}>
-                  <LayoutGrid size={16} style={{ display: "inline", marginRight: "4px" }} />
-                  카드
+              <button
+                className={`btn-bookmarks${isBookmarkView ? " active" : ""}`}
+                onClick={handleToggleBookmarkView}
+                title="즐겨찾기 목록"
+              >
+                <Bookmark size={16} style={{ display: "inline", marginRight: "4px" }} />
+                찜 목록
+              </button>
+              {isBookmarkView && (
+                <button
+                  className="btn-bookmarks"
+                  onClick={handleRefreshAllBookmarks}
+                  disabled={isRefreshingAllBookmarks}
+                  title="찜한 영상 전체 썸네일/프리뷰 새로고침"
+                >
+                  {isRefreshingAllBookmarks ? (
+                    <>
+                      <Loader
+                        className="card-action-icon animate-spin"
+                        style={{ width: 16, height: 16, marginRight: 4, color: "#facc15" }}
+                      />
+                      전체 새로고침 중...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw size={16} style={{ display: "inline", marginRight: "4px" }} />
+                      전체 새로고침
+                    </>
+                  )}
                 </button>
-                <button className={`view-btn ${viewMode === "table" ? "active" : ""}`} onClick={() => setViewMode("table")}>
-                  <Table2 size={16} style={{ display: "inline", marginRight: "4px" }} />
-                  테이블
+              )}
+              <div ref={viewCountPopoverRef} className="header-filter-popover">
+                <button
+                  type="button"
+                  className={`header-filter-summary${isViewCountPopoverOpen ? " open" : ""}`}
+                  onClick={() => setIsViewCountPopoverOpen((prev) => !prev)}
+                >
+                  조회수{filters.minPlayCount > 0 ? ` (${formatNumber(filters.minPlayCount)}+)` : ""}
+                  <span className="header-filter-chevron">▾</span>
                 </button>
+                {isViewCountPopoverOpen && (
+                  <div className="header-filter-dropdown">
+                    <div style={{ fontSize: "11px", fontWeight: "600", color: "rgba(255,255,255,0.75)", marginBottom: "8px", textTransform: "uppercase" }}>조회수</div>
+                    <ViewCountFilter
+                      minValue={filters.minPlayCount}
+                      maxValue={filters.maxPlayCount}
+                      onChange={(min, max) => setFilters({ ...filters, minPlayCount: min, maxPlayCount: max })}
+                    />
+                  </div>
+                )}
+              </div>
+              <select
+                className="sort-dropdown header-filter"
+                value={filters.videoLength}
+                onChange={(e) => setFilters({ ...filters, videoLength: e.target.value })}
+                title="영상 길이"
+              >
+                <option value="all">길이: 전체</option>
+                <option value="short">길이: 20초 미만</option>
+                <option value="long">길이: 20초 이상</option>
+              </select>
+              <div ref={engagementPopoverRef} className="header-filter-popover">
+                <button
+                  type="button"
+                  className={`header-filter-summary${isEngagementPopoverOpen ? " open" : ""}`}
+                  onClick={() => setIsEngagementPopoverOpen((prev) => !prev)}
+                >
+                  인기도{filters.engagementScore.length > 0 && !filters.engagementScore.includes("all") ? ` (${filters.engagementScore.length})` : ""}
+                  <span className="header-filter-chevron">▾</span>
+                </button>
+                {isEngagementPopoverOpen && (
+                  <div className="header-filter-dropdown">
+                    <EngagementRatioFilter
+                      selectedValues={filters.engagementScore}
+                      onChange={(values) => setFilters({ ...filters, engagementScore: values })}
+                    />
+                  </div>
+                )}
               </div>
               <select className="sort-dropdown" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
                 <option value="plays">조회수순</option>
@@ -1804,7 +1994,7 @@ export default function Search() {
                 <Download size={16} style={{ display: "inline", marginRight: "4px" }} />
                 엑셀
               </button>
-              <UserDropdown />
+              <UserDropdown onOpenSubscription={() => setShowSubscriptionModal(true)} />
             </div>
           </div>
 
@@ -1858,52 +2048,65 @@ export default function Search() {
                   🔍
                 </div>
                 <p style={{ fontSize: "16px", fontWeight: "600", marginBottom: "8px", color: "#FFFFFF", textAlign: "center" }}>
-                  {error ? "검색 결과가 없습니다" : "검색어를 입력하여 시작하세요"}
+                  {isBookmarkView ? "찜한 영상이 없습니다" : error ? "검색 결과가 없습니다" : "검색어를 입력하여 시작하세요"}
                 </p>
                 <p style={{ fontSize: "13px", color: "#999999", textAlign: "center", maxWidth: "300px" }}>
-                  {error ? "다른 키워드나 필터로 다시 시도해보세요" : "관심있는 콘텐츠를 찾아보세요"}
+                  {isBookmarkView ? "영상 카드의 ☆ 버튼으로 찜할 수 있습니다" : error ? "다른 키워드나 필터로 다시 시도해보세요" : "관심있는 콘텐츠를 찾아보세요"}
                 </p>
               </div>
             ) : (
               <>
                 <div style={{ width: "100%" }}>
                   <div className="results-count">총 {results.length}개의 영상</div>
-                  {viewMode === "card" ? (
-                    <div className="results-grid">
+                  <div className="results-grid">
                       {(results as Video[]).map((video) => (
                         <div key={video.id} className="result-card">
                           <div
                             className="card-thumbnail-container"
-                            onClick={() => {
-                              if (video.webVideoUrl) {
-                                window.open(video.webVideoUrl, "_blank");
-                              }
-                            }}
+                            onClick={() => handleVideoCardClick(video)}
                             onMouseEnter={() => handleVideoCardMouseEnter(video)}
                             onMouseLeave={handleVideoCardMouseLeave}
                           >
                             {/* 썸네일 */}
-                            {video.thumbnail ? (
+                            {getDisplayThumbnail(video, platform) ? (
                               <img
-                                src={video.thumbnail}
+                                src={getDisplayThumbnail(video, platform)!}
                                 alt={video.title}
                                 className={`card-thumbnail ${playingVideoId === video.id ? "card-thumbnail-hidden" : ""}`}
                                 onError={(e) => handleThumbnailError(video, e)}
                                 loading="lazy"
+                                referrerPolicy="no-referrer"
                               />
                             ) : (
                               <div className="card-thumbnail-fallback">🎬</div>
                             )}
 
-                            {/* 비디오 미리보기 (TikTok만 제공, Douyin/Xiaohongshu는 썸네일만 표시) */}
-                            {video.videoUrl && playingVideoId === video.id && platform !== 'douyin' && platform !== 'xiaohongshu' && (
-                              <video className="card-video-preview" src={video.videoUrl} autoPlay muted loop playsInline preload="auto" />
+                            {/* 비디오 미리보기 - TikTok만 지원 (Douyin 미지원) */}
+                            {(video._platform ?? platform) === "tiktok" &&
+                              (video.videoUrl || previewVideoUrls[video.id]) && (
+                                <video
+                                  ref={(el) => {
+                                    if (el) videoRefs.current.set(video.id, el);
+                                    else videoRefs.current.delete(video.id);
+                                  }}
+                                  className={`card-video-preview${hoveredVideoId === video.id ? "" : " card-video-hidden"}`}
+                                  src={video.videoUrl || previewVideoUrls[video.id]}
+                                  muted
+                                  loop
+                                  playsInline
+                                  preload="metadata"
+                                  {...({ referrerPolicy: "no-referrer" } as React.ComponentProps<"video">)}
+                                />
+                              )}
+                            {(video._platform ?? platform) === "tiktok" && loadingPreviewId === video.id && (
+                              <div className="card-preview-loading">
+                                <Loader className="card-action-icon animate-spin" style={{ width: 32, height: 32 }} />
+                                <span>미리보기 로딩...</span>
+                              </div>
                             )}
 
-                            {/* Duration 뱃지 - 왼쪽 상단 (샤오홍슈 제외) */}
-                            {platform !== "xiaohongshu" && (
-                              <div className="card-duration-badge">{formatVideoDuration(video.videoDuration)}</div>
-                            )}
+                            {/* Duration 뱃지 - 왼쪽 상단 */}
+                            <div className="card-duration-badge">{formatVideoDuration(video.videoDuration)}</div>
 
                             {/* Date 뱃지 - 오른쪽 상단 */}
                             {video.createTime && <div className="card-date-badge">{getRelativeDateString(new Date(video.createTime))}</div>}
@@ -1943,119 +2146,101 @@ export default function Search() {
                             </div>
 
                             {/* 오른쪽 액션 버튼 */}
-                            <div className="card-actions-vertical">
-                              {/* 다운로드 버튼 */}
+                          </div>
+                          <div className="card-actions-vertical">
+                            {/* 썸네일 새로고침 버튼 (찜 목록 + 썸네일 실패 시) */}
+                            {isBookmarkView && failedThumbnails.has(video.id) && (
                               <button
                                 className="card-action-btn"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDownloadVideo(video);
+                                  handleRefreshBookmarkThumbnail(video);
                                 }}
-                                disabled={downloadingVideoId === video.id}
-                                title="다운로드"
+                                disabled={refreshingThumbnailId === video.id}
+                                title="썸네일 새로고침"
                               >
-                                {downloadingVideoId === video.id ? (
+                                {refreshingThumbnailId === video.id ? (
                                   <Loader className="card-action-icon animate-spin" />
                                 ) : (
-                                  <Download className="card-action-icon" />
+                                  <RefreshCw className="card-action-icon" />
                                 )}
-                                <span className="card-action-label">{downloadingVideoId === video.id ? "준비중" : "다운"}</span>
+                                <span className="card-action-label">
+                                  {refreshingThumbnailId === video.id ? "갱신중" : "새로고침"}
+                                </span>
                               </button>
+                            )}
 
-                              {/* 자막 버튼 - TikTok, Douyin */}
-                              {(platform === 'tiktok' || platform === 'douyin') && (
-                                <button
-                                  className="card-action-btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleExtractSubtitles(video);
-                                  }}
-                                  disabled={extractingSubtitleId === video.id}
-                                  title="자막 추출"
-                                >
-                                  {extractingSubtitleId === video.id ? (
-                                    <Loader className="card-action-icon animate-spin" />
-                                  ) : (
-                                    <Subtitles className="card-action-icon" />
-                                  )}
-                                  <span className="card-action-label">
-                                    {extractingSubtitleId === video.id ? "추출중" : "자막"}
-                                  </span>
-                                </button>
+                            {/* URL 복사 버튼 */}
+                            <button
+                              className="card-action-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopyUrl(video);
+                              }}
+                              title="URL 복사"
+                            >
+                              <Copy className="card-action-icon" />
+                              <span className="card-action-label">복사</span>
+                            </button>
+
+                            {/* 북마크 버튼 */}
+                            <button
+                              className="card-action-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleBookmark(video);
+                              }}
+                              title={bookmarkedIds.has(video.id) ? "즐겨찾기 해제" : "즐겨찾기 추가"}
+                            >
+                              {bookmarkedIds.has(video.id) ? (
+                                <BookmarkCheck className="card-action-icon" style={{ color: "#FFD700" }} />
+                              ) : (
+                                <Bookmark className="card-action-icon" />
                               )}
-                            </div>
+                              <span className="card-action-label">찜</span>
+                            </button>
+
+                            {/* 다운로드 버튼 */}
+                            <button
+                              className="card-action-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownloadVideo(video);
+                              }}
+                              disabled={downloadingVideoId === video.id}
+                              title="다운로드"
+                            >
+                              {downloadingVideoId === video.id ? (
+                                <Loader className="card-action-icon animate-spin" />
+                              ) : (
+                                <Download className="card-action-icon" />
+                              )}
+                              <span className="card-action-label">{downloadingVideoId === video.id ? "준비중" : "다운"}</span>
+                            </button>
+
+                            {/* 자막 버튼 - TikTok, Douyin */}
+                            {((video._platform ?? platform) === "tiktok" || (video._platform ?? platform) === "douyin") && (
+                              <button
+                                className="card-action-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleExtractSubtitles(video);
+                                }}
+                                disabled={extractingSubtitleId === video.id}
+                                title="자막 추출"
+                              >
+                                {extractingSubtitleId === video.id ? (
+                                  <Loader className="card-action-icon animate-spin" />
+                                ) : (
+                                  <Subtitles className="card-action-icon" />
+                                )}
+                                <span className="card-action-label">{extractingSubtitleId === video.id ? "추출중" : "자막"}</span>
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <div className="results-table-wrapper">
-                      <table className="results-table">
-                        <thead>
-                          <tr>
-                            <th style={{ width: "50px" }}>썸네일</th>
-                            <th style={{ width: "150px" }}>제목</th>
-                            <th style={{ width: "100px" }}>크리에이터</th>
-                            <th style={{ width: "80px" }}>팔로워</th>
-                            <th style={{ width: "100px" }}>게시일</th>
-                            <th style={{ width: "70px" }}>길이</th>
-                            <th style={{ width: "70px" }}>조회수</th>
-                            <th style={{ width: "70px" }}>좋아요</th>
-                            <th style={{ width: "70px" }}>댓글</th>
-                            <th style={{ width: "70px" }}>공유</th>
-                            <th style={{ width: "60px" }}>참여율</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(results as Video[]).map((video) => (
-                            <tr key={video.id} style={{ fontSize: "12px" }}>
-                              <td
-                                style={{ textAlign: "center", cursor: "pointer" }}
-                                onClick={() => {
-                                  if (video.webVideoUrl) {
-                                    window.open(video.webVideoUrl, "_blank");
-                                  }
-                                }}
-                              >
-                                {video.thumbnail ? (
-                                  <img
-                                    src={video.thumbnail}
-                                    alt={video.title}
-                                    className="table-thumbnail"
-                                    onError={(e) => handleThumbnailError(video, e)}
-                                    style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "2px" }}
-                                  />
-                                ) : (
-                                  <span>🎬</span>
-                                )}
-                              </td>
-                              <td className="table-title" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {video.title}
-                              </td>
-                              <td className="table-author" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {video.creator}
-                              </td>
-                              <td className="table-number">{video.followerCount ? formatNumber(video.followerCount) : "-"}</td>
-                              <td className="table-number" style={{ fontSize: "11px" }}>
-                                {formatDateWithTime(video.createTime)}
-                              </td>
-                              {platform !== "xiaohongshu" && <td className="table-number">{formatVideoDuration(video.videoDuration)}</td>}
-                              <td className="table-number">{video.playCount ? formatNumber(video.playCount) : "제공 안 함"}</td>
-                              <td className="table-number">{formatNumber(video.likeCount)}</td>
-                              <td className="table-number">{formatNumber(video.commentCount)}</td>
-                              <td className="table-number">{formatNumber(video.shareCount)}</td>
-                              <td className="table-number" style={{ color: "#f4d03f", fontWeight: "600" }}>
-                                {video.playCount > 0
-                                  ? (((video.likeCount + video.commentCount + video.shareCount) / video.playCount) * 100).toFixed(2)
-                                  : "-"}
-                                %
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
                 </div>
               </>
             )}
@@ -2070,11 +2255,12 @@ export default function Search() {
             {/* 스크롤 가능한 콘텐츠 */}
             <div className="modal-scroll">
               {/* 썸네일 */}
-              {selectedVideo.thumbnail && (
+              {getDisplayThumbnail(selectedVideo, platform) && (
                 <img
-                  src={selectedVideo.thumbnail}
+                  src={getDisplayThumbnail(selectedVideo, platform)!}
                   alt={selectedVideo.title}
                   onError={(e) => handleThumbnailError(selectedVideo, e)}
+                  referrerPolicy="no-referrer"
                   style={{
                     width: "100%",
                     height: "240px",
@@ -2121,7 +2307,9 @@ export default function Search() {
                   }}
                 >
                   <div style={{ fontSize: "11px", opacity: 0.9, marginBottom: "6px", color: "#6b6b6b" }}>조회수</div>
-                  <div style={{ fontSize: "20px", fontWeight: "700" }}>{selectedVideo.playCount ? formatNumber(selectedVideo.playCount) : "제공 안 함"}</div>
+                  <div style={{ fontSize: "20px", fontWeight: "700" }}>
+                    {selectedVideo.playCount ? formatNumber(selectedVideo.playCount) : "제공 안 함"}
+                  </div>
                 </div>
                 <div
                   style={{
@@ -2232,7 +2420,7 @@ export default function Search() {
                   boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
                 }}
               >
-                🔗 {platform === "douyin" ? "도우인" : platform === "xiaohongshu" ? "샤오홍슈" : "TikTok"}에서 열기
+                🔗 {platform === "douyin" ? "도우인" : "TikTok"}에서 열기
               </button>
               <button
                 onClick={() => {
@@ -2258,17 +2446,18 @@ export default function Search() {
                 {selectedVideo && downloadingVideoId === selectedVideo.id ? "⏳ 준비 중..." : "⬇️ 다운로드"}
               </button>
 
-              {/* TikTok/Douyin 자막 추출 버튼 */}
-              {(platform === 'tiktok' || platform === 'douyin') && selectedVideo && (
+              {/* TikTok, Douyin 자막 추출 버튼 */}
+              {(platform === "tiktok" || platform === "douyin") && selectedVideo && (
                 <button
                   onClick={() => handleExtractSubtitles(selectedVideo)}
                   disabled={extractingSubtitleId === selectedVideo.id}
                   style={{
                     flex: 1,
                     padding: "10px",
-                    background: extractingSubtitleId === selectedVideo.id
-                      ? "linear-gradient(135deg, #9ca3af 0%, #c0c0c0 100%)"
-                      : "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
+                    background:
+                      extractingSubtitleId === selectedVideo.id
+                        ? "linear-gradient(135deg, #9ca3af 0%, #c0c0c0 100%)"
+                        : "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
                     color: "#ffffff",
                     border: "none",
                     borderRadius: "4px",
@@ -2285,12 +2474,18 @@ export default function Search() {
         </div>
       )}
 
-      {/* 영상 다운로드 모달 */}
+      {/* 영상 자막 추출 모달 */}
       <DownloadVideoModal
         isOpen={isDownloadModalOpen}
         onClose={() => setIsDownloadModalOpen(false)}
         onDownload={handleDownloadFromUrl}
         isLoading={isDownloading}
+      />
+
+      {/* 구독 결제 모달 */}
+      <SubscriptionModal
+        isOpen={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
       />
     </>
   );

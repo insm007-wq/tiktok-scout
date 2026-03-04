@@ -9,11 +9,19 @@ import { fetchWithRetry, fetchPostWithRetry, fetchGetWithRetry } from '@/lib/uti
  * - 최대 3회 재시도
  * - 1초, 2초, 4초... 대기
  */
+export interface SearchScraperOptions {
+  /** 검색 취소 시 run 중단용으로 runId 전달 */
+  onRunStarted?: (runId: string) => void;
+  /** 수집 대기 중 진행률 (15~70) — UI에 "아직 수집 중" 표시용 */
+  onProgress?: (percent: number) => void;
+}
+
 export async function searchTikTokVideos(
   query: string,
   limit: number,
   apiKey: string,
-  dateRange?: string
+  dateRange?: string,
+  options?: SearchScraperOptions
 ): Promise<VideoResult[]> {
   try {
     const actorId = 'apidojo~tiktok-scraper';
@@ -56,6 +64,7 @@ export async function searchTikTokVideos(
     }
 
     const runId = runData.data.id;
+    options?.onRunStarted?.(runId);
 
     // 2️⃣ 완료 대기 (Polling with exponential backoff)
     let status = 'RUNNING';
@@ -76,6 +85,10 @@ export async function searchTikTokVideos(
       const statusData = await statusRes.json();
       status = statusData.data.status;
       attempt++;
+
+      // 수집 대기 중 진행률 15~70% (완료 전까지 서서히 증가)
+      const waitPercent = 15 + Math.floor((55 * attempt) / maxAttempts);
+      options?.onProgress?.(Math.min(waitPercent, 70));
 
       if (status === 'SUCCEEDED') break;
       if (status === 'FAILED' || status === 'ABORTED') {

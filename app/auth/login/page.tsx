@@ -69,7 +69,7 @@ export default async function LoginPage() {
         <div className="text-center mt-6">
           <Link
             href="/"
-            className="inline-flex items-center justify-center px-6 py-2 text-sm font-semibold text-white/90 hover:text-white bg-white/15 hover:bg-white/20 border border-white/30 hover:border-white/40 rounded-lg transition-all"
+            className="inline-flex items-center justify-center px-6 py-2 text-sm font-semibold text-white bg-white/25 hover:bg-white/35 border border-white/50 hover:border-white/60 rounded-lg transition-all shadow-sm"
           >
             ← 메인으로
           </Link>

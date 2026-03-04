@@ -183,15 +183,14 @@
   content: "🎬";
 }
 
-.xiaohongshuLogo {
+.youtubeLogo {
   bottom: 15%;
   left: 50%;
   animation: orbFloat 30s ease-in-out infinite;
-  content: "📕";
 }
 
-.xiaohongshuLogo::before {
-  content: "📕";
+.youtubeLogo::before {
+  content: "▶️";
 }
 
 /* ===== Content Wrapper ===== */

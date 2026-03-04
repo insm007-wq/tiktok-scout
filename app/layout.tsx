@@ -5,8 +5,8 @@ import { websiteSchema, organizationSchema } from './structured-data'
 
 export const metadata: Metadata = {
   title: 'TikTalk Killa | 틱톡 영상 검색 및 분석 도구',
-  description: 'TikTok, Douyin, 샤오홍슈 영상을 한눈에 검색하고 분석하세요. 가장 인기 있는 콘텐츠를 발견하세요.',
-  keywords: ['TikTok', '검색', '분석', 'Douyin', '샤오홍슈', '영상', 'TikTalk'],
+  description: 'TikTok, Douyin 영상을 한눈에 검색하고 분석하세요. 가장 인기 있는 콘텐츠를 발견하세요.',
+  keywords: ['TikTok', '검색', '분석', 'Douyin', '영상', 'TikTalk'],
   authors: [{ name: 'TikTalk Killa Team' }],
   creator: 'TikTalk Killa',
   publisher: 'TikTalk Killa',
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     url: 'https://www.tiktalk-killa.com',
     siteName: 'TikTalk Killa',
     title: 'TikTalk Killa | 틱톡 영상 검색 및 분석 도구',
-    description: 'TikTok, Douyin, 샤오홍슈 영상을 한눈에 검색하고 분석하세요.',
+    description: 'TikTok, Douyin 영상을 한눈에 검색하고 분석하세요.',
     images: [
       {
         url: 'https://www.tiktalk-killa.com/og-image.png',
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'TikTalk Killa | 틱톡 영상 검색 및 분석 도구',
-    description: 'TikTok, Douyin, 샤오홍슈 영상을 한눈에 검색하고 분석하세요.',
+    description: 'TikTok, Douyin 영상을 한눈에 검색하고 분석하세요.',
     images: ['https://www.tiktalk-killa.com/twitter-image.png'],
   },
   alternates: {

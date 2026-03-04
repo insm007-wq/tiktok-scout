@@ -19,20 +19,9 @@ export const infoSchema = z
     password: z
       .string()
       .min(8, '비밀번호는 8자 이상이어야 합니다')
-      .max(50, '비밀번호는 50자 이하여야 합니다')
-      .regex(/[a-z]/, '소문자를 포함해야 합니다')
-      .regex(/[0-9]/, '숫자를 포함해야 합니다')
-      .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, '특수문자를 포함해야 합니다'),
+      .max(50, '비밀번호는 50자 이하여야 합니다'),
 
     passwordConfirm: z.string(),
-
-    invitationCode: z
-      .string()
-      .refine(
-        val => ['DONBOK', 'FORMNA'].includes(val.trim().toUpperCase()),
-        '유효하지 않은 접근 코드입니다.'
-      )
-      .transform(val => val.trim().toUpperCase()),
   })
   .refine((data) => data.password === data.passwordConfirm, {
     message: '비밀번호가 일치하지 않습니다',
@@ -42,31 +31,13 @@ export const infoSchema = z
 export type InfoFormData = z.infer<typeof infoSchema>
 
 /**
- * Step 2: 주소 검증 스키마
- */
-export const addressSchema = z.object({
-  zipCode: z.string().min(5, '우편번호를 입력해주세요').max(6, '우편번호 형식이 올바르지 않습니다'),
-  address: z.string().min(5, '주소를 입력해주세요'),
-  detailAddress: z.string().min(1, '상세주소를 입력해주세요'),
-})
-
-export type AddressFormData = z.infer<typeof addressSchema>
-
-/**
- * 교재 수령 검증 스키마
- */
-export const textbookSchema = z.object({
-  wantsTextbook: z.boolean(),
-  address: addressSchema.optional(),
-})
-
-/**
- * Step 3: 동의 검증 스키마
+ * Step 2: 동의 검증 스키마
  */
 export const consentSchema = z
   .object({
     termsConsent: z.boolean(),
     privacyConsent: z.boolean(),
+    ageConsent: z.boolean(),
     marketingConsent: z.boolean(),
   })
   .refine((data) => data.termsConsent === true, {
@@ -76,6 +47,10 @@ export const consentSchema = z
   .refine((data) => data.privacyConsent === true, {
     message: '개인정보 처리방침 동의는 필수입니다',
     path: ['privacyConsent'],
+  })
+  .refine((data) => data.ageConsent === true, {
+    message: '만 14세 미만 제한 동의는 필수입니다',
+    path: ['ageConsent'],
   })
 
 export type ConsentFormData = z.infer<typeof consentSchema>
@@ -99,34 +74,19 @@ export const signupSchema = z
     password: z
       .string()
       .min(8, '비밀번호는 8자 이상이어야 합니다')
-      .max(50, '비밀번호는 50자 이하여야 합니다')
-      .regex(/[a-z]/, '소문자를 포함해야 합니다')
-      .regex(/[0-9]/, '숫자를 포함해야 합니다')
-      .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, '특수문자를 포함해야 합니다'),
+      .max(50, '비밀번호는 50자 이하여야 합니다'),
 
     passwordConfirm: z.string(),
-
-    invitationCode: z
-      .string()
-      .refine(
-        val => ['DONBOK', 'FORMNA'].includes(val.trim().toUpperCase()),
-        '유효하지 않은 접근 코드입니다.'
-      )
-      .transform(val => val.trim().toUpperCase()),
-
-    wantsTextbook: z.boolean(),
-
-    address: z.object({
-      zipCode: z.string(),
-      address: z.string(),
-      detailAddress: z.string(),
-    }).optional(),
 
     marketingConsent: z.boolean().optional().default(false),
 
     termsConsent: z.boolean(),
 
     privacyConsent: z.boolean(),
+
+    ageConsent: z.boolean(),
+
+    emailVerificationToken: z.string().optional(), // 폼 인증 완료 시 발급된 토큰
   })
   .refine((data) => data.password === data.passwordConfirm, {
     message: '비밀번호가 일치하지 않습니다',
@@ -140,15 +100,9 @@ export const signupSchema = z
     message: '개인정보 처리방침 동의는 필수입니다',
     path: ['privacyConsent'],
   })
-  .refine((data) => {
-    // If wantsTextbook is true, address is required
-    if (data.wantsTextbook) {
-      return data.address?.zipCode && data.address?.address && data.address?.detailAddress
-    }
-    return true
-  }, {
-    message: '교재를 받으시려면 주소를 입력해주세요',
-    path: ['address'],
+  .refine((data) => data.ageConsent === true, {
+    message: '만 14세 미만 제한 동의는 필수입니다',
+    path: ['ageConsent'],
   })
 
 export type SignupFormData = z.infer<typeof signupSchema>
@@ -179,28 +133,13 @@ export function getPasswordStrength(password: string): {
   if (password.length >= 12) score += 1
   if (password.length >= 16) score += 1
 
-  if (/[a-z]/.test(password)) {
-    score += 1
-  } else {
-    feedback.push('소문자를 포함해주세요')
-  }
-
-  if (/[0-9]/.test(password)) {
-    score += 1
-  } else {
-    feedback.push('숫자를 포함해주세요')
-  }
-
-  if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-    score += 1
-  } else {
-    feedback.push('특수문자를 포함해주세요')
-  }
+  if (/[a-z]/.test(password)) score += 1
+  if (/[0-9]/.test(password)) score += 1
 
   let level: 'weak' | 'fair' | 'good' | 'strong' = 'weak'
-  if (score >= 4) level = 'fair'
-  if (score >= 5) level = 'good'
-  if (score >= 6) level = 'strong'
+  if (score >= 3) level = 'fair'
+  if (score >= 4) level = 'good'
+  if (score >= 5) level = 'strong'
 
   return { score, level, feedback }
 }

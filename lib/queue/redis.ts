@@ -1,26 +1,15 @@
 /**
  * Redis connection configuration for BullMQ
- * Environment variables should be loaded at application entry point
+ * Upstash: host/port/password + tls (권장 형식)
+ * 로컬: url
  */
 
 import { DEFAULT_REDIS_URL } from './constants'
 
-/**
- * Redis connection options interface
- */
-interface RedisConnectionOptions {
-  url: string
-  maxRetriesPerRequest: null
-  enableReadyCheck: boolean
-  keepAlive: number
-  tls: Record<string, unknown>
-}
+type RedisConnectionOptions =
+  | { url: string; maxRetriesPerRequest: null; enableReadyCheck: boolean; keepAlive: number; tls?: object }
+  | { host: string; port: number; password: string; maxRetriesPerRequest: null; enableReadyCheck: boolean; keepAlive: number; tls: object }
 
-/**
- * Validates Redis URL format
- * @param url - The Redis URL to validate
- * @returns true if URL is valid, false otherwise
- */
 function validateRedisUrl(url: string): boolean {
   try {
     const parsed = new URL(url)
@@ -36,22 +25,41 @@ if (!validateRedisUrl(redisUrl)) {
   throw new Error(`Invalid Redis URL format: ${redisUrl}`)
 }
 
-// Lazy loading - Connection is initialized at runtime
+function parseUpstashOptions(url: string): RedisConnectionOptions | null {
+  try {
+    const parsed = new URL(url)
+    if (!parsed.hostname?.includes('upstash.io')) return null
+    const password = parsed.password || decodeURIComponent(parsed.username || '')
+    return {
+      host: parsed.hostname,
+      port: parsed.port ? parseInt(parsed.port, 10) : 6379,
+      password,
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+      keepAlive: 30000,
+      tls: {},
+    }
+  } catch {
+    return null
+  }
+}
+
 let cachedConnection: RedisConnectionOptions | null = null
 
 export const redisConnection = {
-  /**
-   * Get or create Redis connection options for BullMQ
-   * Uses lazy loading to defer initialization until first use
-   */
   get connection(): RedisConnectionOptions {
     if (!cachedConnection) {
-      cachedConnection = {
-        url: redisUrl,
-        maxRetriesPerRequest: null, // Required for BullMQ
-        enableReadyCheck: false, // Improved performance
-        keepAlive: 30000, // 30 second keep-alive
-        tls: {}, // Upstash requires TLS/SSL connection
+      const upstashOpts = parseUpstashOptions(redisUrl)
+      if (upstashOpts) {
+        cachedConnection = upstashOpts
+      } else {
+        cachedConnection = {
+          url: redisUrl,
+          maxRetriesPerRequest: null,
+          enableReadyCheck: false,
+          keepAlive: 30000,
+          ...(redisUrl.startsWith('rediss://') ? { tls: {} } : {}),
+        }
       }
     }
     return cachedConnection

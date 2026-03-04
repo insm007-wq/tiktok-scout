@@ -1,58 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { signupSchema } from '@/lib/validations/auth'
-import { createUser, getUserById, getUserByPhone, checkWithdrawnStatus } from '@/lib/userLimits'
+import { createUser, getUserById, checkWithdrawnStatus } from '@/lib/userLimits'
 import { hashPassword } from '@/lib/auth/password'
 import { connectToDatabase } from '@/lib/mongodb'
-
-// 환경 변수에서 초대 코드 로드
-const INVITATION_CODE = process.env.INVITATION_CODE
-
-if (!INVITATION_CODE) {
-  console.error('[Signup API] ⚠️ WARNING: INVITATION_CODE not set!')
-}
+import crypto from 'crypto'
 
 /**
  * POST /api/auth/signup
- * 회원가입
+ * 회원가입 (폼 인증 완료 시 emailVerificationToken 필수)
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
 
-    // Zod 검증
     const parsed = signupSchema.safeParse(body)
-
     if (!parsed.success) {
       return NextResponse.json(
-        {
-          error: '입력값 검증 실패',
-          details: parsed.error.flatten().fieldErrors,
-        },
+        { error: '입력값 검증 실패', details: parsed.error.flatten().fieldErrors },
         { status: 400 }
       )
     }
 
     const data = parsed.data
+    const emailVerificationToken = body.emailVerificationToken as string | undefined
 
-    // 초대 코드 검증 (DONBOK 또는 FORMAN)
-    const submittedCode = data.invitationCode.trim().toUpperCase()
-
-    // 지원하는 코드: DONBOK (90일), FORMNA (30일)
-    const validCodes = {
-      DONBOK: { expiryDays: 90, planType: '프리미엄 90일' },
-      FORMNA: { expiryDays: 30, planType: '스탠다드 30일' },
-    } as const
-
-    if (!Object.keys(validCodes).includes(submittedCode)) {
-      console.warn('[Signup API] Invalid invitation code:', submittedCode)
+    if (!emailVerificationToken) {
       return NextResponse.json(
-        { error: '유효하지 않은 접근 코드입니다.' },
-        { status: 403 }
+        { error: '이메일 인증을 먼저 완료해주세요.' },
+        { status: 400 }
       )
     }
 
-    const codeConfig = validCodes[submittedCode as keyof typeof validCodes]
+    const { db } = await connectToDatabase()
+    const verified = await db.collection('email_verified_tokens').findOne({
+      token: emailVerificationToken,
+      email: data.email.trim().toLowerCase(),
+      expiresAt: { $gt: new Date() },
+    })
+    if (!verified) {
+      return NextResponse.json(
+        { error: '이메일 인증이 만료되었습니다. 인증을 다시 진행해주세요.' },
+        { status: 400 }
+      )
+    }
 
     // 이메일 중복 확인 및 탈퇴 상태 확인
     const existingEmail = await getUserById(data.email)
@@ -88,43 +79,37 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 핸드폰 번호 중복 확인
-    const existingPhone = await getUserByPhone(data.phone)
-    if (existingPhone) {
-      return NextResponse.json({ error: '이미 사용 중인 핸드폰 번호입니다' }, { status: 409 })
-    }
-
-    // 비밀번호 해싱
     const hashedPassword = await hashPassword(data.password)
 
-    // 주소 문자열 구성 (교재 수령 선택 시에만)
-    const addressString = data.address
-      ? `${data.address.zipCode} ${data.address.address} ${data.address.detailAddress}`
-      : undefined
-
-    // 사용자 생성 (유효한 초대 코드 입력 시 자동 승인)
-    const newUser = await createUser({
-      email: data.email,
+    await createUser({
+      email: data.email.trim().toLowerCase(),
       name: data.name,
-      phone: data.phone.replace(/-/g, ''), // 하이픈 제거
+      phone: data.phone.replace(/-/g, ''),
       password: hashedPassword,
-      address: addressString,
-      marketingConsent: data.marketingConsent,
-      wantsTextbook: data.wantsTextbook,
+      marketingConsent: data.marketingConsent ?? false,
       isApproved: true,
-      invitationCode: submittedCode, // 초대 코드 전달
+      isVerified: true,
     })
 
-    // 로그인 정보 출력
-    const planType = codeConfig.planType
-    console.log(`[Signup] ✓ 회원가입 완료: ${data.email} (${planType})`)
+    await db.collection('email_verified_tokens').deleteOne({ token: emailVerificationToken })
+
+    // 자동 로그인용 1회성 토큰
+    const loginToken = crypto.randomBytes(32).toString('hex')
+    await db.collection('one_time_logins').insertOne({
+      token: loginToken,
+      email: data.email.trim().toLowerCase(),
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      createdAt: new Date(),
+    })
+
+    console.log(`[Signup] ✓ 회원가입 완료: ${data.email}`)
 
     return NextResponse.json(
       {
         success: true,
-        message: '회원가입이 완료되었습니다. 로그인해주세요.',
-        email: newUser.email,
-        phone: newUser.phone,
+        message: '회원가입이 완료되었습니다.',
+        email: data.email,
+        loginToken, // 자동 로그인용
       },
       { status: 201 }
     )
@@ -144,7 +129,7 @@ export async function POST(req: NextRequest) {
     // MongoDB 중복 키 에러 처리
     if (error instanceof Error && error.message.includes('duplicate key')) {
       return NextResponse.json(
-        { error: '이미 사용 중인 이메일 또는 핸드폰 번호입니다' },
+        { error: '이미 사용 중인 이메일입니다' },
         { status: 409 }
       )
     }

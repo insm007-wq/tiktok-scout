@@ -1,46 +1,40 @@
 import { auth } from '@/lib/auth'
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
 
-export default async function proxy(req: NextRequest) {
+const PROTECTED_PATHS = ['/dashboard', '/profile', '/search', '/payments']
+const AUTH_PATHS = ['/auth/login', '/auth/signup', '/auth/forgot-password']
+
+// auth(handler) 패턴: JWTSessionError 발생 시 자동으로 쿠키 삭제 + req.auth에 세션 주입
+export default auth((req) => {
   const { pathname } = req.nextUrl
+  const session = req.auth
 
-  console.log(`[Proxy] ${pathname} 요청 - 인증 검사 중...`)
-
-  // 공개 라우트 (인증 불필요)
-  const isPublicRoute =
-    pathname === '/' ||
-    pathname.startsWith('/auth/login') ||
-    pathname.startsWith('/auth/signup') ||
-    pathname.startsWith('/auth/error')
-
-  if (isPublicRoute) {
-    console.log(`[Proxy] ${pathname} - 공개 라우트, 통과`)
-    return NextResponse.next()
-  }
-
-  // 인증 상태 확인
-  const session = await auth()
-  console.log(`[Proxy] ${pathname} - 세션 확인: ${session ? '로그인됨' : '미로그인'}`)
-
-  // 인증되지 않은 경우 로그인 페이지로 리다이렉트
-  if (!session) {
-    console.log(`[Proxy] ${pathname} - 미로그인 사용자, 로그인 페이지로 리다이렉트`)
-    const loginUrl = new URL('/auth/login', req.url)
+  // 보호 경로: 비로그인 시 로그인 페이지로 이동
+  const isProtected = PROTECTED_PATHS.some((p) => pathname.startsWith(p))
+  if (isProtected && !session) {
+    const loginUrl = new URL('/auth/login', req.nextUrl.origin)
     loginUrl.searchParams.set('callbackUrl', pathname)
     return NextResponse.redirect(loginUrl)
   }
 
-  // 관리자 라우트 확인
-  if (pathname.startsWith('/admin') && !session.user.isAdmin) {
-    console.log(`[Proxy] ${pathname} - 관리자 아님, 대시보드로 리다이렉트`)
-    return NextResponse.redirect(new URL('/dashboard', req.url))
+  // 이메일 미인증 사용자 차단
+  if (isProtected && session && !session.user?.isVerified) {
+    const loginUrl = new URL('/auth/login', req.nextUrl.origin)
+    loginUrl.searchParams.set('error', 'verify_required')
+    return NextResponse.redirect(loginUrl)
   }
 
-  console.log(`[Proxy] ${pathname} - 통과`)
+  // 인증 페이지: 이미 로그인된 경우 대시보드로 이동
+  const isAuthPage = AUTH_PATHS.some((p) => pathname.startsWith(p))
+  if (isAuthPage && session) {
+    return NextResponse.redirect(new URL('/dashboard', req.nextUrl.origin))
+  }
+
   return NextResponse.next()
-}
+})
 
 export const config = {
-  matcher: ['/dashboard', '/dashboard/:path*', '/admin/:path*', '/api/brightdata/:path*', '/api/admin/:path*'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp)$).*)',
+  ],
 }

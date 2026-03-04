@@ -4,6 +4,13 @@ import { connectToDatabase } from './mongodb'
 // 환경변수에서 기본 일일 할당량 설정
 const DEFAULT_DAILY_LIMIT = parseInt(process.env.DEFAULT_DAILY_LIMIT || '20', 10)
 
+/**
+ * 회원가입 시 제공하는 무료 검색/다운로드 횟수
+ * - 베타 기간 동안 기본값 50회
+ * - 필요 시 FREE_SIGNUP_LIMIT 환경변수로 조정 가능
+ */
+export const FREE_SIGNUP_LIMIT = parseInt(process.env.FREE_SIGNUP_LIMIT || '50', 10)
+
 interface User {
   _id?: ObjectId
   email: string  // Primary Key
@@ -153,6 +160,31 @@ export async function decrementUserQuota(email: string): Promise<boolean> {
   )
 
   return result !== null
+}
+
+/**
+ * 로그인 시 lastLogin, lastActive 갱신
+ * Credentials 로그인 성공 시 호출
+ */
+export async function updateLastLogin(email: string): Promise<void> {
+  try {
+    const { db } = await connectToDatabase()
+    const collection = getUsersCollection(db)
+    const now = new Date()
+    await collection.updateOne(
+      { email },
+      {
+        $set: {
+          lastLogin: now,
+          lastActive: now,
+          isOnline: true,
+          updatedAt: now,
+        },
+      }
+    )
+  } catch (error) {
+    console.error(`❌ [updateLastLogin] DB 오류 (${email}):`, error)
+  }
 }
 
 /**
@@ -498,8 +530,7 @@ export async function rejectUser(email: string, adminEmail: string): Promise<boo
 
 /**
  * 새로운 사용자 생성 (회원가입 시)
- * isApproved를 false로 설정하여 관리자 승인 대기 상태로 생성
- * invitationCode가 DONBOK/FORMAN이면 hasAccessCode: true로 설정
+ * 회원가입 시 무료 10회 제공, 이후 결제 시 플랜별로 업데이트
  */
 export async function createUser(userData: {
   email: string
@@ -512,25 +543,12 @@ export async function createUser(userData: {
   provider?: string
   providerId?: string
   isApproved?: boolean
-  invitationCode?: string
+  isVerified?: boolean
 }): Promise<User> {
   const { db } = await connectToDatabase()
   const collection = getUsersCollection(db)
 
   const now = new Date()
-
-  // 초대 코드 검증 (DONBOK 또는 FORMNA)
-  let hasAccessCode = false
-  let expiryDays: number | undefined = undefined
-  const code = userData.invitationCode?.trim().toUpperCase()
-
-  if (code === 'DONBOK') {
-    hasAccessCode = true
-    expiryDays = 90
-  } else if (code === 'FORMNA') {
-    hasAccessCode = true
-    expiryDays = 30
-  }
 
   const user: User = {
     email: userData.email,
@@ -538,8 +556,8 @@ export async function createUser(userData: {
     phone: userData.phone,
     provider: userData.provider || 'credentials',
     providerId: userData.providerId,
-    dailyLimit: DEFAULT_DAILY_LIMIT,
-    remainingLimit: DEFAULT_DAILY_LIMIT,
+    dailyLimit: FREE_SIGNUP_LIMIT,
+    remainingLimit: FREE_SIGNUP_LIMIT,
     todayUsed: 0,
     lastResetDate: new Date().toISOString().split('T')[0],
     isActive: true,
@@ -551,13 +569,10 @@ export async function createUser(userData: {
     updatedAt: now,
     isAdmin: false,
     isApproved: userData.isApproved ?? false,
-    // 마케팅 동의 저장
+    isVerified: userData.isVerified ?? false,
     marketingConsent: userData.marketingConsent ?? false,
     // 교재 배송 희망 저장
     wantsTextbook: userData.wantsTextbook ?? false,
-    // 유효한 초대 코드 입력 시만 hasAccessCode: true
-    hasAccessCode,
-    ...(hasAccessCode && { accessCodeUsedAt: now, expiryDays }),
   }
 
   // password는 선택적으로 추가

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
+import { connectToDatabase } from '@/lib/mongodb'
 import { withdrawUser, getUserById } from '@/lib/userLimits'
 import { verifyPassword } from '@/lib/auth/password'
 
@@ -58,6 +59,23 @@ export async function POST(req: NextRequest) {
         { error: '비밀번호가 일치하지 않습니다' },
         { status: 403 }
       )
+    }
+
+    // 구독 중이면 구독 취소 처리 (탈퇴 후 자동 결제 방지)
+    const { db } = await connectToDatabase()
+    const subscription = await db.collection('subscriptions').findOne({ email })
+    if (subscription && subscription.status !== 'cancelled') {
+      await db.collection('subscriptions').updateOne(
+        { email },
+        {
+          $set: {
+            status: 'cancelled',
+            cancelledAt: new Date(),
+            updatedAt: new Date(),
+          },
+        }
+      )
+      console.log(`[Withdraw API] 구독 취소 처리: ${email}`)
     }
 
     // 회원 탈퇴 처리

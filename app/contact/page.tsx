@@ -14,6 +14,14 @@ export default function ContactPage() {
       </div>
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-12">
+        <div className="mb-6">
+          <Link
+            href="/"
+            className="inline-flex items-center px-6 py-2 text-white bg-white/25 hover:bg-white/35 border border-white/50 hover:border-white/60 rounded-lg transition-all text-sm font-semibold shadow-sm"
+          >
+            ← 메인으로
+          </Link>
+        </div>
         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 md:p-12 text-white space-y-8">
           <div className="flex flex-col gap-3">
             <h1 className="text-4xl font-bold gradient-text">고객센터 / 사업자 정보</h1>
@@ -26,10 +34,10 @@ export default function ContactPage() {
               <p>
                 <strong>문의 이메일:</strong>{" "}
                 <a
-                  href="mailto:aiyumisejong@gmail.com"
+                  href="mailto:synergynano2026@gmail.com"
                   className="text-cyan-400 hover:text-cyan-300"
                 >
-                  aiyumisejong@gmail.com
+                  synergynano2026@gmail.com
                 </a>
               </p>
               <p>

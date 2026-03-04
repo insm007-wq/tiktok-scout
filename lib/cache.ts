@@ -10,6 +10,8 @@ import { VideoCacheDocument, generateCacheKey } from './models/VideoCache';
 import { LRUCache } from 'lru-cache';
 import { isR2Url, isCdnUrl } from './utils/validateMediaUrl';
 
+const isDev = process.env.NODE_ENV !== 'production';
+
 interface CacheEntry<T> {
   data: T;
   expiresAt: number;
@@ -129,17 +131,19 @@ export async function getVideoFromMongoDB(
       return null;
     }
 
-    // ✅ DEBUG: 캐시 히트 로그
-    const remainingMs = cached.expiresAt.getTime() - Date.now();
-    const remainingHours = (remainingMs / (60 * 60 * 1000)).toFixed(1);
-    console.log(`[Cache] ✅ Cache hit from MongoDB`, {
-      platform,
-      query: query.substring(0, 30),
-      videoCount: cached.videos.length,
-      expiresAt: cached.expiresAt.toISOString(),
-      remainingHours: parseFloat(remainingHours),
-      remainingMs,
-    });
+    // ✅ DEBUG: 캐시 히트 로그 (개발 환경에서만 상세 출력)
+    if (isDev) {
+      const remainingMs = cached.expiresAt.getTime() - Date.now();
+      const remainingHours = (remainingMs / (60 * 60 * 1000)).toFixed(1);
+      console.log(`[Cache] ✅ Cache hit from MongoDB`, {
+        platform,
+        query: query.substring(0, 30),
+        videoCount: cached.videos.length,
+        expiresAt: cached.expiresAt.toISOString(),
+        remainingHours: parseFloat(remainingHours),
+        remainingMs,
+      });
+    }
 
     // 조회 통계 업데이트 (비동기로 실행)
     // searchCount: 사용자 검색 횟수 (인기도 판정용)
@@ -192,20 +196,22 @@ export async function setVideoToMongoDB(
       lastAccessedAt: new Date(),
     };
 
-    // ✅ DEBUG: TTL 검증 로그
-    const ttlMs = ttlDays * 24 * 60 * 60 * 1000;
-    const ttlHours = (ttlMs / (60 * 60 * 1000)).toFixed(1);
-    console.log(`[Cache] 💾 Saving to MongoDB`, {
-      platform,
-      query: query.substring(0, 30),
-      videoCount: videos.length,
-      ttlDays,
-      ttlHours: parseFloat(ttlHours),
-      expiresAt: expiresAt.toISOString(),
-      createdAt: doc.createdAt.toISOString(),
-      expiresAtTimestamp: expiresAt.getTime(),
-      nowTimestamp: Date.now(),
-    });
+    // ✅ DEBUG: TTL 검증 로그 (개발 환경에서만)
+    if (isDev) {
+      const ttlMs = ttlDays * 24 * 60 * 60 * 1000;
+      const ttlHours = (ttlMs / (60 * 60 * 1000)).toFixed(1);
+      console.log(`[Cache] 💾 Saving to MongoDB`, {
+        platform,
+        query: query.substring(0, 30),
+        videoCount: videos.length,
+        ttlDays,
+        ttlHours: parseFloat(ttlHours),
+        expiresAt: expiresAt.toISOString(),
+        createdAt: doc.createdAt.toISOString(),
+        expiresAtTimestamp: expiresAt.getTime(),
+        nowTimestamp: Date.now(),
+      });
+    }
 
     const result = await db.collection('video_cache').updateOne(
       { cacheKey },
@@ -213,17 +219,19 @@ export async function setVideoToMongoDB(
       { upsert: true }
     );
 
-    console.log(`[Cache] ✅ MongoDB 저장 완료`, {
-      platform,
-      query: query.substring(0, 30),
-      videoCount: videos.length,
-      cacheKey: cacheKey.substring(0, 50),
-      upsertedId: result.upsertedId,
-      modifiedCount: result.modifiedCount,
-      matchedCount: result.matchedCount,
-      expiresAt: expiresAt.toISOString(),
-      timestamp: new Date().toISOString()
-    });
+    if (isDev) {
+      console.log(`[Cache] ✅ MongoDB 저장 완료`, {
+        platform,
+        query: query.substring(0, 30),
+        videoCount: videos.length,
+        cacheKey: cacheKey.substring(0, 50),
+        upsertedId: result.upsertedId,
+        modifiedCount: result.modifiedCount,
+        matchedCount: result.matchedCount,
+        expiresAt: expiresAt.toISOString(),
+        timestamp: new Date().toISOString()
+      });
+    }
 
   } catch (error) {
     console.error(`[Cache] ❌ MongoDB 저장 실패`, {
@@ -271,12 +279,14 @@ export async function getVideoFromCache(
       return acc;
     }, { r2: 0, cdn: 0, unknown: 0 });
 
-    console.log(`[Cache] 📊 Cache returned`, {
-      platform,
-      query: query.substring(0, 30),
-      totalVideos: validVideos.length,
-      urlStats,
-    });
+    if (isDev) {
+      console.log(`[Cache] 📊 Cache returned`, {
+        platform,
+        query: query.substring(0, 30),
+        totalVideos: validVideos.length,
+        urlStats,
+      });
+    }
 
     const filteredCache = { videos: validVideos };
 
@@ -310,14 +320,17 @@ export async function setVideoToCache(
     return acc;
   }, { r2: 0, cdn: 0, unknown: 0 });
 
-  console.log(`[Cache] 💾 Saving to cache`, {
-    platform,
-    query: query.substring(0, 30),
-    videoCount: videos.length,
-    urlStats,
-  });
+  if (isDev) {
+    console.log(`[Cache] 💾 Saving to cache`, {
+      platform,
+      query: query.substring(0, 30),
+      videoCount: videos.length,
+      thumbnailCount: videos.filter(v => !!v.thumbnail).length,
+      urlStats,
+    });
+  }
 
-  // ⚠️ CDN URL 비율이 30% 이상이면 경고
+  // ⚠️ CDN URL 비율이 30% 이상이면 경고 (운영에서도 유지)
   if (urlStats.cdn > videos.length * 0.3) {
     console.warn(`[Cache] ⚠️ High CDN URL ratio detected (${((urlStats.cdn / videos.length) * 100).toFixed(1)}%)`, {
       platform,
@@ -356,17 +369,21 @@ export async function clearSearchCache(
     // L1 메모리 캐시 삭제 (getVideoFromCache와 동일한 키 형식 사용)
     const memoryKey = `video:${platform}:${query}:${dateRange || 'all'}`;
     cache.delete(memoryKey);
-    console.log(`[Cache] L1 cache cleared: ${memoryKey}`);
+    if (isDev) {
+      console.log(`[Cache] L1 cache cleared: ${memoryKey}`);
+    }
 
     // L2 MongoDB 캐시 삭제 (generateCacheKey 사용)
     const db = await getDb();
     const cacheKey = generateCacheKey(platform, query, dateRange);
     const result = await db.collection('video_cache').deleteOne({ cacheKey });
 
-    if (result.deletedCount > 0) {
-      console.log(`[Cache] L2 cache cleared: ${cacheKey}`);
-    } else {
-      console.log(`[Cache] No L2 cache found: ${cacheKey}`);
+    if (isDev) {
+      if (result.deletedCount > 0) {
+        console.log(`[Cache] L2 cache cleared: ${cacheKey}`);
+      } else {
+        console.log(`[Cache] No L2 cache found: ${cacheKey}`);
+      }
     }
   } catch (error) {
     console.error('[Cache] Error clearing search cache:', error);

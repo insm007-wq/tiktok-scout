@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchWithRetry } from '@/lib/utils/fetch-with-retry';
+import { fetchSingleVideoUrl } from '@/lib/utils/fetch-single-video-url';
 import { auth } from '@/lib/auth';
 import { checkApiUsage, incrementApiUsage } from '@/lib/apiUsage';
+
+const VALID_PLATFORMS = ['tiktok', 'douyin'] as const;
+const isDev = process.env.NODE_ENV !== 'production';
 
 // SRT를 순수 텍스트로 변환 (시간, 씬 번호 제거)
 function parseSrtToText(srtContent: string): string {
@@ -47,39 +51,36 @@ export async function POST(req: NextRequest) {
       }
 
       // 3. 사용량 증가 (자막 추출 요청 시 차감)
-      await incrementApiUsage(session.user.email, 'extract-subtitles');
+      await incrementApiUsage(session.user.email, undefined, 'subtitles');
     }
 
     const { videoUrl, videoId, platform = 'tiktok', webVideoUrl, format = 'text' } = await req.json();
 
-    // TikTok과 Douyin만 지원 (Xiaohongshu는 향후 추가)
-    if (platform !== 'tiktok' && platform !== 'douyin') {
+    if (!VALID_PLATFORMS.includes(platform)) {
       return NextResponse.json(
-        { error: `${platform}은(는) 자막 추출을 지원하지 않습니다. (현재 TikTok, Douyin만 지원)` },
+        { error: `${platform}은(는) 자막 추출을 지원하지 않습니다.` },
         { status: 400 }
       );
     }
 
     let finalVideoUrl = videoUrl;
 
-    // Xiaohongshu on-demand video URL fetching (향후 지원)
-    if (platform === 'xiaohongshu' && !videoUrl && webVideoUrl) {
-      try {
-        const fetchRes = await fetch('http://localhost:3000/api/fetch-xiaohongshu-video', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ postUrl: webVideoUrl }),
-        });
-
-        const fetchData = await fetchRes.json();
-        if (!fetchData.success) {
-          throw new Error(fetchData.error || 'Failed to fetch video URL');
-        }
-
-        finalVideoUrl = fetchData.videoUrl;
-      } catch (error) {
-        console.error('[ExtractSubtitles] Xiaohongshu video URL fetch failed:', error);
-        throw new Error(error instanceof Error ? error.message : '영상 URL을 가져올 수 없습니다.');
+    // webVideoUrl만 있을 경우 CDN URL 조회 (download-video와 동일 방식)
+    if (!finalVideoUrl && webVideoUrl) {
+      if (isDev) {
+        console.log('[ExtractSubtitles] 🚀 webVideoUrl에서 CDN URL 조회:', webVideoUrl);
+      }
+      const apiKey = process.env.APIFY_API_KEY;
+      if (!apiKey) {
+        return NextResponse.json({ error: '서버 설정 오류: APIFY_API_KEY가 없습니다.' }, { status: 500 });
+      }
+      const result = await fetchSingleVideoUrl(webVideoUrl, platform as 'tiktok' | 'douyin', apiKey);
+      if (result.error || !result.videoUrl) {
+        return NextResponse.json({ error: result.error || '영상 URL을 가져올 수 없습니다.' }, { status: 400 });
+      }
+      finalVideoUrl = result.videoUrl;
+      if (isDev && finalVideoUrl) {
+        console.log('[ExtractSubtitles] ✅ CDN URL 조회 성공:', finalVideoUrl.substring(0, 100));
       }
     }
 
@@ -90,13 +91,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('[ExtractSubtitles] Starting subtitle extraction for video:', videoId);
+    if (isDev) {
+      console.log('[ExtractSubtitles] Starting subtitle extraction for video:', videoId);
+    }
 
     // 플랫폼별 Referer 설정
     const refererMap: Record<string, string> = {
       'tiktok': 'https://www.tiktok.com/',
       'douyin': 'https://www.douyin.com/',
-      'xiaohongshu': 'https://www.xiaohongshu.com/',
     };
 
     // 비디오 다운로드
@@ -111,7 +113,8 @@ export async function POST(req: NextRequest) {
     if (!videoResponse.ok && finalVideoUrl.includes('?')) {
       const isCDN = finalVideoUrl.includes('tiktokcdn') ||
                     finalVideoUrl.includes('douyinpic') ||
-                    finalVideoUrl.includes('xhscdn');
+                    finalVideoUrl.includes('xhscdn') ||
+                    finalVideoUrl.includes('api.apify.com');
 
       if (isCDN) {
         console.warn('[ExtractSubtitles] Retrying without query parameters...');
@@ -125,7 +128,9 @@ export async function POST(req: NextRequest) {
         });
 
         if (retryResponse.ok) {
-          console.log('[ExtractSubtitles] Retry successful');
+          if (isDev) {
+            console.log('[ExtractSubtitles] Retry successful');
+          }
           videoResponse = retryResponse;
         }
       }
@@ -184,7 +189,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('[ExtractSubtitles] Video file size:', (buffer.byteLength / (1024 * 1024)).toFixed(2), 'MB');
+    if (isDev) {
+      console.log('[ExtractSubtitles] Video file size:', (buffer.byteLength / (1024 * 1024)).toFixed(2), 'MB');
+    }
 
     // OpenAI Whisper API를 사용한 자막 추출
     const openaiApiKey = process.env.OPENAI_API_KEY;
@@ -203,7 +210,9 @@ export async function POST(req: NextRequest) {
     formData.append('response_format', 'srt');
     // 언어 자동 감지 - language 파라미터 생략
 
-    console.log('[ExtractSubtitles] Calling OpenAI Whisper API...');
+    if (isDev) {
+      console.log('[ExtractSubtitles] Calling OpenAI Whisper API...');
+    }
 
     const whisperResponse = await fetchWithRetry(
       'https://api.openai.com/v1/audio/transcriptions',
@@ -260,7 +269,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('[ExtractSubtitles] ✅ Subtitle extraction successful');
+    if (isDev) {
+      console.log('[ExtractSubtitles] ✅ Subtitle extraction successful');
+    }
 
     // 포맷에 따라 변환
     const filePrefix = platform === 'douyin' ? 'douyin' : 'tiktok';

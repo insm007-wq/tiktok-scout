@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 const LAST_UPDATED = "2026-02-11";
 
 export default function TermsPage() {
@@ -12,6 +14,14 @@ export default function TermsPage() {
       </div>
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-12">
+        <div className="mb-6">
+          <Link
+            href="/"
+            className="inline-flex items-center px-6 py-2 text-white bg-white/25 hover:bg-white/35 border border-white/50 hover:border-white/60 rounded-lg transition-all text-sm font-semibold shadow-sm"
+          >
+            ← 메인으로
+          </Link>
+        </div>
         {/* Main content */}
         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 md:p-12 text-white space-y-8">
           <div>
@@ -51,7 +61,7 @@ export default function TermsPage() {
                 <p className="font-semibold text-white mb-1">1-3 정의</p>
                 <div className="text-white/80 ml-4 space-y-1">
                   <p>
-                    <strong>"서비스":</strong> TikTok, Douyin, 샤오홍슈 등 동영상 플랫폼의 영상 검색 및 분석 기능
+                    <strong>"서비스":</strong> TikTok, Douyin 등 동영상 플랫폼의 영상 검색 및 분석 기능
                   </p>
                   <p>
                     <strong>"이용자":</strong> 본 약관에 동의하고 서비스를 이용하는 개인
@@ -179,7 +189,7 @@ export default function TermsPage() {
                 </li>
                 <li className="flex gap-3">
                   <span className="text-pink-400">•</span>
-                  <span>외부 API(Apify, Bright Data 등) 장애로 인한 서비스 중단</span>
+                  <span>외부 API(제3자 데이터 서비스 등) 장애로 인한 서비스 중단</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="text-pink-400">•</span>
@@ -287,20 +297,6 @@ export default function TermsPage() {
             </div>
           </section>
 
-          {/* 동의 섹션 */}
-          <div className="bg-cyan-500/20 border border-cyan-500/50 rounded-lg p-4 mt-8">
-            <p className="text-white text-center">본 서비스 이용약관에 동의하시고 서비스를 이용하시게 됩니다.</p>
-          </div>
-
-          {/* 동의하고 창 닫기 버튼 */}
-          <div className="flex gap-3 mt-8">
-            <button
-              onClick={() => window.close()}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-pink-400 text-black rounded-lg hover:shadow-[0_0_20px_rgba(34,211,238,0.5)] transition-all font-semibold"
-            >
-              동의하고 계속하기
-            </button>
-          </div>
         </div>
       </div>
     </div>

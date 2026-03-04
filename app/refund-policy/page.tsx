@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
+
 const LAST_UPDATED = "2026-02-11";
-const SUPPORT_EMAIL = "aiyumisejong@gmail.com";
+const SUPPORT_EMAIL = "synergynano2026@gmail.com";
 
 export default function RefundPolicyPage() {
   return (
@@ -13,6 +15,14 @@ export default function RefundPolicyPage() {
       </div>
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-12">
+        <div className="mb-6">
+          <Link
+            href="/"
+            className="inline-flex items-center px-6 py-2 text-white bg-white/25 hover:bg-white/35 border border-white/50 hover:border-white/60 rounded-lg transition-all text-sm font-semibold shadow-sm"
+          >
+            ← 메인으로
+          </Link>
+        </div>
         {/* Main content */}
         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 md:p-12 text-white space-y-8">
           <div>

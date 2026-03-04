@@ -9,7 +9,7 @@ export default function PricingPage() {
   const [copied, setCopied] = useState(false);
   const emailRef = useRef<HTMLButtonElement>(null);
   const LAST_UPDATED = "2026-02-11";
-  const SUPPORT_EMAIL = "aiyumisejong@gmail.com";
+  const SUPPORT_EMAIL = "synergynano2026@gmail.com";
 
   const handleCopyEmail = async () => {
     try {
@@ -68,10 +68,8 @@ export default function PricingPage() {
     }
   ];
 
-  const handleSubscribe = (planId: string) => {
+  const handlePlanSelect = (planId: string) => {
     setSelectedPlan(planId);
-    // 토스페이먼츠 심사/오픈 준비 중: 결제 대신 고객센터로 안내
-    router.push(`/contact?plan=${planId}`);
   };
 
   return (
@@ -87,7 +85,7 @@ export default function PricingPage() {
         <div className="mb-8">
           <button
             onClick={() => router.push('/')}
-            className="px-6 py-2 text-white/70 hover:text-white border border-white/20 hover:border-white/40 rounded-lg transition-all text-sm font-medium"
+            className="px-6 py-2 text-white bg-white/25 hover:bg-white/35 border border-white/50 hover:border-white/60 rounded-lg transition-all text-sm font-semibold shadow-sm"
           >
             ← 메인으로
           </button>
@@ -104,55 +102,57 @@ export default function PricingPage() {
             당신의 필요에 맞는 완벽한 플랜을 선택하세요
           </p>
           <p className="text-white/50 text-sm mt-4">
-            최근 수정일: {LAST_UPDATED} · 결제는 토스페이먼츠 연동/심사 진행 중이며, 현재는 구독 문의로 접수됩니다.
+            최근 수정일: {LAST_UPDATED} · 토스페이먼츠로 안전하게 결제합니다
           </p>
         </div>
 
-        {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        {/* Pricing Cards - pt-8 gives space for "가장 인기" badge overlap */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12 pt-8">
           {plans.map((plan) => (
             <div
               key={plan.id}
-              onClick={() => setSelectedPlan(plan.id)}
-              className="relative group rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer h-full"
+              onClick={() => handlePlanSelect(plan.id)}
+              className="relative group transition-all duration-300 cursor-pointer h-full"
             >
-              {/* Card background */}
-              <div
-                className={`absolute inset-0 rounded-2xl blur-xl transition-all duration-300 ${
-                  selectedPlan === plan.id
-                    ? 'bg-gradient-to-r from-cyan-500/40 to-pink-500/40 opacity-100'
-                    : 'bg-gradient-to-r from-cyan-500/20 to-pink-500/20 opacity-0 group-hover:opacity-100'
-                }`}
-              />
-
-              {/* Card content */}
-              <div
-                className={`relative p-8 rounded-2xl border backdrop-blur-md transition-all duration-300 h-full flex flex-col ${
-                  selectedPlan === plan.id
-                    ? 'border-cyan-400/80 bg-white/15 ring-2 ring-cyan-400/50'
-                    : 'border-white/20 bg-white/10 group-hover:border-white/40 group-hover:bg-white/15'
-                }`}
-              >
-                {/* Popular or Selected badge */}
-                {plan.highlighted && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-gradient-to-r from-cyan-500 to-pink-500 text-black px-4 py-1 rounded-full text-sm font-bold">
-                      가장 인기
-                    </span>
-                  </div>
-                )}
+              {/* Badge - outside overflow so it overlaps top of card without clipping */}
+              {plan.highlighted && (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
+                  <span className="bg-gradient-to-r from-cyan-500 to-pink-500 text-black px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap block">
+                    가장 인기
+                  </span>
+                </div>
+              )}
 
                 {selectedPlan === plan.id && !plan.highlighted && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-gradient-to-r from-cyan-400 to-cyan-300 text-black px-4 py-1 rounded-full text-sm font-bold flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      선택됨
-                    </span>
-                  </div>
-                )}
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
+                  <span className="bg-gradient-to-r from-cyan-400 to-cyan-300 text-black px-4 py-1 rounded-full text-sm font-bold flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    선택됨
+                  </span>
+                </div>
+              )}
 
+              {/* Card - overflow-hidden only on this inner div for blur clipping */}
+              <div className="relative rounded-2xl overflow-hidden h-full">
+                {/* Card background */}
+                <div
+                  className={`absolute inset-0 rounded-2xl blur-xl transition-all duration-300 ${
+                    selectedPlan === plan.id
+                      ? 'bg-gradient-to-r from-cyan-500/40 to-pink-500/40 opacity-100'
+                      : 'bg-gradient-to-r from-cyan-500/20 to-pink-500/20 opacity-0 group-hover:opacity-100'
+                  }`}
+                />
+
+                {/* Card content */}
+                <div
+                  className={`relative p-8 rounded-2xl border backdrop-blur-md transition-all duration-300 h-full flex flex-col ${
+                    selectedPlan === plan.id
+                      ? 'border-cyan-400/80 bg-white/15 ring-2 ring-cyan-400/50'
+                      : 'border-white/20 bg-white/10 group-hover:border-white/40 group-hover:bg-white/15'
+                  }`}
+                >
                 {/* Plan name */}
                 <h3 className="text-2xl font-bold text-white mb-2">{plan.name}</h3>
                 <p className="text-white/60 text-sm mb-6">{plan.description}</p>
@@ -179,7 +179,7 @@ export default function PricingPage() {
                 </div>
 
                 {/* Features - flex-1 to grow and push button down */}
-                <ul className="space-y-3 mb-8 flex-1">
+                <ul className="space-y-3 mb-0">
                   {plan.features.map((feature, idx) => (
                     <li key={idx} className="flex gap-3 text-white/80 text-sm">
                       <svg
@@ -198,17 +198,7 @@ export default function PricingPage() {
                   ))}
                 </ul>
 
-                {/* Subscribe button - stays at bottom */}
-                <button
-                  onClick={() => handleSubscribe(plan.id)}
-                  className={`w-full py-3 rounded-lg font-semibold transition-all duration-300 mt-auto ${
-                    selectedPlan === plan.id
-                      ? 'bg-gradient-to-r from-cyan-500 to-pink-400 text-black hover:shadow-[0_0_20px_rgba(34,211,238,0.5)]'
-                      : 'bg-white/10 text-white border border-white/20 hover:bg-white/20 hover:border-white/40'
-                  }`}
-                >
-                  {selectedPlan === plan.id ? '✓ 선택됨' : '구독 문의'}
-                </button>
+              </div>
               </div>
             </div>
           ))}
@@ -225,7 +215,7 @@ export default function PricingPage() {
               <strong className="text-white">상품 형태:</strong> 월간 구독형 디지털 서비스 (웹 기반)
             </p>
             <p>
-              <strong className="text-white">제공 내용:</strong> TikTok / Douyin / 샤오홍슈 영상 검색 및 분석 기능과
+              <strong className="text-white">제공 내용:</strong> TikTok / Douyin 영상 검색 및 분석 기능과
               다운로드·자막 추출 기능(플랜별 일일 사용량 제한)
             </p>
             <p>

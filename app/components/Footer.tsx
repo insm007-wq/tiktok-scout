@@ -19,7 +19,7 @@ export default function Footer() {
           </Link>
           <span className="text-white/30">|</span>
 
-          <a href="mailto:aiyumisejong@gmail.com" className="text-white/60 hover:text-cyan-400 transition-colors">
+          <a href="mailto:synergynano2026@gmail.com" className="text-white/60 hover:text-cyan-400 transition-colors">
             고객문의
           </a>
           <span className="text-white/30">|</span>
@@ -88,7 +88,7 @@ export default function Footer() {
         {/* Bottom Copyright */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 text-xs text-white/40">
           <p>© 2025 TikTalk Killa. All rights reserved.</p>
-          <p>TikTok, Douyin, Xiaohongshu는 각 회사의 상표입니다.</p>
+          <p>TikTok, Douyin은 각 회사의 상표입니다.</p>
         </div>
       </div>
     </footer>

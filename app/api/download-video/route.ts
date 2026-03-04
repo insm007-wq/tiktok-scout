@@ -3,9 +3,14 @@ import { fetchSingleVideoUrl } from '@/lib/utils/fetch-single-video-url';
 import { auth } from '@/lib/auth';
 import { checkApiUsage, incrementApiUsage } from '@/lib/apiUsage';
 
+const VALID_PLATFORMS = ['tiktok', 'douyin'] as const;
+const isDev = process.env.NODE_ENV !== 'production';
+
 export async function POST(req: NextRequest) {
   try {
-    console.log('[Download] ========== POST request received ==========');
+    if (isDev) {
+      console.log('[Download] ========== POST request received ==========');
+    }
 
     // 1. 세션 확인
     const session = await auth();
@@ -32,43 +37,65 @@ export async function POST(req: NextRequest) {
       }
 
       // 3. 사용량 증가 (다운로드 요청 시 차감)
-      await incrementApiUsage(session.user.email, 'download-video');
+      await incrementApiUsage(session.user.email, undefined, 'download');
     }
 
     const { videoUrl, videoId, platform = 'tiktok', webVideoUrl } = await req.json();
-    console.log('[Download] Request body:', { videoUrl, videoId, platform, webVideoUrl });
+
+    if (!VALID_PLATFORMS.includes(platform)) {
+      return NextResponse.json(
+        { error: '유효하지 않은 플랫폼입니다.' },
+        { status: 400 }
+      );
+    }
+
+    if (isDev) {
+      console.log('[Download] Request body:', { videoUrl, videoId, platform, webVideoUrl });
+    }
 
     let finalVideoUrl = videoUrl;
 
     // Handle on-demand video URL fetching for all platforms when videoUrl is not provided
     if (!videoUrl && webVideoUrl) {
-      console.log(`[Download] 🚀 ${platform}: Fetching video URL from web URL: ${webVideoUrl}`);
+      if (isDev) {
+        console.log(`[Download] 🚀 ${platform}: Fetching video URL from web URL: ${webVideoUrl}`);
+      }
 
       try {
-        console.log('[Download] 📍 Checking APIFY_API_KEY...');
+        if (isDev) {
+          console.log('[Download] 📍 Checking APIFY_API_KEY...');
+        }
         const apiKey = process.env.APIFY_API_KEY;
         if (!apiKey) {
           throw new Error('APIFY_API_KEY not configured');
         }
-        console.log('[Download] ✓ API key found');
+        if (isDev) {
+          console.log('[Download] ✓ API key found');
+        }
 
-        // Use Apify to fetch the actual CDN video URL from the web page
-        console.log(`[Download] 📡 Calling fetchSingleVideoUrl for ${platform}...`);
+        // Fetch the actual CDN video URL from the web page
+        if (isDev) {
+          console.log(`[Download] 📡 Calling fetchSingleVideoUrl for ${platform}...`);
+        }
         const result = await fetchSingleVideoUrl(webVideoUrl, platform as any, apiKey);
-        console.log('[Download] 📥 fetchSingleVideoUrl result:', JSON.stringify(result));
+        if (isDev) {
+          console.log('[Download] 📥 fetchSingleVideoUrl result:', JSON.stringify(result));
+        }
 
         if (result.error) {
           console.error(`[Download] ❌ fetchSingleVideoUrl returned error:`, result.error);
           throw new Error(result.error);
         }
 
-        if (!result.videoUrl) {
-          console.error(`[Download] ❌ No videoUrl in result:`, result);
+        if (result.videoUrl) {
+          finalVideoUrl = result.videoUrl;
+        } else {
           throw new Error('Could not extract video URL from page');
         }
 
-        finalVideoUrl = result.videoUrl;
-        console.log(`[Download] ✅ ${platform} video URL extracted successfully:`, finalVideoUrl.substring(0, 100));
+        if (finalVideoUrl && isDev) {
+          console.log(`[Download] ✅ ${platform} video URL extracted successfully:`, finalVideoUrl.substring(0, 100));
+        }
 
       } catch (error) {
         console.error(`[Download] ❌ ${platform} video URL fetch failed:`, error);
@@ -78,18 +105,6 @@ export async function POST(req: NextRequest) {
             : `${platform} URL에서 영상을 가져올 수 없습니다. 올바른 공개 영상 URL인지 확인해주세요.`
         );
       }
-    }
-
-    // Handle Xiaohongshu: no videoUrl available, fallback to web view
-    if (!finalVideoUrl && platform === 'xiaohongshu') {
-      return NextResponse.json(
-        {
-          error: 'Xiaohongshu는 웹에서 직접 보기만 지원됩니다',
-          webVideoUrl: webVideoUrl,
-          openInBrowser: true,
-        },
-        { status: 400 }
-      );
     }
 
     if (!finalVideoUrl) {
@@ -103,7 +118,6 @@ export async function POST(req: NextRequest) {
     const refererMap: Record<string, string> = {
       'tiktok': 'https://www.tiktok.com/',
       'douyin': 'https://www.douyin.com/',
-      'xiaohongshu': 'https://www.xiaohongshu.com/',
     };
 
     // 비디오 URL에서 파일 fetch
@@ -120,8 +134,7 @@ export async function POST(req: NextRequest) {
       // ✅ NEW: CDN URL 재시도 (query parameter 제거)
       if (finalVideoUrl.includes('?')) {
         const isCDN = finalVideoUrl.includes('tiktokcdn') ||
-                      finalVideoUrl.includes('douyinpic') ||
-                      finalVideoUrl.includes('xhscdn');
+                      finalVideoUrl.includes('douyinpic');
 
         if (isCDN) {
           console.warn('[Download] ⚠️ Retrying without query parameters...');
@@ -135,7 +148,9 @@ export async function POST(req: NextRequest) {
           });
 
           if (retryResponse.ok) {
-            console.log('[Download] ✅ Retry successful');
+            if (isDev) {
+              console.log('[Download] ✅ Retry successful');
+            }
             videoResponse = retryResponse;
           }
         }
@@ -165,7 +180,9 @@ export async function POST(req: NextRequest) {
 
     // Validate Content-Type
     const contentType = videoResponse.headers.get('Content-Type');
-    console.log('[Download] Content-Type:', contentType);
+    if (isDev) {
+      console.log('[Download] Content-Type:', contentType);
+    }
 
     if (!contentType || !(contentType.includes('video') || contentType.includes('octet-stream'))) {
       console.error('[Download] Invalid Content-Type:', contentType);
@@ -188,11 +205,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('[Download] Video file size:', buffer.byteLength, 'bytes');
+    if (isDev) {
+      console.log('[Download] Video file size:', buffer.byteLength, 'bytes');
+    }
 
     // 파일명 생성 (플랫폼별)
-    const filePrefix = platform === 'douyin' ? 'douyin' :
-                       platform === 'xiaohongshu' ? 'xiaohongshu' : 'tiktok';
+    const filePrefix = platform === 'douyin' ? 'douyin' : 'tiktok';
     const fileName = `${filePrefix}_${videoId}.mp4`;
 
     // 다운로드 응답 반환
