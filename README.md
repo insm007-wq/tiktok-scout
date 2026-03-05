@@ -49,8 +49,9 @@ cp .env.local.example .env.local
 ```
 
 필수 환경 변수:
-- `NEXTAUTH_SECRET` - NextAuth JWT 시크릿
-- `NEXTAUTH_URL` - 애플리케이션 URL
+- `AUTH_SECRET` - Auth.js JWT 시크릿 (또는 `NEXTAUTH_SECRET`)
+- `AUTH_URL` - 애플리케이션 절대 URL (예: `https://tiktalk-killa.com`, 또는 `NEXTAUTH_URL`)
+- **배포 시 리다이렉트 루프 방지**: `AUTH_TRUST_HOST=true` 반드시 설정
 - `MONGODB_URI` - MongoDB 연결 문자열
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - Google OAuth
 - `AUTH_KAKAO_ID` / `AUTH_KAKAO_SECRET` - Kakao OAuth
@@ -62,6 +63,23 @@ npm run dev
 ```
 
 브라우저에서 `http://localhost:3000` 열기
+
+### Vercel 배포 시 ERR_TOO_MANY_REDIRECTS 방지
+
+프론트를 **Vercel**에서 배포할 때 "리디렉션한 횟수가 너무 많습니다"가 나오면, Vercel에서 아래 환경 변수를 넣어주세요.
+
+1. **Vercel 대시보드** → 프로젝트 선택 → **Settings** → **Environment Variables**
+2. 다음 변수 추가 (Production에 체크):
+
+| 이름 | 값 | 비고 |
+|------|-----|------|
+| `AUTH_URL` | `https://tiktalk-killa.com` | 커스텀 도메인 사용 시 그 주소로. Vercel 기본 도메인만 쓰면 `https://프로젝트명.vercel.app` |
+| `AUTH_TRUST_HOST` | `true` | **필수** — Vercel 프록시 뒤에서 호스트 신뢰 |
+| `AUTH_SECRET` | (랜덤 문자열) | 없으면 `openssl rand -base64 32`로 생성. 기존 `NEXTAUTH_SECRET` 있어도 동일 값 사용 가능 |
+
+3. **Save** 후 상단 **Deployments** → 최신 배포 옆 **⋯** → **Redeploy** (캐시 없이 재배포 권장).
+
+그래도 오류가 나면 사용자에게 **해당 사이트 쿠키 삭제** 후 다시 접속하라고 안내하세요.
 
 ## 📦  기술 스택
 

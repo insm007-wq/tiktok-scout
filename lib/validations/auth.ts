@@ -3,9 +3,21 @@ import { z } from 'zod'
 /**
  * Step 1: 기본 정보 검증 스키마
  */
+// 이름: 앞뒤 공백 제거 후 2자 이상, 공백/기호만 있는 값 거부
+const nameSchema = z
+  .string()
+  .transform((s) => s.trim())
+  .pipe(
+    z
+      .string()
+      .min(2, '이름은 2자 이상이어야 합니다')
+      .max(50, '이름은 50자 이하여야 합니다')
+      .refine((s) => /[가-힣a-zA-Z]/.test(s), '이름에는 한글 또는 영문이 포함되어야 합니다')
+  )
+
 export const infoSchema = z
   .object({
-    name: z.string().min(2, '이름은 2자 이상이어야 합니다').max(50, '이름은 50자 이하여야 합니다'),
+    name: nameSchema,
 
     email: z.string().email('올바른 이메일 형식이 아닙니다'),
 
@@ -60,7 +72,7 @@ export type ConsentFormData = z.infer<typeof consentSchema>
  */
 export const signupSchema = z
   .object({
-    name: z.string().min(2, '이름은 2자 이상이어야 합니다').max(50, '이름은 50자 이하여야 합니다'),
+    name: nameSchema,
 
     email: z.string().email('올바른 이메일 형식이 아닙니다'),
 

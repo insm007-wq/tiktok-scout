@@ -290,9 +290,10 @@ export async function getAllUsers(
     // 쿼리 조건 구성
     const query: any = {}
 
-    // 검색 조건
+    // 검색 조건 (ReDoS 방지: 정규식 특수문자 이스케이프)
     if (filters?.search) {
-      const searchRegex = { $regex: filters.search, $options: 'i' }
+      const escaped = String(filters.search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const searchRegex = { $regex: escaped, $options: 'i' }
       query.$or = [
         { email: searchRegex },
         { name: searchRegex },

@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongodb'
 import { getUserById } from '@/lib/userLimits'
 import { sendVerificationCodeEmail } from '@/lib/email'
+import { getClientIp, isEmailRateLimitExceeded, recordEmailSend } from '@/lib/rateLimitEmail'
 
 /**
  * POST /api/auth/send-verification-code
  * 6자리 인증 코드 발송 (회원가입 폼용)
+ * - IP당 1시간에 5회까지 (악용 방지)
  */
 export async function POST(req: NextRequest) {
   try {
@@ -26,6 +28,15 @@ export async function POST(req: NextRequest) {
     }
 
     const { db } = await connectToDatabase()
+
+    // IP당 1시간 발송 횟수 제한 (스팸/악용 방지)
+    const ip = getClientIp(req)
+    if (await isEmailRateLimitExceeded(db, ip, 'verification')) {
+      return NextResponse.json(
+        { error: '요청이 너무 많습니다. 1시간 후 다시 시도해주세요.' },
+        { status: 429 }
+      )
+    }
 
     // 1분 내 재발송 방지
     const recent = await db.collection('email_verification_codes').findOne({
@@ -50,6 +61,7 @@ export async function POST(req: NextRequest) {
     })
 
     await sendVerificationCodeEmail(trimmedEmail, code)
+    await recordEmailSend(db, ip, 'verification')
 
     return NextResponse.json({ success: true, message: '인증 코드를 발송했습니다.' })
   } catch (error) {

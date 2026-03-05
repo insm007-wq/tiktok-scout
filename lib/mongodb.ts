@@ -125,6 +125,14 @@ async function initializeIndexes(db: Db) {
     await subscriptionsCollection.createIndex({ status: 1, currentPeriodEnd: 1 })
     await subscriptionsCollection.createIndex({ billingKey: 1 }, { sparse: true })
 
+    // email_send_rate_limits: IP별 이메일 발송 한도용, 2시간 후 자동 삭제
+    const emailRateLimitCollection = db.collection('email_send_rate_limits')
+    await emailRateLimitCollection.createIndex(
+      { expireAt: 1 },
+      { expireAfterSeconds: 0, background: true }
+    )
+    await emailRateLimitCollection.createIndex({ ip: 1, type: 1, createdAt: -1 })
+
   } catch (error) {
     if ((error as any).code === 48 || (error as any).code === 68) {
       // 인덱스 이미 존재 (정상)

@@ -35,15 +35,22 @@ export async function POST(req: NextRequest) {
     // 업데이트할 필드 준비
     const updateData: any = {}
 
-    // 이름 변경
+    // 이름 변경 (회원가입과 동일: trim, 2~50자, 한글/영문 포함)
     if (body.name !== undefined && body.name !== null) {
-      if (typeof body.name !== 'string' || body.name.length < 2 || body.name.length > 50) {
+      const name = typeof body.name === 'string' ? body.name.trim() : ''
+      if (name.length < 2 || name.length > 50) {
         return NextResponse.json(
           { error: '이름은 2자 이상 50자 이하여야 합니다' },
           { status: 400 }
         )
       }
-      updateData.name = body.name
+      if (!/[가-힣a-zA-Z]/.test(name)) {
+        return NextResponse.json(
+          { error: '이름에는 한글 또는 영문이 포함되어야 합니다' },
+          { status: 400 }
+        )
+      }
+      updateData.name = name
     }
 
     // 전화번호 변경

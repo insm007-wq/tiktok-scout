@@ -14,6 +14,7 @@ const COLLECTIONS = [
   'email_verified_tokens',
   'password_reset_codes',
   'one_time_logins',
+  'email_send_rate_limits',
 ] as const
 
 export async function POST(_req: NextRequest) {

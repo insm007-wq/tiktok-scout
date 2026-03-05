@@ -183,12 +183,14 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
           <label htmlFor="name" className="block text-sm font-medium text-white/90 mb-2">
             이름 <span className="text-red-400">*</span>
           </label>
+          <p className="text-white/60 text-xs mb-1.5">2~50자, 한글 또는 영문 포함</p>
           <input
             id="name"
             type="text"
             value={formData.name || ''}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="이름"
+            placeholder="예: 홍길동"
+            maxLength={50}
             className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all"
           />
           {fieldErrors.name && (
