@@ -37,30 +37,15 @@ const getIcon = (type: ToastType) => {
 const getIconColor = (type: ToastType): string => {
   switch (type) {
     case 'error':
-      return '#ff6b6b'
+      return '#ff4444'
     case 'warning':
-      return '#ffa500'
+      return '#ff9800'
     case 'success':
-      return '#00E573'
+      return '#00e676'
     case 'info':
-      return '#9D4EDD'
+      return '#40c4ff'
     default:
-      return 'rgba(255, 255, 255, 0.6)'
-  }
-}
-
-const getBackgroundColor = (type: ToastType): string => {
-  switch (type) {
-    case 'error':
-      return 'rgba(239, 68, 68, 0.15)'
-    case 'warning':
-      return 'rgba(245, 158, 11, 0.15)'
-    case 'success':
-      return 'rgba(0, 229, 115, 0.15)'
-    case 'info':
-      return 'rgba(157, 78, 221, 0.15)'
-    default:
-      return 'rgba(255, 255, 255, 0.08)'
+      return 'rgba(255, 255, 255, 0.9)'
   }
 }
 
@@ -78,8 +63,7 @@ export default function Toast({ toasts, onRemove, position = 'top-center' }: Toa
             transition={{ duration: 0.4, ease: 'easeOut' }}
           >
             <div
-              className="toast-content"
-              style={{ backgroundColor: getBackgroundColor(toast.type) }}
+              className={`toast-content toast-content--${toast.type}`}
             >
               <div className="toast-body">
                 <div className="toast-icon" style={{ color: getIconColor(toast.type) }}>

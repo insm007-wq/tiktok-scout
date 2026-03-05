@@ -57,12 +57,37 @@ cp .env.local.example .env.local
 - `AUTH_KAKAO_ID` / `AUTH_KAKAO_SECRET` - Kakao OAuth
 - `AUTH_NAVER_ID` / `AUTH_NAVER_SECRET` - Naver OAuth
 
-### 3. 개발 서버 시작
-```bash
-npm run dev
-```
+### 3. 로컬에서 큐(Queue) 실행 (검색 작업 처리)
 
-브라우저에서 `http://localhost:3000` 열기
+검색 시 캐시에 없으면 **Redis + 워커**가 필요합니다.
+
+1. **Redis 실행** (로컬용, Docker 필요):
+   ```bash
+   npm run redis:local
+   ```
+   → `redis://localhost:6379` 에서 Redis가 떠 있어야 합니다. Docker 없으면 [Redis 설치](https://redis.io/docs/install/) 후 `redis-server` 실행.
+
+2. **개발 서버 + 워커 동시 실행**:
+   ```bash
+   npm run dev
+   ```
+   → 워커가 별도 창에서 실행되고, Next 서버가 현재 터미널에서 실행됩니다.
+
+3. **워커만 따로 실행** (이미 `next dev`만 켜 둔 경우):
+   ```bash
+   npm run worker:dev
+   ```
+   → `.env.local`에 `APIFY_API_KEY`, `REDIS_URL`(또는 기본값 `redis://localhost:6379`)이 있어야 합니다.
+
+**로컬에서 큐가 안 돌아갈 때**
+- Redis가 안 떠 있으면 → `npm run redis:local` 후 다시 시도.
+- 워커 창이 바로 꺼지면 → 터미널에서 `npm run worker:dev`를 직접 실행해 보면 에러 메시지가 나옵니다. (`APIFY_API_KEY`, Redis 연결 확인.)
+
+### 4. 개발 서버만 시작 (큐 없이)
+```bash
+npx next dev
+```
+브라우저에서 `http://localhost:3000` 열기 (검색 시 캐시 없으면 대기열에만 들어가고, 워커가 없으면 작업이 처리되지 않음)
 
 ### Vercel 배포 시 ERR_TOO_MANY_REDIRECTS 방지
 

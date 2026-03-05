@@ -27,8 +27,9 @@ function maskEmail(email: string): string {
   return email.substring(0, 2) + '***' + email.substring(atIndex)
 }
 
-// 프로덕션 리다이렉트 루프 방지: 프록시/로드밸런서 뒤에서 호스트 신뢰 (배포 시 AUTH_TRUST_HOST=true 설정)
-const trustHost = process.env.AUTH_TRUST_HOST === 'true'
+// 호스트 신뢰: 로컬 개발은 항상 신뢰, 프로덕션은 AUTH_TRUST_HOST=true 시 신뢰 (리다이렉트 루프 방지)
+const trustHost =
+  process.env.NODE_ENV === 'development' || process.env.AUTH_TRUST_HOST === 'true'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost,
