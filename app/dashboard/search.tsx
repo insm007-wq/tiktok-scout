@@ -247,19 +247,29 @@ export default function Search() {
         return;
       }
 
-      const listRes = await fetch("/api/bookmarks");
-      const listData = await listRes.json();
-      if (listData.bookmarks) {
-        setBookmarkVideos(listData.bookmarks.map((b: any) => ({ ...b.videoData, _platform: b.platform } as Video)));
+      const list = Array.isArray(data.bookmarks) ? data.bookmarks : null;
+      if (list) {
+        setBookmarkVideos(list.map((b: any) => ({ ...b.videoData, _platform: b.platform } as Video)));
         setFailedThumbnails(new Set());
+      } else {
+        const listRes = await fetch("/api/bookmarks");
+        const listData = await listRes.json();
+        if (listData.bookmarks) {
+          setBookmarkVideos(listData.bookmarks.map((b: any) => ({ ...b.videoData, _platform: b.platform } as Video)));
+          setFailedThumbnails(new Set());
+        }
       }
 
-      addToast(
-        "success",
-        `썸네일/프리뷰 ${data.updatedCount ?? 0}개 새로고침 완료`,
-        "🔄 전체 새로고침",
-        3500,
-      );
+      const updated = data.updatedCount ?? 0;
+      const failedCount = data.failedCount ?? 0;
+      const skippedCount = data.skippedCount ?? 0;
+      const msg =
+        updated === 0 && failedCount === 0 && skippedCount > 0
+          ? "갱신할 항목이 없습니다. 썸네일/비디오 URL이 이미 최신 상태입니다."
+          : failedCount > 0
+            ? `썸네일/프리뷰 ${updated}개 새로고침 완료 (${failedCount}개 실패)`
+            : `썸네일/프리뷰 ${updated}개 새로고침 완료`;
+      addToast("success", msg, "🔄 전체 새로고침", 3500);
     } catch (error) {
       console.error("[Search] Refresh all bookmarks error:", error);
       addToast("error", "전체 새로고침 중 오류가 발생했습니다.", "❌ 전체 새로고침 실패");

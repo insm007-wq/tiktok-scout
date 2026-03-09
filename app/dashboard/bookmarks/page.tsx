@@ -146,20 +146,29 @@ export default function BookmarksPage() {
         return;
       }
 
-      // 최신 북마크 목록 다시 가져오기
-      const listRes = await fetch("/api/bookmarks");
-      const listData = await listRes.json();
-      if (listData.bookmarks) {
-        setBookmarks(listData.bookmarks);
+      // 응답에 포함된 최신 목록으로 바로 반영 (추가 GET 요청 없음)
+      if (Array.isArray(data.bookmarks)) {
+        setBookmarks(data.bookmarks);
         setFailedThumbnails(new Set());
+      } else {
+        const listRes = await fetch("/api/bookmarks");
+        const listData = await listRes.json();
+        if (listData.bookmarks) {
+          setBookmarks(listData.bookmarks);
+          setFailedThumbnails(new Set());
+        }
       }
 
-      addToast(
-        "success",
-        `썸네일/프리뷰 ${data.updatedCount ?? 0}개 새로고침 완료`,
-        "🔄 전체 새로고침",
-        3500,
-      );
+      const updated = data.updatedCount ?? 0;
+      const failedCount = data.failedCount ?? 0;
+      const skippedCount = data.skippedCount ?? 0;
+      const message =
+        updated === 0 && failedCount === 0 && skippedCount > 0
+          ? "갱신할 항목이 없습니다. 썸네일/비디오 URL이 이미 최신 상태입니다."
+          : failedCount > 0
+            ? `썸네일/프리뷰 ${updated}개 새로고침 완료 (${failedCount}개 실패)`
+            : `썸네일/프리뷰 ${updated}개 새로고침 완료`;
+      addToast("success", message, "🔄 전체 새로고침", 3500);
     } catch (error) {
       console.error("[Bookmarks] Refresh all error:", error);
       addToast("error", "전체 새로고침 중 오류가 발생했습니다.", "❌ 전체 새로고침 실패");
