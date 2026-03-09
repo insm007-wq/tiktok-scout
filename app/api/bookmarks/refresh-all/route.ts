@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
 import type { Db } from 'mongodb';
+import { ObjectId } from 'mongodb';
 import { isCdnUrl } from '@/lib/utils/validateMediaUrl';
 import { fetchSingleVideoUrl } from '@/lib/utils/fetch-single-video-url';
 
@@ -50,7 +51,7 @@ async function fetchThumbnailFromPage(webVideoUrl: string): Promise<string | nul
 }
 
 type BookmarkDoc = {
-  _id: unknown;
+  _id: ObjectId;
   videoId: string;
   platform: string;
   videoData?: Record<string, unknown>;
