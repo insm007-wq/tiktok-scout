@@ -10,8 +10,9 @@ dotenv.config({ path: '.env.local' })
 dotenv.config()
 
 // Next.js( next dev )와 같은 큐 사용: video-search-dev
-if (!process.env.NODE_ENV) process.env.NODE_ENV = 'development'
-if (!process.env.WORKER_CONCURRENCY) process.env.WORKER_CONCURRENCY = '2'
+const env = process.env as Record<string, string | undefined>
+if (!env.NODE_ENV) env.NODE_ENV = 'development'
+if (!env.WORKER_CONCURRENCY) env.WORKER_CONCURRENCY = '2'
 
 // 환경 설정 후 메인 워커 로드 (동적 import로 평가 시점 보장)
 void import('./search-worker')
