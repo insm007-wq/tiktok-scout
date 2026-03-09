@@ -39,6 +39,8 @@ export default function LoginForm() {
         setError('탈퇴한 계정입니다.')
       } else if (errorParam === 'EMAIL_NOT_VERIFIED') {
         setError('이메일 인증이 필요합니다. 받은 편지함을 확인해주세요.')
+      } else if (errorParam === 'verify_required') {
+        setError('이메일 인증이 필요합니다. 가입 시 등록한 이메일의 인증 링크를 확인해주세요. 새 인증 메일이 필요하면 아래 비밀번호 찾기를 이용해 주세요.')
       }
     }
   }, [searchParams])

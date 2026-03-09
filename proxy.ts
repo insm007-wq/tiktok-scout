@@ -17,16 +17,17 @@ export default auth((req) => {
     return NextResponse.redirect(loginUrl)
   }
 
-  // 이메일 미인증 사용자 차단
-  if (isProtected && session && !session.user?.isVerified) {
+  // 이메일 미인증 사용자 차단 (isVerified === false일 때만. undefined는 구 JWT 호환으로 통과)
+  if (isProtected && session && session.user?.isVerified === false) {
     const loginUrl = new URL('/auth/login', req.nextUrl.origin)
     loginUrl.searchParams.set('error', 'verify_required')
     return NextResponse.redirect(loginUrl)
   }
 
-  // 인증 페이지: 이미 로그인된 경우 대시보드로 이동
+  // 인증 페이지: 이미 로그인 + 이메일 인증된 경우에만 대시보드로 이동
+  // 이메일 미인증(isVerified === false) 사용자는 로그인 페이지에 머물러 안내 메시지를 보도록 함
   const isAuthPage = AUTH_PATHS.some((p) => pathname.startsWith(p))
-  if (isAuthPage && session) {
+  if (isAuthPage && session && session.user?.isVerified !== false) {
     return NextResponse.redirect(new URL('/dashboard', req.nextUrl.origin))
   }
 

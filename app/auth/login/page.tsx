@@ -8,10 +8,16 @@ export const metadata = {
   description: "틱톡 킬라 계정으로 로그인하세요",
 };
 
-export default async function LoginPage() {
-  // 이미 로그인되어 있으면 대시보드로 리다이렉트
+type Props = { searchParams: Promise<{ error?: string }> };
+
+export default async function LoginPage({ searchParams }: Props) {
   const session = await auth();
-  if (session) {
+  const resolved = await searchParams;
+  const isVerifyRequired = resolved?.error === "verify_required";
+
+  // 이미 로그인 + 이메일 인증까지 된 경우에만 대시보드로 리다이렉트
+  // 이메일 미인증(verify_required)으로 넘어온 사용자는 로그인 페이지에 머물러 안내 메시지를 봐야 함
+  if (session && !isVerifyRequired && session.user?.isVerified !== false) {
     redirect("/dashboard");
   }
 

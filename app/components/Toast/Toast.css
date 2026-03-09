@@ -49,33 +49,34 @@
   justify-content: center;
   padding: 12px 24px;
   border-radius: 10px;
-  border: 2px solid;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  border: 1px solid;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
   width: 100%;
   backdrop-filter: blur(16px);
   gap: 16px;
   margin: 8px;
+  background: linear-gradient(135deg, rgba(28, 28, 32, 0.95) 0%, rgba(18, 18, 22, 0.98) 100%);
 }
 
-/* 눈에 잘 띄는 타입별 배경/테두리 */
+/* 블랙 테마에 맞는 타입별 포인트(테두리 + 은은한 틴트) */
 .toast-content--success {
-  background: linear-gradient(135deg, rgba(0, 230, 118, 0.28) 0%, rgba(0, 200, 83, 0.22) 100%);
-  border-color: rgba(0, 230, 118, 0.7);
+  border-color: rgba(46, 125, 50, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04), inset 0 1px 0 rgba(76, 175, 80, 0.08);
 }
 
 .toast-content--error {
-  background: linear-gradient(135deg, rgba(255, 82, 82, 0.32) 0%, rgba(244, 67, 54, 0.26) 100%);
-  border-color: rgba(255, 82, 82, 0.85);
+  border-color: rgba(198, 40, 40, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04), inset 0 1px 0 rgba(244, 67, 54, 0.08);
 }
 
 .toast-content--warning {
-  background: linear-gradient(135deg, rgba(255, 167, 38, 0.32) 0%, rgba(255, 152, 0, 0.26) 100%);
-  border-color: rgba(255, 167, 38, 0.85);
+  border-color: rgba(245, 124, 0, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04), inset 0 1px 0 rgba(255, 152, 0, 0.08);
 }
 
 .toast-content--info {
-  background: linear-gradient(135deg, rgba(64, 196, 255, 0.28) 0%, rgba(33, 150, 243, 0.22) 100%);
-  border-color: rgba(64, 196, 255, 0.75);
+  border-color: rgba(25, 118, 210, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04), inset 0 1px 0 rgba(33, 150, 243, 0.08);
 }
 
 .toast-body {
